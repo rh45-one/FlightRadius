@@ -19,13 +19,28 @@ type CallsignEntry = {
 const colorOptions = [
   "#22d3ee",
   "#38bdf8",
+  "#6366f1",
   "#a855f7",
+  "#ec4899",
+  "#f43f5e",
   "#f97316",
+  "#f59e0b",
+  "#84cc16",
   "#34d399",
-  "#f43f5e"
+  "#10b981",
+  "#94a3b8"
 ];
 
-const iconOptions = ["plane", "cargo", "military", "training", "vip"];
+const iconOptions = [
+  "plane",
+  "cargo",
+  "military",
+  "helicopter",
+  "drone",
+  "balloon",
+  "training",
+  "vip"
+];
 
 const parseCallsigns = (value: string) => {
   return value
@@ -355,20 +370,25 @@ const BulkAddAircraftModal = ({ isOpen, onClose }: BulkAddAircraftModalProps) =>
                         className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
                       />
                     </label>
-                    <label className="flex flex-col gap-2">
-                      Color tag
-                      <select
-                        value={groupColor}
-                        onChange={(event) => setGroupColor(event.target.value)}
-                        className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
-                      >
+                    <div className="flex flex-col gap-2">
+                      <span>Color tag</span>
+                      <div className="flex flex-wrap gap-2">
                         {colorOptions.map((color) => (
-                          <option key={color} value={color}>
-                            {color}
-                          </option>
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setGroupColor(color)}
+                            className={`h-7 w-7 rounded-full border transition ${
+                              groupColor === color
+                                ? "border-white/80 shadow-[0_0_0_2px_rgba(255,255,255,0.2)]"
+                                : "border-white/10"
+                            }`}
+                            style={{ backgroundColor: color }}
+                            aria-label={`Select ${color} group color`}
+                          />
                         ))}
-                      </select>
-                    </label>
+                      </div>
+                    </div>
                     <label className="flex flex-col gap-2">
                       Icon
                       <select
