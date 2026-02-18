@@ -262,6 +262,55 @@ const normalizeState = (state: Array<string | number | null>) => {
   } satisfies AircraftTelemetry;
 };
 
+const normalizeCallsign = (callsign: string) => callsign.trim().toUpperCase();
+
+export const isValidCallsign = (input: string) =>
+  /^[A-Z0-9]{2,8}$/.test(normalizeCallsign(input));
+
+const getStatesSnapshot = async () => {
+  const config = getConfig();
+  const response = await fetchStatesQueued(config);
+  return response.states || [];
+};
+
+export const getAircraftTelemetryByCallsign = async (callsign: string) => {
+  const target = normalizeCallsign(callsign);
+  const states = await getStatesSnapshot();
+  const state = states.find((item) => {
+    const value = typeof item[1] === "string" ? item[1].trim().toUpperCase() : "";
+    return value === target;
+  });
+
+  if (!state) {
+    throw new ApiError("Aircraft not found", 404);
+  }
+
+  const telemetry = normalizeState(state);
+  setCacheEntry(telemetry.icao24, telemetry);
+  return telemetry;
+};
+
+export const validateCallsigns = async (callsigns: string[]) => {
+  const targets = new Set(callsigns.map(normalizeCallsign));
+  const states = await getStatesSnapshot();
+  const found = new Set<string>();
+
+  for (const state of states) {
+    const value = typeof state[1] === "string" ? state[1].trim().toUpperCase() : "";
+    if (value && targets.has(value)) {
+      found.add(value);
+    }
+  }
+
+  return callsigns.map((callsign) => {
+    const normalized = normalizeCallsign(callsign);
+    return {
+      callsign,
+      status: found.has(normalized) ? "valid" : "no-data"
+    } as const;
+  });
+};
+
 export const getAircraftTelemetry = async (icao24: string) => {
   const key = icao24.toLowerCase();
   const cached = getCacheEntry<AircraftTelemetry>(key);

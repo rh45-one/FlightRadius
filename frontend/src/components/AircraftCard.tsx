@@ -1,12 +1,21 @@
-import { Aircraft } from "../store/aircraftStore";
 import { AircraftTelemetry } from "../services/api";
 
+type AircraftLike = {
+  id: string;
+  icao24?: string;
+  callsign?: string;
+  notes?: string;
+  createdAt: string;
+};
+
 type AircraftCardProps = {
-  aircraft: Aircraft;
+  aircraft: AircraftLike;
   onRemove: () => void;
   telemetry?: AircraftTelemetry;
   status: "loading" | "live" | "stale" | "offline";
   errorMessage?: string;
+  groupLabel?: string;
+  groupColor?: string;
 };
 
 const AircraftCard = ({
@@ -14,7 +23,9 @@ const AircraftCard = ({
   onRemove,
   telemetry,
   status,
-  errorMessage
+  errorMessage,
+  groupLabel,
+  groupColor
 }: AircraftCardProps) => {
   const statusStyles = {
     loading: "bg-slate-400/10 text-slate-200",
@@ -34,15 +45,17 @@ const AircraftCard = ({
     ? new Date(telemetry.last_contact * 1000).toLocaleTimeString()
     : "—";
 
+  const primaryId = aircraft.callsign || aircraft.icao24 || "Unknown";
+
   return (
     <div className="flex h-full flex-col justify-between rounded-3xl border border-white/10 bg-white/5 p-5 shadow-glow backdrop-blur">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-            {aircraft.icao24}
+            {primaryId}
           </p>
           <h3 className="mt-2 text-lg font-semibold text-white">
-            {aircraft.callsign || "Unassigned callsign"}
+            {aircraft.callsign || aircraft.icao24 || "Unassigned callsign"}
           </h3>
           {aircraft.notes ? (
             <p className="mt-2 text-sm text-slate-300">{aircraft.notes}</p>
@@ -51,6 +64,18 @@ const AircraftCard = ({
               No notes added yet.
             </p>
           )}
+          {groupLabel ? (
+            <span
+              className="mt-3 inline-flex items-center rounded-full px-3 py-1 text-xs"
+              style={{
+                backgroundColor: groupColor ? `${groupColor}22` : "#0f172a",
+                color: groupColor || "#94a3b8",
+                border: groupColor ? `1px solid ${groupColor}55` : "1px solid #1f2937"
+              }}
+            >
+              {groupLabel}
+            </span>
+          ) : null}
         </div>
         <span
           className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${

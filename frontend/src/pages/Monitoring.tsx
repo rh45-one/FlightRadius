@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import AircraftCard from "../components/AircraftCard";
 import AddAircraftModal from "../components/AddAircraftModal";
+import BulkAddAircraftModal from "../components/BulkAddAircraftModal";
 import { useAircraftStore } from "../store/aircraftStore";
-import { getAircraftStatus, AircraftTelemetry } from "../services/api";
+import {
+  getAircraftStatus,
+  getAircraftStatusByCallsign,
+  AircraftTelemetry
+} from "../services/api";
 import { useLocationStore } from "../store/locationStore";
+import { useFleetStore } from "../store/fleetStore";
 
 type TelemetryState = {
   status: "loading" | "live" | "stale" | "offline";
@@ -11,8 +17,20 @@ type TelemetryState = {
   errorMessage?: string;
 };
 
+type CombinedAircraft = {
+  id: string;
+  callsign?: string;
+  icao24?: string;
+  notes?: string;
+  createdAt: string;
+  groupId?: string;
+  source: "bulk" | "single";
+};
+
 const Monitoring = () => {
   const { aircraft, addAircraft, removeAircraft, ui } = useAircraftStore();
+  const { fleetAircraft, removeFleetAircraft, getGroupById, groups } =
+    useFleetStore();
   const {
     currentPosition,
     permissionStatus,
@@ -21,6 +39,7 @@ const Monitoring = () => {
     errorState
   } = useLocationStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [telemetry, setTelemetry] = useState<Record<string, TelemetryState>>(
     {}
   );
@@ -49,6 +68,18 @@ const Monitoring = () => {
     ? new Date(lastUpdated).toLocaleTimeString()
     : "—";
 
+  const combinedAircraft = useMemo<CombinedAircraft[]>(() => {
+    const bulk = fleetAircraft.map((item) => ({
+      ...item,
+      source: "bulk" as const
+    }));
+    const singles = aircraft.map((item) => ({
+      ...item,
+      source: "single" as const
+    }));
+    return [...bulk, ...singles];
+  }, [aircraft, fleetAircraft]);
+
   const densityClasses = useMemo(() => {
     return ui.cardDensity === "compact"
       ? "gap-4 sm:grid-cols-2 lg:grid-cols-3"
@@ -58,14 +89,14 @@ const Monitoring = () => {
   useEffect(() => {
     let isActive = true;
 
-    if (aircraft.length === 0) {
+    if (combinedAircraft.length === 0) {
       setTelemetry({});
       return;
     }
 
     setTelemetry((prev) => {
       const next: Record<string, TelemetryState> = { ...prev };
-      for (const entry of aircraft) {
+      for (const entry of combinedAircraft) {
         next[entry.id] = {
           status: "loading",
           data: prev[entry.id]?.data
@@ -76,9 +107,17 @@ const Monitoring = () => {
 
     const loadTelemetry = async () => {
       await Promise.all(
-        aircraft.map(async (entry) => {
+        combinedAircraft.map(async (entry) => {
           try {
-            const data = await getAircraftStatus(entry.icao24);
+            const data = entry.icao24
+              ? await getAircraftStatus(entry.icao24)
+              : entry.callsign
+              ? await getAircraftStatusByCallsign(entry.callsign)
+              : null;
+
+            if (!data) {
+              throw new Error("Missing identifier");
+            }
             if (!isActive) {
               return;
             }
@@ -115,7 +154,7 @@ const Monitoring = () => {
     return () => {
       isActive = false;
     };
-  }, [aircraft]);
+  }, [combinedAircraft]);
 
   return (
     <section className="pt-8">
@@ -173,34 +212,71 @@ const Monitoring = () => {
             <p className="mt-3 text-xs text-rose-200">{errorState}</p>
           ) : null}
         </div>
-        <button
-          className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-soft transition hover:opacity-90"
-          onClick={() => setIsModalOpen(true)}
-        >
-          Add aircraft
-        </button>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <button
+            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-soft transition hover:opacity-90"
+            onClick={() => setIsModalOpen(true)}
+          >
+            Add aircraft
+          </button>
+          <button
+            className="inline-flex items-center justify-center rounded-full border border-white/20 px-5 py-2 text-xs uppercase tracking-[0.2em] text-slate-200 transition hover:border-white/40"
+            onClick={() => setIsBulkOpen(true)}
+          >
+            Bulk import
+          </button>
+        </div>
       </div>
 
+      {groups.length > 0 ? (
+        <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-glow backdrop-blur">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                Group tracking
+              </p>
+              <h2 className="mt-2 text-lg font-semibold text-white">
+                Map view (placeholder)
+              </h2>
+            </div>
+            <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">
+              Coming soon
+            </span>
+          </div>
+          <div className="mt-4 h-48 rounded-2xl border border-dashed border-white/10 bg-slate-950/40" />
+        </div>
+      ) : null}
+
       <div className="mt-8">
-        {aircraft.length === 0 ? (
+        {combinedAircraft.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-white/5 px-6 py-10 text-center shadow-glow backdrop-blur">
             <p className="text-sm text-slate-300">
-              No aircraft tracked yet. Add the first ICAO24 to begin building
-              your list.
+              No aircraft tracked yet. Add an ICAO24 or import callsigns to
+              begin building your list.
             </p>
           </div>
         ) : (
           <div className={`grid grid-cols-1 ${densityClasses}`}>
-            {aircraft.map((item) => (
-              <AircraftCard
-                key={item.id}
-                aircraft={item}
-                onRemove={() => removeAircraft(item.id)}
-                telemetry={telemetry[item.id]?.data}
-                status={telemetry[item.id]?.status || "loading"}
-                errorMessage={telemetry[item.id]?.errorMessage}
-              />
-            ))}
+            {combinedAircraft.map((item) => {
+              const group = item.groupId ? getGroupById(item.groupId) : undefined;
+
+              return (
+                <AircraftCard
+                  key={item.id}
+                  aircraft={item}
+                  onRemove={() =>
+                    item.source === "bulk"
+                      ? removeFleetAircraft(item.id)
+                      : removeAircraft(item.id)
+                  }
+                  telemetry={telemetry[item.id]?.data}
+                  status={telemetry[item.id]?.status || "loading"}
+                  errorMessage={telemetry[item.id]?.errorMessage}
+                  groupLabel={group?.name}
+                  groupColor={group?.color}
+                />
+              );
+            })}
           </div>
         )}
       </div>
@@ -212,6 +288,10 @@ const Monitoring = () => {
           addAircraft(payload);
           setIsModalOpen(false);
         }}
+      />
+      <BulkAddAircraftModal
+        isOpen={isBulkOpen}
+        onClose={() => setIsBulkOpen(false)}
       />
     </section>
   );

@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 
 export type Aircraft = {
   id: string;
-  icao24: string;
+  icao24?: string;
   callsign?: string;
   notes?: string;
   createdAt: string;

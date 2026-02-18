@@ -20,12 +20,45 @@ export type UserLocationPayload = {
 };
 
 export const getAircraftStatus = async (icao24: string) => {
-  const response = await fetch(`${API_BASE}/aircraft/${icao24}`);
+  const response = await fetch(
+    `${API_BASE}/aircraft/${encodeURIComponent(icao24)}`
+  );
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new Error(body?.error || "Failed to fetch aircraft status");
   }
   return (await response.json()) as AircraftTelemetry;
+};
+
+export const getAircraftStatusByCallsign = async (callsign: string) => {
+  const response = await fetch(
+    `${API_BASE}/aircraft/callsign/${encodeURIComponent(callsign)}`
+  );
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error || "Failed to fetch aircraft status");
+  }
+  return (await response.json()) as AircraftTelemetry;
+};
+
+export const validateCallsigns = async (callsigns: string[]) => {
+  const response = await fetch(`${API_BASE}/aircraft/validate-callsigns`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ callsigns })
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error || "Failed to validate callsigns");
+  }
+
+  return (await response.json()) as {
+    status: string;
+    results: { callsign: string; status: "valid" | "no-data" }[];
+  };
 };
 
 export const updateApiSettings = async (payload: {
