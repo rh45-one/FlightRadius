@@ -133,7 +133,7 @@ const App = () => {
       {
         intervalMs: Math.max(settings.gpsPollingIntervalSec, 5) * 1000,
         highAccuracy: settings.gpsAccuracyMode === "high",
-        timeoutMs: 8000
+        timeoutMs: 15000
       },
       {
         onUpdate: (position) => {
@@ -143,12 +143,20 @@ const App = () => {
           setPosition(position);
         },
         onError: (error) => {
+          if (error.code === 3) {
+            if (!currentPosition) {
+              setError(error.message);
+            }
+            return;
+          }
+
           setError(error.message);
-          setPermissionStatus(error.permissionStatus);
           if (error.permissionStatus === "denied") {
+            setPermissionStatus("denied");
             setPollingActive(false);
           }
           if (error.permissionStatus === "unsupported") {
+            setPermissionStatus("unsupported");
             setPollingActive(false);
           }
         }
