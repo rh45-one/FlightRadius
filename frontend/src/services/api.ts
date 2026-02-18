@@ -11,6 +11,14 @@ export type AircraftTelemetry = {
   last_contact: number;
 };
 
+export type UserLocationPayload = {
+  latitude: number;
+  longitude: number;
+  accuracy_m: number;
+  timestamp: number;
+  source: "gps" | "manual";
+};
+
 export const getAircraftStatus = async (icao24: string) => {
   const response = await fetch(`${API_BASE}/aircraft/${icao24}`);
   if (!response.ok) {
@@ -42,4 +50,19 @@ export const updateApiSettings = async (payload: {
   }
 
   return response.json();
+};
+
+export const postUserLocation = async (payload: UserLocationPayload) => {
+  const response = await fetch(`${API_BASE}/user/location`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error || "Failed to ingest location");
+  }
 };

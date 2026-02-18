@@ -17,7 +17,7 @@ export type TrackingSettings = {
   gpsPollingIntervalSec: number;
   manualLatitude: string;
   manualLongitude: string;
-  accuracyBatteryBalance: number;
+  gpsAccuracyMode: "high" | "balanced";
   apiBaseUrl: string;
   apiAuthUrl: string;
   apiUsername: string;
@@ -61,7 +61,7 @@ export const useAircraftStore = create<AircraftState>()(
         gpsPollingIntervalSec: 20,
         manualLatitude: "",
         manualLongitude: "",
-        accuracyBatteryBalance: 60,
+        gpsAccuracyMode: "balanced",
         apiBaseUrl: "/api",
         apiAuthUrl:
           "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token",

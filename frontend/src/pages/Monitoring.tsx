@@ -3,6 +3,7 @@ import AircraftCard from "../components/AircraftCard";
 import AddAircraftModal from "../components/AddAircraftModal";
 import { useAircraftStore } from "../store/aircraftStore";
 import { getAircraftStatus, AircraftTelemetry } from "../services/api";
+import { useLocationStore } from "../store/locationStore";
 
 type TelemetryState = {
   status: "loading" | "live" | "stale" | "offline";
@@ -12,10 +13,41 @@ type TelemetryState = {
 
 const Monitoring = () => {
   const { aircraft, addAircraft, removeAircraft, ui } = useAircraftStore();
+  const {
+    currentPosition,
+    permissionStatus,
+    pollingActive,
+    lastUpdated,
+    errorState
+  } = useLocationStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [telemetry, setTelemetry] = useState<Record<string, TelemetryState>>(
     {}
   );
+
+  const locationBadge = () => {
+    if (permissionStatus === "manual") {
+      return { label: "Manual", tone: "bg-cyan-400/10 text-cyan-200" };
+    }
+    if (permissionStatus === "denied") {
+      return { label: "Denied", tone: "bg-rose-400/10 text-rose-200" };
+    }
+    if (permissionStatus === "unsupported") {
+      return { label: "Unsupported", tone: "bg-rose-400/10 text-rose-200" };
+    }
+    if (!pollingActive) {
+      return { label: "Disabled", tone: "bg-slate-400/10 text-slate-200" };
+    }
+    if (currentPosition) {
+      return { label: "Active", tone: "bg-emerald-400/10 text-emerald-200" };
+    }
+    return { label: "Pending", tone: "bg-slate-400/10 text-slate-200" };
+  };
+
+  const locationStatus = locationBadge();
+  const lastUpdatedLabel = lastUpdated
+    ? new Date(lastUpdated).toLocaleTimeString()
+    : "—";
 
   const densityClasses = useMemo(() => {
     return ui.cardDensity === "compact"
@@ -99,6 +131,47 @@ const Monitoring = () => {
             Track multiple aircraft in one place. Telemetry remains offline until
             data providers are connected.
           </p>
+        </div>
+        <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-white/5 p-4 shadow-glow backdrop-blur">
+          <div className="flex items-center justify-between">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              Location
+            </p>
+            <span
+              className={`rounded-full px-3 py-1 text-xs ${locationStatus.tone}`}
+            >
+              {locationStatus.label}
+            </span>
+          </div>
+          <div className="mt-3 space-y-2 text-xs text-slate-300">
+            <div className="flex items-center justify-between">
+              <span>Coordinates</span>
+              <span className="text-slate-100">
+                {currentPosition
+                  ? `${currentPosition.latitude.toFixed(4)}, ${currentPosition.longitude.toFixed(4)}`
+                  : "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Accuracy</span>
+              <span className="text-slate-100">
+                {currentPosition ? `${currentPosition.accuracy_m} m` : "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Source</span>
+              <span className="text-slate-100">
+                {currentPosition?.source || "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Last update</span>
+              <span className="text-slate-100">{lastUpdatedLabel}</span>
+            </div>
+          </div>
+          {errorState ? (
+            <p className="mt-3 text-xs text-rose-200">{errorState}</p>
+          ) : null}
         </div>
         <button
           className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-soft transition hover:opacity-90"

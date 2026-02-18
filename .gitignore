@@ -20,7 +20,7 @@ mono_crash.*
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
-[Rr]elease/git rm --cached .env backend/.env
+[Rr]elease/
 [Rr]eleases/
 x64/
 x86/

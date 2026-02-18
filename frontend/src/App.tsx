@@ -4,9 +4,20 @@ import Navbar from "./components/Navbar";
 import Monitoring from "./pages/Monitoring";
 import Settings from "./pages/Settings";
 import { useAircraftStore } from "./store/aircraftStore";
+import { useLocationStore } from "./store/locationStore";
+import { postUserLocation } from "./services/api";
+import { setMockLocation, startPolling } from "./services/geolocation";
 
 const App = () => {
   const theme = useAircraftStore((state) => state.ui.theme);
+  const settings = useAircraftStore((state) => state.settings);
+  const {
+    currentPosition,
+    setPosition,
+    setPermissionStatus,
+    setPollingActive,
+    setError
+  } = useLocationStore();
 
   useEffect(() => {
     const root = document.documentElement;
@@ -16,6 +27,96 @@ const App = () => {
       root.classList.remove("dark");
     }
   }, [theme]);
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      window.__setMockLocation = (latitude: number, longitude: number) => {
+        setMockLocation(latitude, longitude);
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    let stopPolling = () => undefined;
+
+    if (settings.locationMode === "manual") {
+      setPollingActive(false);
+      setPermissionStatus("manual");
+
+      const latitude = Number(settings.manualLatitude);
+      const longitude = Number(settings.manualLongitude);
+      const isValidLatitude =
+        Number.isFinite(latitude) && latitude >= -90 && latitude <= 90;
+      const isValidLongitude =
+        Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
+
+      if (!isValidLatitude || !isValidLongitude) {
+        setError("Invalid manual coordinates");
+        setPosition(null);
+        return () => undefined;
+      }
+
+      setError(null);
+      setPosition({
+        latitude,
+        longitude,
+        accuracy_m: 0,
+        timestamp: Date.now(),
+        source: "manual"
+      });
+
+      return () => undefined;
+    }
+
+    setPermissionStatus("prompt");
+    setPollingActive(true);
+
+    stopPolling = startPolling(
+      {
+        intervalMs: Math.max(settings.gpsPollingIntervalSec, 5) * 1000,
+        highAccuracy: settings.gpsAccuracyMode === "high",
+        timeoutMs: 8000
+      },
+      {
+        onUpdate: (position) => {
+          setError(null);
+          setPermissionStatus("granted");
+          setPollingActive(true);
+          setPosition(position);
+        },
+        onError: (error) => {
+          setError(error.message);
+          setPermissionStatus(error.permissionStatus);
+          if (error.permissionStatus === "denied") {
+            setPollingActive(false);
+          }
+          if (error.permissionStatus === "unsupported") {
+            setPollingActive(false);
+          }
+        }
+      }
+    );
+
+    return () => stopPolling();
+  }, [
+    settings.locationMode,
+    settings.gpsPollingIntervalSec,
+    settings.gpsAccuracyMode,
+    settings.manualLatitude,
+    settings.manualLongitude,
+    setError,
+    setPermissionStatus,
+    setPollingActive,
+    setPosition
+  ]);
+
+  useEffect(() => {
+    if (!currentPosition) {
+      return;
+    }
+
+    postUserLocation(currentPosition).catch(() => undefined);
+  }, [currentPosition]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">

@@ -8,6 +8,20 @@ const Settings = () => {
     "idle" | "saving" | "saved" | "error"
   >("idle");
 
+  const manualOverrideEnabled = settings.locationMode === "manual";
+  const manualLatitudeValue = Number(settings.manualLatitude);
+  const manualLongitudeValue = Number(settings.manualLongitude);
+  const manualLatitudeInvalid =
+    manualOverrideEnabled &&
+    (!Number.isFinite(manualLatitudeValue) ||
+      manualLatitudeValue < -90 ||
+      manualLatitudeValue > 90);
+  const manualLongitudeInvalid =
+    manualOverrideEnabled &&
+    (!Number.isFinite(manualLongitudeValue) ||
+      manualLongitudeValue < -180 ||
+      manualLongitudeValue > 180);
+
   const handleNumberChange = (
     key:
       | "refreshIntervalSec"
@@ -106,20 +120,23 @@ const Settings = () => {
         <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-glow backdrop-blur">
           <h2 className="text-lg font-semibold text-white">Location</h2>
           <div className="mt-4 space-y-4 text-sm text-slate-200">
-            <label className="flex flex-col gap-2">
-              Location source
-              <select
-                value={settings.locationMode}
+            <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3">
+              <div>
+                <p className="text-sm text-slate-100">Manual override</p>
+                <p className="text-xs text-slate-400">
+                  Use fixed coordinates instead of GPS polling.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={manualOverrideEnabled}
                 onChange={(event) =>
                   updateSettings({
-                    locationMode: event.target.value as "gps" | "manual"
+                    locationMode: event.target.checked ? "manual" : "gps"
                   })
                 }
-                className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
-              >
-                <option value="gps">GPS (future)</option>
-                <option value="manual">Manual override</option>
-              </select>
+                className="h-5 w-5 accent-cyan-400"
+              />
             </label>
             <label className="flex flex-col gap-2">
               GPS polling interval (seconds)
@@ -128,6 +145,7 @@ const Settings = () => {
                 min={10}
                 value={settings.gpsPollingIntervalSec}
                 onChange={handleNumberChange("gpsPollingIntervalSec")}
+                disabled={manualOverrideEnabled}
                 className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
               />
             </label>
@@ -140,7 +158,11 @@ const Settings = () => {
                   onChange={(event) =>
                     updateSettings({ manualLatitude: event.target.value })
                   }
-                  className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
+                  className={`rounded-xl border bg-slate-900/80 px-3 py-2 ${
+                    manualLatitudeInvalid
+                      ? "border-rose-400/70"
+                      : "border-white/10"
+                  }`}
                 />
               </label>
               <label className="flex flex-col gap-2">
@@ -151,28 +173,37 @@ const Settings = () => {
                   onChange={(event) =>
                     updateSettings({ manualLongitude: event.target.value })
                   }
-                  className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
+                  className={`rounded-xl border bg-slate-900/80 px-3 py-2 ${
+                    manualLongitudeInvalid
+                      ? "border-rose-400/70"
+                      : "border-white/10"
+                  }`}
                 />
               </label>
             </div>
+            {(manualLatitudeInvalid || manualLongitudeInvalid) && (
+              <p className="text-xs text-rose-200">
+                Manual coordinates must be valid numbers (lat -90 to 90, lon
+                -180 to 180).
+              </p>
+            )}
             <label className="flex flex-col gap-2">
-              Accuracy vs battery balance
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={settings.accuracyBatteryBalance}
+              Accuracy mode
+              <select
+                value={settings.gpsAccuracyMode}
                 onChange={(event) =>
                   updateSettings({
-                    accuracyBatteryBalance: Number(event.target.value)
+                    gpsAccuracyMode: event.target.value as
+                      | "high"
+                      | "balanced"
                   })
                 }
-              />
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>Battery saver</span>
-                <span>{settings.accuracyBatteryBalance}% accuracy</span>
-                <span>High accuracy</span>
-              </div>
+                disabled={manualOverrideEnabled}
+                className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
+              >
+                <option value="balanced">Balanced</option>
+                <option value="high">High accuracy</option>
+              </select>
             </label>
           </div>
         </div>

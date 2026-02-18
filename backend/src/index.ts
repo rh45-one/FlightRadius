@@ -2,9 +2,14 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import aircraftRoutes from "./routes/aircraft";
+import locationRoutes from "./routes/location";
 import settingsRoutes from "./routes/settings";
 import { getCacheSize } from "./services/cache";
 import { pingOpenSky } from "./services/opensky";
+import {
+  getLastLocationTimestamp,
+  getLocationIngestStatus
+} from "./services/locationStore";
 
 dotenv.config();
 
@@ -21,11 +26,14 @@ app.get("/api/health", async (_req, res) => {
     status: "ok",
     uptime: process.uptime(),
     opensky_status: openskyStatus,
-    cache_entries: getCacheSize()
+    cache_entries: getCacheSize(),
+    location_ingest_status: getLocationIngestStatus(),
+    last_location_timestamp: getLastLocationTimestamp()
   });
 });
 
 app.use("/api/aircraft", aircraftRoutes);
+app.use("/api", locationRoutes);
 app.use("/api/settings", settingsRoutes);
 
 app.listen(port, () => {
