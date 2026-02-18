@@ -22,6 +22,8 @@ type FleetState = {
   addFleetAircraft: (callsigns: string[], groupId?: string) => void;
   removeFleetAircraft: (id: string) => void;
   getGroupById: (id?: string) => FleetGroup | undefined;
+  setGroups: (groups: FleetGroup[]) => void;
+  setFleetAircraft: (fleetAircraft: FleetAircraft[]) => void;
 };
 
 const createId = () => {
@@ -65,7 +67,9 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     set((state) => ({
       fleetAircraft: state.fleetAircraft.filter((item) => item.id !== id)
     })),
-  getGroupById: (id) => get().groups.find((group) => group.id === id)
+  getGroupById: (id) => get().groups.find((group) => group.id === id),
+  setGroups: (groups) => set(() => ({ groups })),
+  setFleetAircraft: (fleetAircraft) => set(() => ({ fleetAircraft }))
 }));
 
 export type { FleetAircraft, FleetGroup };

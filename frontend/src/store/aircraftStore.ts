@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 
 export type Aircraft = {
   id: string;
@@ -40,6 +39,9 @@ type AircraftState = {
   removeAircraft: (id: string) => void;
   updateSettings: (partial: Partial<TrackingSettings>) => void;
   updateUi: (partial: Partial<UiPreferences>) => void;
+  setAircraft: (aircraft: Aircraft[]) => void;
+  setSettings: (settings: TrackingSettings) => void;
+  setUi: (ui: UiPreferences) => void;
 };
 
 const createId = () => {
@@ -49,59 +51,54 @@ const createId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
-export const useAircraftStore = create<AircraftState>()(
-  persist(
-    (set) => ({
-      aircraft: [],
-      settings: {
-        refreshIntervalSec: 12,
-        distanceUnit: "km",
-        maxTrackedWarning: 24,
-        locationMode: "gps",
-        gpsPollingIntervalSec: 20,
-        manualLatitude: "",
-        manualLongitude: "",
-        gpsAccuracyMode: "balanced",
-        apiBaseUrl: "/api",
-        apiAuthUrl:
-          "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token",
-        apiUsername: "",
-        apiPassword: "",
-        apiClientId: "",
-        apiClientSecret: ""
-      },
-      ui: {
-        theme: "dark",
-        cardDensity: "comfortable",
-        timeFormat: "24h"
-      },
-      addAircraft: (input) =>
-        set((state) => ({
-          aircraft: [
-            {
-              ...input,
-              id: createId(),
-              createdAt: new Date().toISOString()
-            },
-            ...state.aircraft
-          ]
-        })),
-      removeAircraft: (id) =>
-        set((state) => ({
-          aircraft: state.aircraft.filter((item) => item.id !== id)
-        })),
-      updateSettings: (partial) =>
-        set((state) => ({
-          settings: { ...state.settings, ...partial }
-        })),
-      updateUi: (partial) =>
-        set((state) => ({
-          ui: { ...state.ui, ...partial }
-        }))
-    }),
-    {
-      name: "aircraft-monitor-store",
-      storage: createJSONStorage(() => localStorage)
-    }
-  )
-);
+export const useAircraftStore = create<AircraftState>()((set) => ({
+  aircraft: [],
+  settings: {
+    refreshIntervalSec: 12,
+    distanceUnit: "km",
+    maxTrackedWarning: 24,
+    locationMode: "gps",
+    gpsPollingIntervalSec: 20,
+    manualLatitude: "",
+    manualLongitude: "",
+    gpsAccuracyMode: "balanced",
+    apiBaseUrl: "/api",
+    apiAuthUrl:
+      "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token",
+    apiUsername: "",
+    apiPassword: "",
+    apiClientId: "",
+    apiClientSecret: ""
+  },
+  ui: {
+    theme: "dark",
+    cardDensity: "comfortable",
+    timeFormat: "24h"
+  },
+  addAircraft: (input) =>
+    set((state) => ({
+      aircraft: [
+        {
+          ...input,
+          id: createId(),
+          createdAt: new Date().toISOString()
+        },
+        ...state.aircraft
+      ]
+    })),
+  removeAircraft: (id) =>
+    set((state) => ({
+      aircraft: state.aircraft.filter((item) => item.id !== id)
+    })),
+  updateSettings: (partial) =>
+    set((state) => ({
+      settings: { ...state.settings, ...partial }
+    })),
+  updateUi: (partial) =>
+    set((state) => ({
+      ui: { ...state.ui, ...partial }
+    })),
+  setAircraft: (aircraft) => set(() => ({ aircraft })),
+  setSettings: (settings) => set(() => ({ settings })),
+  setUi: (ui) => set(() => ({ ui }))
+}));

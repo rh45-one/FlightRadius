@@ -4,12 +4,15 @@ import dotenv from "dotenv";
 import aircraftRoutes from "./routes/aircraft";
 import locationRoutes from "./routes/location";
 import settingsRoutes from "./routes/settings";
+import appStateRoutes from "./routes/appState";
 import { getCacheSize } from "./services/cache";
 import { pingOpenSky } from "./services/opensky";
 import {
   getLastLocationTimestamp,
   getLocationIngestStatus
 } from "./services/locationStore";
+import { getAppState } from "./services/appStateStore";
+import { setApiSettings } from "./services/settings";
 
 dotenv.config();
 
@@ -34,8 +37,22 @@ app.get("/api/health", async (_req, res) => {
 
 app.use("/api/aircraft", aircraftRoutes);
 app.use("/api", locationRoutes);
+app.use("/api", appStateRoutes);
 app.use("/api/settings", settingsRoutes);
 
 app.listen(port, () => {
   console.log(`Backend listening on port ${port}`);
 });
+
+getAppState()
+  .then((state) => {
+    setApiSettings({
+      baseUrl: state.settings.apiBaseUrl,
+      authUrl: state.settings.apiAuthUrl,
+      username: state.settings.apiUsername,
+      password: state.settings.apiPassword,
+      clientId: state.settings.apiClientId,
+      clientSecret: state.settings.apiClientSecret
+    });
+  })
+  .catch(() => undefined);

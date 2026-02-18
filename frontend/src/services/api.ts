@@ -19,6 +19,52 @@ export type UserLocationPayload = {
   source: "gps" | "manual";
 };
 
+export type AppStatePayload = {
+  settings: {
+    refreshIntervalSec: number;
+    distanceUnit: "km" | "mi";
+    maxTrackedWarning: number;
+    locationMode: "gps" | "manual";
+    gpsPollingIntervalSec: number;
+    manualLatitude: string;
+    manualLongitude: string;
+    gpsAccuracyMode: "high" | "balanced";
+    apiBaseUrl: string;
+    apiAuthUrl: string;
+    apiUsername: string;
+    apiPassword: string;
+    apiClientId: string;
+    apiClientSecret: string;
+  };
+  ui: {
+    theme: "dark" | "light";
+    cardDensity: "comfortable" | "compact";
+    timeFormat: "24h" | "12h";
+  };
+  aircraft: {
+    id: string;
+    icao24?: string;
+    callsign?: string;
+    notes?: string;
+    createdAt: string;
+  }[];
+  fleet: {
+    groups: {
+      id: string;
+      name: string;
+      description?: string;
+      color: string;
+      icon: string;
+    }[];
+    fleetAircraft: {
+      id: string;
+      callsign: string;
+      groupId?: string;
+      createdAt: string;
+    }[];
+  };
+};
+
 export const getAircraftStatus = async (icao24: string) => {
   const response = await fetch(
     `${API_BASE}/aircraft/${encodeURIComponent(icao24)}`
@@ -98,4 +144,27 @@ export const postUserLocation = async (payload: UserLocationPayload) => {
     const body = await response.json().catch(() => null);
     throw new Error(body?.error || "Failed to ingest location");
   }
+};
+
+export const getAppState = async () => {
+  const response = await fetch(`${API_BASE}/app/state`);
+  if (!response.ok) {
+    throw new Error("Failed to load app state");
+  }
+  return (await response.json()) as AppStatePayload;
+};
+
+export const saveAppState = async (payload: AppStatePayload) => {
+  const response = await fetch(`${API_BASE}/app/state`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to save app state");
+  }
+  return (await response.json()) as AppStatePayload;
 };

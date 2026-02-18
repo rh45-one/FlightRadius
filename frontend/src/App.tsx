@@ -1,16 +1,26 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Monitoring from "./pages/Monitoring";
 import Settings from "./pages/Settings";
 import { useAircraftStore } from "./store/aircraftStore";
 import { useLocationStore } from "./store/locationStore";
-import { postUserLocation } from "./services/api";
+import { getAppState, postUserLocation, saveAppState } from "./services/api";
 import { setMockLocation, startPolling } from "./services/geolocation";
+import { useFleetStore } from "./store/fleetStore";
 
 const App = () => {
   const theme = useAircraftStore((state) => state.ui.theme);
   const settings = useAircraftStore((state) => state.settings);
+  const ui = useAircraftStore((state) => state.ui);
+  const aircraft = useAircraftStore((state) => state.aircraft);
+  const setAircraft = useAircraftStore((state) => state.setAircraft);
+  const setSettings = useAircraftStore((state) => state.setSettings);
+  const setUi = useAircraftStore((state) => state.setUi);
+  const fleetGroups = useFleetStore((state) => state.groups);
+  const fleetAircraft = useFleetStore((state) => state.fleetAircraft);
+  const setFleetGroups = useFleetStore((state) => state.setGroups);
+  const setFleetAircraft = useFleetStore((state) => state.setFleetAircraft);
   const {
     currentPosition,
     setPosition,
@@ -18,6 +28,7 @@ const App = () => {
     setPollingActive,
     setError
   } = useLocationStore();
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -35,6 +46,53 @@ const App = () => {
       };
     }
   }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    getAppState()
+      .then((state) => {
+        if (!isActive) {
+          return;
+        }
+        setSettings(state.settings);
+        setUi(state.ui);
+        setAircraft(state.aircraft);
+        setFleetGroups(state.fleet.groups);
+        setFleetAircraft(state.fleet.fleetAircraft);
+        setIsHydrated(true);
+      })
+      .catch(() => {
+        if (!isActive) {
+          return;
+        }
+        setIsHydrated(true);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [setAircraft, setFleetAircraft, setFleetGroups, setSettings, setUi]);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      saveAppState({
+        settings,
+        ui,
+        aircraft,
+        fleet: {
+          groups: fleetGroups,
+          fleetAircraft
+        }
+      }).catch(() => undefined);
+    }, 800);
+
+    return () => clearTimeout(timeout);
+  }, [aircraft, fleetAircraft, fleetGroups, isHydrated, settings, ui]);
 
   useEffect(() => {
     let stopPolling = () => undefined;
