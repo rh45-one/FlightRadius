@@ -30,8 +30,15 @@ export const setApiSettings = (input: Partial<ApiSettings>) => {
     }
   };
 
-  applyIfNonEmpty("baseUrl");
-  applyIfNonEmpty("authUrl");
+  const applyIfHttpUrl = (key: "baseUrl" | "authUrl") => {
+    const value = input[key];
+    if (typeof value === "string" && /^https?:\/\//i.test(value.trim())) {
+      update[key] = value as ApiSettings[typeof key];
+    }
+  };
+
+  applyIfHttpUrl("baseUrl");
+  applyIfHttpUrl("authUrl");
   applyIfNonEmpty("username");
   applyIfNonEmpty("password");
   applyIfNonEmpty("clientId");

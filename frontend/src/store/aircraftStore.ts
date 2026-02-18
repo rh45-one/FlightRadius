@@ -62,7 +62,7 @@ export const useAircraftStore = create<AircraftState>()((set) => ({
     manualLatitude: "",
     manualLongitude: "",
     gpsAccuracyMode: "balanced",
-    apiBaseUrl: "/api",
+    apiBaseUrl: "https://opensky-network.org/api",
     apiAuthUrl:
       "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token",
     apiUsername: "",

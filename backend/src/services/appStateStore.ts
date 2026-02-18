@@ -131,19 +131,38 @@ const mergeState = (incoming: Partial<AppState>, base: AppState) => ({
   }
 });
 
+const normalizeSettings = (settings: StoredSettings, base: StoredSettings) => {
+  const normalizeUrl = (value: string, fallback: string) =>
+    /^https?:\/\//i.test(value) ? value : fallback;
+
+  return {
+    ...settings,
+    apiBaseUrl: normalizeUrl(settings.apiBaseUrl, base.apiBaseUrl),
+    apiAuthUrl: normalizeUrl(settings.apiAuthUrl, base.apiAuthUrl)
+  };
+};
+
 export const getAppState = async () => {
   if (cachedState) {
     return cachedState;
   }
 
   const fileState = await readStateFile();
-  cachedState = mergeState(fileState || {}, defaultState);
+  const merged = mergeState(fileState || {}, defaultState);
+  cachedState = {
+    ...merged,
+    settings: normalizeSettings(merged.settings, defaultState.settings)
+  };
   return cachedState;
 };
 
 export const saveAppState = async (incoming: Partial<AppState>) => {
   const current = await getAppState();
-  cachedState = mergeState(incoming, current);
+  const merged = mergeState(incoming, current);
+  cachedState = {
+    ...merged,
+    settings: normalizeSettings(merged.settings, defaultState.settings)
+  };
 
   if (!writePromise) {
     writePromise = (async () => {
