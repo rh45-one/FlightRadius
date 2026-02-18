@@ -24,8 +24,11 @@ const Settings = () => {
         setApiSyncStatus("saving");
         await updateApiSettings({
           baseUrl: settings.apiBaseUrl,
+          authUrl: settings.apiAuthUrl,
           username: settings.apiUsername,
-          password: settings.apiPassword
+          password: settings.apiPassword,
+          clientId: settings.apiClientId,
+          clientSecret: settings.apiClientSecret
         });
         setApiSyncStatus("saved");
       } catch (_error) {
@@ -34,7 +37,14 @@ const Settings = () => {
     }, 600);
 
     return () => clearTimeout(timeout);
-  }, [settings.apiBaseUrl, settings.apiUsername, settings.apiPassword]);
+  }, [
+    settings.apiBaseUrl,
+    settings.apiAuthUrl,
+    settings.apiUsername,
+    settings.apiPassword,
+    settings.apiClientId,
+    settings.apiClientSecret
+  ]);
 
   return (
     <section className="pt-8">
@@ -181,6 +191,41 @@ const Settings = () => {
                 className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
               />
             </label>
+            <label className="flex flex-col gap-2">
+              OAuth2 token URL
+              <input
+                type="text"
+                value={settings.apiAuthUrl}
+                onChange={(event) =>
+                  updateSettings({ apiAuthUrl: event.target.value })
+                }
+                className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
+              />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-2">
+                API client ID
+                <input
+                  type="text"
+                  value={settings.apiClientId}
+                  onChange={(event) =>
+                    updateSettings({ apiClientId: event.target.value })
+                  }
+                  className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
+                />
+              </label>
+              <label className="flex flex-col gap-2">
+                API client secret
+                <input
+                  type="password"
+                  value={settings.apiClientSecret}
+                  onChange={(event) =>
+                    updateSettings({ apiClientSecret: event.target.value })
+                  }
+                  className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
+                />
+              </label>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-2">
                 Username
@@ -205,6 +250,10 @@ const Settings = () => {
                 />
               </label>
             </div>
+            <p className="text-xs text-slate-400">
+              API client credentials are preferred. Username/password is legacy
+              fallback.
+            </p>
             <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-xs text-slate-400">
               Rate limit: — requests/minute (placeholder)
             </div>

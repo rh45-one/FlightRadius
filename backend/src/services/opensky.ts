@@ -5,6 +5,9 @@ export type OpenSkyConfig = {
   baseUrl: string;
   username?: string;
   password?: string;
+  authUrl?: string;
+  clientId?: string;
+  clientSecret?: string;
 };
 
 export type AircraftTelemetry = {
@@ -23,6 +26,12 @@ type OpenSkyResponse = {
   states?: (Array<string | number | null>)[] | null;
 };
 
+type TokenResponse = {
+  access_token?: string;
+  expires_in?: number;
+  token_type?: string;
+};
+
 class ApiError extends Error {
   status: number;
 
@@ -35,43 +44,147 @@ class ApiError extends Error {
 const RATE_LIMIT_MS = 5_000;
 let lastFetchAt = 0;
 let inFlight: Promise<OpenSkyResponse> | null = null;
+let tokenCache: { accessToken: string; expiresAt: number } | null = null;
+let tokenInFlight: Promise<string> | null = null;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const buildAuthHeader = (config: OpenSkyConfig) => {
-  if (config.username && config.password) {
-    const token = Buffer.from(
-      `${config.username}:${config.password}`
-    ).toString("base64");
-    return `Basic ${token}`;
+const buildBasicAuthHeader = (config: OpenSkyConfig) => {
+  if (!config.username || !config.password) {
+    return undefined;
   }
-  return undefined;
+
+  const token = Buffer.from(`${config.username}:${config.password}`).toString(
+    "base64"
+  );
+  return `Basic ${token}`;
 };
 
 const getConfig = (): OpenSkyConfig => {
   const settings = getApiSettings();
   return {
     baseUrl: settings.baseUrl || "https://opensky-network.org/api",
+    authUrl: settings.authUrl || undefined,
     username: settings.username || undefined,
-    password: settings.password || undefined
+    password: settings.password || undefined,
+    clientId: settings.clientId || undefined,
+    clientSecret: settings.clientSecret || undefined
   };
 };
 
-const fetchStates = async (config: OpenSkyConfig) => {
-  const authHeader = buildAuthHeader(config);
+const resetToken = () => {
+  tokenCache = null;
+};
+
+const fetchAccessToken = async (config: OpenSkyConfig) => {
+  if (!config.clientId || !config.clientSecret) {
+    throw new ApiError("OpenSky auth not configured", 401);
+  }
+
+  const authUrl =
+    config.authUrl ||
+    "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
+
+  console.log("OpenSky token request start");
+
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: config.clientId,
+    client_secret: config.clientSecret
+  });
+
+  const response = await fetch(authUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: body.toString()
+  });
+
+  if (!response.ok) {
+    throw new ApiError("OpenSky auth failed", 502);
+  }
+
+  const payload = (await response.json()) as TokenResponse;
+  const accessToken = payload.access_token;
+  const expiresIn = payload.expires_in ?? 1800;
+
+  if (!accessToken) {
+    throw new ApiError("OpenSky auth failed", 502);
+  }
+
+  tokenCache = {
+    accessToken,
+    expiresAt: Date.now() + (expiresIn - 60) * 1000
+  };
+
+  console.log("OpenSky token request end");
+  return accessToken;
+};
+
+const getAccessToken = async (config: OpenSkyConfig) => {
+  if (!config.clientId || !config.clientSecret) {
+    return null;
+  }
+
+  if (tokenCache && Date.now() < tokenCache.expiresAt) {
+    return tokenCache.accessToken;
+  }
+
+  if (tokenInFlight) {
+    return tokenInFlight;
+  }
+
+  tokenInFlight = fetchAccessToken(config);
+  try {
+    return await tokenInFlight;
+  } finally {
+    tokenInFlight = null;
+  }
+};
+
+const buildAuthHeader = async (config: OpenSkyConfig) => {
+  const token = await getAccessToken(config);
+  if (token) {
+    return { header: `Bearer ${token}`, scheme: "bearer" } as const;
+  }
+
+  const basic = buildBasicAuthHeader(config);
+  if (basic) {
+    return { header: basic, scheme: "basic" } as const;
+  }
+
+  return { header: undefined, scheme: "none" } as const;
+};
+
+const fetchStates = async (config: OpenSkyConfig, allowRetry = true) => {
+  const auth = await buildAuthHeader(config);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
 
-  console.log("OpenSky request start");
+  console.log("OpenSky request start", {
+    auth: auth.scheme,
+    baseUrl: config.baseUrl
+  });
 
   try {
     const response = await fetch(`${config.baseUrl}/states/all`, {
       method: "GET",
-      headers: authHeader ? { Authorization: authHeader } : undefined,
+      headers: auth.header ? { Authorization: auth.header } : undefined,
       signal: controller.signal
     });
 
+    if (response.status === 401 && auth.scheme === "bearer" && allowRetry) {
+      resetToken();
+      return fetchStates(config, false);
+    }
+
     if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      console.log("OpenSky response error", {
+        status: response.status,
+        body: body.slice(0, 200)
+      });
       throw new ApiError("OpenSky unavailable", 502);
     }
 

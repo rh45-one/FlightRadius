@@ -19,8 +19,11 @@ export type TrackingSettings = {
   manualLongitude: string;
   accuracyBatteryBalance: number;
   apiBaseUrl: string;
+  apiAuthUrl: string;
   apiUsername: string;
   apiPassword: string;
+  apiClientId: string;
+  apiClientSecret: string;
 };
 
 export type UiPreferences = {
@@ -60,8 +63,12 @@ export const useAircraftStore = create<AircraftState>()(
         manualLongitude: "",
         accuracyBatteryBalance: 60,
         apiBaseUrl: "/api",
+        apiAuthUrl:
+          "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token",
         apiUsername: "",
-        apiPassword: ""
+        apiPassword: "",
+        apiClientId: "",
+        apiClientSecret: ""
       },
       ui: {
         theme: "dark",

@@ -22,8 +22,11 @@ export const getAircraftStatus = async (icao24: string) => {
 
 export const updateApiSettings = async (payload: {
   baseUrl: string;
+  authUrl: string;
   username: string;
   password: string;
+  clientId: string;
+  clientSecret: string;
 }) => {
   const response = await fetch(`${API_BASE}/settings/api`, {
     method: "POST",

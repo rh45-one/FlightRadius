@@ -11,7 +11,7 @@ const Navbar = () => {
           <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
             Aircraft Monitor
           </p>
-          <h1 className="text-lg font-semibold text-white">Orbital Desk</h1>
+          <h1 className="text-lg font-semibold text-white">FlightRadius</h1>
         </div>
         <nav className="flex items-center gap-2 text-slate-300">
           <NavLink
