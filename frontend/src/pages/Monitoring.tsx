@@ -158,7 +158,7 @@ const Monitoring = () => {
 
   return (
     <section className="pt-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
             Monitoring
@@ -171,7 +171,7 @@ const Monitoring = () => {
             data providers are connected.
           </p>
         </div>
-        <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-white/5 p-4 shadow-glow backdrop-blur">
+        <div className="w-full rounded-3xl border border-white/10 bg-white/5 p-4 shadow-glow backdrop-blur sm:max-w-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
               Location
@@ -212,15 +212,15 @@ const Monitoring = () => {
             <p className="mt-3 text-xs text-rose-200">{errorState}</p>
           ) : null}
         </div>
-        <div className="flex flex-col gap-2 sm:items-end">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
           <button
-            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-soft transition hover:opacity-90"
+            className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-soft transition hover:opacity-90 sm:w-auto"
             onClick={() => setIsModalOpen(true)}
           >
             Add aircraft
           </button>
           <button
-            className="inline-flex items-center justify-center rounded-full border border-white/20 px-5 py-2 text-xs uppercase tracking-[0.2em] text-slate-200 transition hover:border-white/40"
+            className="inline-flex w-full items-center justify-center rounded-full border border-white/20 px-5 py-2 text-xs uppercase tracking-[0.2em] text-slate-200 transition hover:border-white/40 sm:w-auto"
             onClick={() => setIsBulkOpen(true)}
           >
             Bulk import
@@ -243,7 +243,7 @@ const Monitoring = () => {
               Coming soon
             </span>
           </div>
-          <div className="mt-4 h-48 rounded-2xl border border-dashed border-white/10 bg-slate-950/40" />
+          <div className="mt-4 h-48 rounded-2xl border border-dashed border-white/10 bg-slate-950/40 sm:h-64" />
         </div>
       ) : null}
 

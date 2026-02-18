@@ -44,6 +44,9 @@ const AircraftCard = ({
   const lastContact = telemetry?.last_contact
     ? new Date(telemetry.last_contact * 1000).toLocaleTimeString()
     : "—";
+  const altitudeFeet = telemetry
+    ? Math.round(telemetry.altitude_m * 3.28084)
+    : null;
 
   const primaryId = aircraft.callsign || aircraft.icao24 || "Unknown";
 
@@ -115,7 +118,7 @@ const AircraftCard = ({
         <div className="flex items-center justify-between">
           <span>Altitude</span>
           <span className="text-slate-100">
-            {telemetry ? `${telemetry.altitude_m} m` : "—"}
+            {altitudeFeet !== null ? `${altitudeFeet} ft` : "—"}
           </span>
         </div>
         <div className="flex items-center justify-between">

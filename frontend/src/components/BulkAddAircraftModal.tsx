@@ -224,7 +224,7 @@ const BulkAddAircraftModal = ({ isOpen, onClose }: BulkAddAircraftModalProps) =>
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-      <div className="w-full max-w-5xl rounded-3xl border border-white/10 bg-slate-900/80 p-6 shadow-soft backdrop-blur">
+      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-slate-900/80 p-6 shadow-soft backdrop-blur">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Bulk add aircraft</h2>
           <button
