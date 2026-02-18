@@ -457,38 +457,38 @@ const BulkAddAircraftModal = ({ isOpen, onClose }: BulkAddAircraftModalProps) =>
                           {entry.status === "valid"
                             ? "Valid"
                             : entry.status === "no-data"
-+                            ? "No live data"
-+                            : entry.status === "checking"
-+                            ? "Checking"
-+                            : "Invalid format"}
-+                        </td>
-+                      </tr>
-+                    ))}
-+                  </tbody>
-+                </table>
-+              )}
-+            </div>
-+          </div>
-+        </div>
-+
-+        <div className="mt-6 flex justify-end gap-3">
-+          <button
-+            onClick={onClose}
-+            className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200"
-+          >
-+            Cancel
-+          </button>
-+          <button
-+            onClick={handleSave}
-+            disabled={disabledSave}
-+            className="rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-2 text-sm font-semibold text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-+          >
-+            Import
-+          </button>
-+        </div>
-+      </div>
-+    </div>
-+  );
-+};
-+
-+export default BulkAddAircraftModal;
+                            ? "No live data"
+                            : entry.status === "checking"
+                            ? "Checking"
+                            : "Invalid format"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={disabledSave}
+            className="rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-2 text-sm font-semibold text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Import
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default BulkAddAircraftModal;
