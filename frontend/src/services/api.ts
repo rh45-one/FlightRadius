@@ -1,9 +1,42 @@
 const API_BASE = "/api";
 
+export type AircraftTelemetry = {
+  icao24: string;
+  callsign: string | null;
+  latitude: number;
+  longitude: number;
+  altitude_m: number;
+  velocity_mps: number;
+  heading_deg: number;
+  last_contact: number;
+};
+
 export const getAircraftStatus = async (icao24: string) => {
   const response = await fetch(`${API_BASE}/aircraft/${icao24}`);
   if (!response.ok) {
-    throw new Error("Failed to fetch aircraft status");
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error || "Failed to fetch aircraft status");
   }
+  return (await response.json()) as AircraftTelemetry;
+};
+
+export const updateApiSettings = async (payload: {
+  baseUrl: string;
+  username: string;
+  password: string;
+}) => {
+  const response = await fetch(`${API_BASE}/settings/api`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error || "Failed to update API settings");
+  }
+
   return response.json();
 };

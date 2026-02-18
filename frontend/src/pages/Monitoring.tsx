@@ -1,17 +1,89 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AircraftCard from "../components/AircraftCard";
 import AddAircraftModal from "../components/AddAircraftModal";
 import { useAircraftStore } from "../store/aircraftStore";
+import { getAircraftStatus, AircraftTelemetry } from "../services/api";
+
+type TelemetryState = {
+  status: "loading" | "live" | "stale" | "offline";
+  data?: AircraftTelemetry;
+  errorMessage?: string;
+};
 
 const Monitoring = () => {
   const { aircraft, addAircraft, removeAircraft, ui } = useAircraftStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [telemetry, setTelemetry] = useState<Record<string, TelemetryState>>(
+    {}
+  );
 
   const densityClasses = useMemo(() => {
     return ui.cardDensity === "compact"
       ? "gap-4 sm:grid-cols-2 lg:grid-cols-3"
       : "gap-6 sm:grid-cols-2 lg:grid-cols-3";
   }, [ui.cardDensity]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (aircraft.length === 0) {
+      setTelemetry({});
+      return;
+    }
+
+    setTelemetry((prev) => {
+      const next: Record<string, TelemetryState> = { ...prev };
+      for (const entry of aircraft) {
+        next[entry.id] = {
+          status: "loading",
+          data: prev[entry.id]?.data
+        };
+      }
+      return next;
+    });
+
+    const loadTelemetry = async () => {
+      await Promise.all(
+        aircraft.map(async (entry) => {
+          try {
+            const data = await getAircraftStatus(entry.icao24);
+            if (!isActive) {
+              return;
+            }
+
+            const nowSec = Date.now() / 1000;
+            const isStale = nowSec - data.last_contact > 30;
+
+            setTelemetry((prev) => ({
+              ...prev,
+              [entry.id]: {
+                status: isStale ? "stale" : "live",
+                data
+              }
+            }));
+          } catch (error) {
+            if (!isActive) {
+              return;
+            }
+
+            setTelemetry((prev) => ({
+              ...prev,
+              [entry.id]: {
+                status: "offline",
+                errorMessage: (error as Error).message
+              }
+            }));
+          }
+        })
+      );
+    };
+
+    loadTelemetry();
+
+    return () => {
+      isActive = false;
+    };
+  }, [aircraft]);
 
   return (
     <section className="pt-8">
@@ -51,6 +123,9 @@ const Monitoring = () => {
                 key={item.id}
                 aircraft={item}
                 onRemove={() => removeAircraft(item.id)}
+                telemetry={telemetry[item.id]?.data}
+                status={telemetry[item.id]?.status || "loading"}
+                errorMessage={telemetry[item.id]?.errorMessage}
               />
             ))}
           </div>

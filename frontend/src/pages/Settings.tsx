@@ -1,8 +1,12 @@
-import { ChangeEvent } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { useAircraftStore } from "../store/aircraftStore";
+import { updateApiSettings } from "../services/api";
 
 const Settings = () => {
   const { settings, ui, updateSettings, updateUi } = useAircraftStore();
+  const [apiSyncStatus, setApiSyncStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
 
   const handleNumberChange = (
     key:
@@ -13,6 +17,24 @@ const Settings = () => {
     (event: ChangeEvent<HTMLInputElement>) => {
       updateSettings({ [key]: Number(event.target.value) });
     };
+
+  useEffect(() => {
+    const timeout = setTimeout(async () => {
+      try {
+        setApiSyncStatus("saving");
+        await updateApiSettings({
+          baseUrl: settings.apiBaseUrl,
+          username: settings.apiUsername,
+          password: settings.apiPassword
+        });
+        setApiSyncStatus("saved");
+      } catch (_error) {
+        setApiSyncStatus("error");
+      }
+    }, 600);
+
+    return () => clearTimeout(timeout);
+  }, [settings.apiBaseUrl, settings.apiUsername, settings.apiPassword]);
 
   return (
     <section className="pt-8">
@@ -185,6 +207,11 @@ const Settings = () => {
             </div>
             <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-xs text-slate-400">
               Rate limit: — requests/minute (placeholder)
+            </div>
+            <div className="text-xs text-slate-400">
+              {apiSyncStatus === "saving" && "Syncing API settings..."}
+              {apiSyncStatus === "saved" && "API settings synced."}
+              {apiSyncStatus === "error" && "Failed to sync API settings."}
             </div>
           </div>
         </div>
