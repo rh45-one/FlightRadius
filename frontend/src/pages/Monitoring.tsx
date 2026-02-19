@@ -14,6 +14,7 @@ import { useLocationStore } from "../store/locationStore";
 import { useFleetStore } from "../store/fleetStore";
 import {
   GeolocationError,
+  PermissionStatus,
   isGeolocationSupported,
   requestLocation,
   stopWatching,
@@ -88,6 +89,62 @@ const Monitoring = () => {
   const lastUpdatedLabel = lastUpdated
     ? new Date(lastUpdated).toLocaleTimeString()
     : "—";
+
+  useEffect(() => {
+    if (!isGeolocationSupported()) {
+      setPermissionStatus("unsupported");
+      return;
+    }
+
+    if (!("permissions" in navigator)) {
+      return;
+    }
+
+    let isActive = true;
+    let permissionStatusRef: PermissionStatus | null = null;
+
+    const updatePermissionStatus = (state: PermissionState) => {
+      if (state === "granted") {
+        permissionStatusRef = "granted";
+        setPermissionStatus("granted");
+        return;
+      }
+      if (state === "denied") {
+        permissionStatusRef = "denied";
+        setPermissionStatus("denied");
+        return;
+      }
+      permissionStatusRef = "prompt";
+      setPermissionStatus("prompt");
+    };
+
+    navigator.permissions
+      .query({ name: "geolocation" })
+      .then((permission) => {
+        if (!isActive) {
+          return;
+        }
+        updatePermissionStatus(permission.state);
+        permission.onchange = () => {
+          if (!isActive) {
+            return;
+          }
+          updatePermissionStatus(permission.state);
+        };
+      })
+      .catch(() => {
+        if (!isActive) {
+          return;
+        }
+        if (!permissionStatusRef) {
+          setPermissionStatus("unknown");
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [setPermissionStatus]);
 
   const combinedAircraft = useMemo<CombinedAircraft[]>(() => {
     const bulk = fleetAircraft.map((item) => ({
@@ -438,13 +495,16 @@ const Monitoring = () => {
               {locationStatus.label}
             </span>
           </div>
-          <button
-            className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-200 transition hover:border-white/40 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={handleEnableLocation}
-            disabled={settings.locationMode === "manual"}
-          >
-            Enable Location
-          </button>
+          {settings.locationMode !== "manual" &&
+          permissionStatus !== "granted" ? (
+            <button
+              className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-200 transition hover:border-white/40 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={handleEnableLocation}
+              disabled={permissionStatus === "unsupported"}
+            >
+              Enable Location
+            </button>
+          ) : null}
           <div className="mt-3 space-y-2 text-xs text-slate-300">
             <div className="flex items-center justify-between">
               <span>Status</span>
