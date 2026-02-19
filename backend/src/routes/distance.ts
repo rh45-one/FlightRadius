@@ -23,11 +23,27 @@ const normalizeCallsigns = (input: unknown) => {
   );
 };
 
+const normalizeIcao24s = (input: unknown) => {
+  if (!Array.isArray(input)) {
+    return [] as string[];
+  }
+
+  return Array.from(
+    new Set(
+      input
+        .filter((item) => typeof item === "string")
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+        .map((item) => item.toLowerCase())
+    )
+  );
+};
+
 const isValidCoordinates = (lat: number, lon: number) =>
   lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
 
 router.post("/aircraft", async (req, res) => {
-  const { lat, lon, callsigns } = req.body || {};
+  const { lat, lon, callsigns, icao24s } = req.body || {};
 
   if (!isNumber(lat) || !isNumber(lon)) {
     res.status(400).json({ error: "Invalid coordinates", status: 400 });
@@ -44,8 +60,17 @@ router.post("/aircraft", async (req, res) => {
     return;
   }
 
+  if (icao24s !== undefined && !Array.isArray(icao24s)) {
+    res.status(400).json({ error: "Invalid icao24 list", status: 400 });
+    return;
+  }
+
   const normalizedCallsigns = normalizeCallsigns(callsigns);
-  const positions = await OpenSkyProvider.getPositions(normalizedCallsigns);
+  const normalizedIcao24s = normalizeIcao24s(icao24s);
+  const positions = await OpenSkyProvider.getPositions({
+    callsigns: normalizedCallsigns,
+    icao24s: normalizedIcao24s
+  });
   const summary = buildDistanceResults(
     { lat, lon },
     positions,
@@ -87,7 +112,10 @@ router.post("/fleets", async (req, res) => {
   const uniqueCallsigns = Array.from(
     new Set(normalizedFleets.flatMap((fleet) => fleet.callsigns))
   );
-  const positions = await OpenSkyProvider.getPositions(uniqueCallsigns);
+  const positions = await OpenSkyProvider.getPositions({
+    callsigns: uniqueCallsigns,
+    icao24s: []
+  });
 
   const results = buildGroupProximity({ lat, lon }, positions, normalizedFleets);
 
@@ -95,7 +123,7 @@ router.post("/fleets", async (req, res) => {
 });
 
 router.post("/compute", async (req, res) => {
-  const { user_location, callsigns, groups } = req.body || {};
+  const { user_location, callsigns, groups, icao24s } = req.body || {};
 
   if (
     !user_location ||
@@ -116,13 +144,22 @@ router.post("/compute", async (req, res) => {
     return;
   }
 
+  if (icao24s !== undefined && !Array.isArray(icao24s)) {
+    res.status(400).json({ error: "Invalid icao24 list", status: 400 });
+    return;
+  }
+
   if (groups !== undefined && !Array.isArray(groups)) {
     res.status(400).json({ error: "Invalid groups payload", status: 400 });
     return;
   }
 
   const normalizedCallsigns = normalizeCallsigns(callsigns);
-  const positions = await OpenSkyProvider.getPositions(normalizedCallsigns);
+  const normalizedIcao24s = normalizeIcao24s(icao24s);
+  const positions = await OpenSkyProvider.getPositions({
+    callsigns: normalizedCallsigns,
+    icao24s: normalizedIcao24s
+  });
   const overall = buildDistanceResults(
     { lat: user_location.lat, lon: user_location.lon },
     positions,

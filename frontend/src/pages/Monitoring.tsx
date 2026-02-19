@@ -414,6 +414,16 @@ const Monitoring = () => {
     return Array.from(unique);
   }, [combinedAircraft]);
 
+  const icao24s = useMemo(() => {
+    const unique = new Set<string>();
+    combinedAircraft.forEach((item) => {
+      if (item.icao24) {
+        unique.add(item.icao24.toLowerCase());
+      }
+    });
+    return Array.from(unique);
+  }, [combinedAircraft]);
+
   const groupPayload = useMemo(
     () =>
       groups
@@ -468,7 +478,7 @@ const Monitoring = () => {
       return;
     }
 
-    if (callsigns.length === 0 && groupPayload.length === 0) {
+    if (callsigns.length === 0 && icao24s.length === 0 && groupPayload.length === 0) {
       setDistanceResults({
         aircraftResults: [],
         fleetResults: [],
@@ -482,11 +492,12 @@ const Monitoring = () => {
 
     try {
       const [aircraftResponse, fleetResponse] = await Promise.all([
-        callsigns.length > 0
+        callsigns.length > 0 || icao24s.length > 0
           ? computeAircraftDistances({
               lat: currentPosition.latitude,
               lon: currentPosition.longitude,
-              callsigns
+              callsigns,
+              icao24s
             })
           : Promise.resolve({ results: [], closest: null, missing: [] }),
         groupPayload.length > 0
@@ -511,6 +522,7 @@ const Monitoring = () => {
     }
   }, [
     callsigns,
+    icao24s,
     currentPosition,
     groupPayload,
     setDistanceError,
@@ -660,9 +672,9 @@ const Monitoring = () => {
       {distanceError ? (
         <p className="mt-4 text-xs text-rose-200">{distanceError}</p>
       ) : null}
-      {!distanceError && currentPosition && callsigns.length > 0 && !hasAircraftResults ? (
+      {!distanceError && currentPosition && (callsigns.length > 0 || icao24s.length > 0) && !hasAircraftResults ? (
         <p className="mt-4 text-xs text-amber-200">
-          No OpenSky positions found for the tracked callsigns.
+          No OpenSky positions found for the tracked identifiers.
         </p>
       ) : null}
       {!distanceError && currentPosition && groups.length > 0 && !hasFleetResults ? (
@@ -797,8 +809,14 @@ const Monitoring = () => {
           <div className={`grid grid-cols-1 ${densityClasses}`}>
             {combinedAircraft.map((item) => {
               const group = item.groupId ? getGroupById(item.groupId) : undefined;
-              const normalizedCallsign = item.callsign
-                ? item.callsign.toUpperCase()
+              const telemetryState = telemetry[item.id];
+              const resolvedCallsign =
+                item.callsign ||
+                telemetryState?.data?.callsign ||
+                item.icao24 ||
+                null;
+              const normalizedCallsign = resolvedCallsign
+                ? resolvedCallsign.toUpperCase()
                 : null;
               const distanceData: DistanceResult | undefined =
                 normalizedCallsign
@@ -808,7 +826,6 @@ const Monitoring = () => {
                 ? missingCallsigns.includes(normalizedCallsign)
                 : false;
               const hasComputed = Boolean(lastComputedAt);
-              const telemetryState = telemetry[item.id];
               const status = telemetryState?.status
                 ? telemetryState.status
                 : !normalizedCallsign
@@ -827,7 +844,7 @@ const Monitoring = () => {
               const errorMessage = telemetryState?.errorMessage
                 ? telemetryState.errorMessage
                 : !normalizedCallsign
-                ? "Callsign required for distance"
+                ? "Callsign or ICAO24 required for OpenSky distance"
                 : isMissing
                 ? "No OpenSky data for this callsign"
                 : distanceError

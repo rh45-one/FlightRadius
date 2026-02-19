@@ -202,6 +202,7 @@ export const computeAircraftDistances = async (payload: {
   lat: number;
   lon: number;
   callsigns?: string[];
+  icao24s?: string[];
 }) => {
   const response = await fetch(`${API_BASE}/distance/aircraft`, {
     method: "POST",

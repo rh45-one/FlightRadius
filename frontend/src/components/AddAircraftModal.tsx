@@ -59,7 +59,7 @@ const AddAircraftModal = ({ isOpen, onClose, onSave }: AddAircraftModalProps) =>
             />
           </label>
           <label className="flex flex-col gap-2">
-            Callsign (required for mock distances)
+            Callsign (recommended for distances)
             <input
               type="text"
               value={callsign}
