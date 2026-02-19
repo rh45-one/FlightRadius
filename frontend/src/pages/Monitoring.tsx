@@ -77,6 +77,7 @@ const Monitoring = () => {
   const [expandedFleets, setExpandedFleets] = useState<Record<string, boolean>>(
     {}
   );
+  const [distanceMap, setDistanceMap] = useState<Record<string, number>>({});
   const fetchInFlightRef = useRef(false);
   const schedulerRef = useRef<ReturnType<typeof createDistanceScheduler> | null>(
     null
@@ -499,7 +500,7 @@ const Monitoring = () => {
               callsigns,
               icao24s
             })
-          : Promise.resolve({ results: [], closest: null, missing: [] }),
+          : Promise.resolve({ results: [] }),
         groupPayload.length > 0
           ? computeFleetDistances({
               lat: currentPosition.latitude,
@@ -509,11 +510,38 @@ const Monitoring = () => {
           : Promise.resolve({ fleets: [] as FleetProximityResult[] })
       ]);
 
+      const aircraftResults = aircraftResponse.results || [];
+      const distanceMapNext: Record<string, number> = {};
+      aircraftResults.forEach((entry) => {
+        distanceMapNext[entry.callsign.toUpperCase()] = entry.distance_km;
+        if (entry.icao24) {
+          distanceMapNext[entry.icao24.toLowerCase()] = entry.distance_km;
+        }
+      });
+
+      setDistanceMap(distanceMapNext);
+      console.log("DISTANCE MAP:", distanceMapNext);
+
+      const resultKeys = new Set<string>();
+      aircraftResults.forEach((entry) => {
+        resultKeys.add(entry.callsign.toUpperCase());
+        if (entry.icao24) {
+          resultKeys.add(entry.icao24.toLowerCase());
+        }
+      });
+
+      const missing = [...callsigns, ...icao24s].filter((identifier) => {
+        const upper = identifier.toUpperCase();
+        const lower = identifier.toLowerCase();
+        return !resultKeys.has(upper) && !resultKeys.has(lower);
+      });
+      const closest = aircraftResults.length > 0 ? aircraftResults[0] : null;
+
       setDistanceResults({
-        aircraftResults: aircraftResponse.results,
+        aircraftResults,
         fleetResults: fleetResponse.fleets,
-        closestOverall: aircraftResponse.closest,
-        missing: aircraftResponse.missing
+        closestOverall: closest,
+        missing
       });
     } catch (error) {
       setDistanceError((error as Error).message);
@@ -528,6 +556,17 @@ const Monitoring = () => {
     setDistanceError,
     setDistanceResults
   ]);
+
+  useEffect(() => {
+    console.log("User location:", currentPosition);
+    if (currentPosition) {
+      refreshDistances();
+    }
+  }, [currentPosition, refreshDistances]);
+
+  useEffect(() => {
+    console.log("Distances updated", distanceMap);
+  }, [distanceMap]);
 
   useEffect(() => {
     if (!currentPosition) {
@@ -811,24 +850,36 @@ const Monitoring = () => {
               const group = item.groupId ? getGroupById(item.groupId) : undefined;
               const telemetryState = telemetry[item.id];
               const resolvedCallsign =
-                item.callsign ||
-                telemetryState?.data?.callsign ||
-                item.icao24 ||
-                null;
+                item.callsign || telemetryState?.data?.callsign || null;
               const normalizedCallsign = resolvedCallsign
                 ? resolvedCallsign.toUpperCase()
+                : null;
+              const resolvedIcao24 =
+                item.icao24 || telemetryState?.data?.icao24 || null;
+              const normalizedIcao24 = resolvedIcao24
+                ? resolvedIcao24.toLowerCase()
                 : null;
               const distanceData: DistanceResult | undefined =
                 normalizedCallsign
                   ? aircraftDistances[normalizedCallsign]
+                  : normalizedIcao24
+                  ? aircraftDistances[normalizedIcao24]
                   : undefined;
-              const isMissing = normalizedCallsign
-                ? missingCallsigns.includes(normalizedCallsign)
-                : false;
+              const distanceKm = normalizedCallsign
+                ? distanceMap[normalizedCallsign]
+                : normalizedIcao24
+                ? distanceMap[normalizedIcao24]
+                : undefined;
+              const isMissing = Boolean(
+                (normalizedCallsign &&
+                  missingCallsigns.includes(normalizedCallsign)) ||
+                  (normalizedIcao24 &&
+                    missingCallsigns.includes(normalizedIcao24))
+              );
               const hasComputed = Boolean(lastComputedAt);
               const status = telemetryState?.status
                 ? telemetryState.status
-                : !normalizedCallsign
+                : !normalizedCallsign && !normalizedIcao24
                 ? "offline"
                 : distanceData
                 ? "live"
@@ -843,10 +894,10 @@ const Monitoring = () => {
                 : "offline";
               const errorMessage = telemetryState?.errorMessage
                 ? telemetryState.errorMessage
-                : !normalizedCallsign
+                : !normalizedCallsign && !normalizedIcao24
                 ? "Callsign or ICAO24 required for OpenSky distance"
                 : isMissing
-                ? "No OpenSky data for this callsign"
+                ? "No OpenSky data for this identifier"
                 : distanceError
                 ? distanceError
                 : hasComputed
@@ -854,6 +905,8 @@ const Monitoring = () => {
                 : undefined;
               const rank = normalizedCallsign
                 ? rankLookup[normalizedCallsign]
+                : distanceData
+                ? rankLookup[distanceData.callsign]
                 : undefined;
 
               return (
@@ -867,6 +920,7 @@ const Monitoring = () => {
                   }
                   telemetry={telemetryState?.data}
                   distanceData={distanceData}
+                  distanceKm={distanceKm}
                   distanceUnit={settings.distanceUnit}
                   rank={rank}
                   dataSourceLabel={distanceData ? "Live OpenSky" : undefined}
@@ -878,6 +932,24 @@ const Monitoring = () => {
               );
             })}
           </div>
+        )}
+      </div>
+
+      <div className="fixed bottom-4 right-4 z-50 w-64 max-h-64 overflow-auto rounded-2xl border border-yellow-400/40 bg-slate-950/90 p-3 text-xs text-yellow-200 shadow-lg">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-yellow-200/80">
+          Debug distances
+        </p>
+        {Object.entries(distanceMap).length > 0 ? (
+          <div className="mt-2 space-y-1">
+            {Object.entries(distanceMap).map(([key, value]) => (
+              <div key={key} className="flex items-center justify-between">
+                <span className="truncate pr-2">{key}</span>
+                <span>{value} km</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-yellow-200/70">No distance data</p>
         )}
       </div>
 

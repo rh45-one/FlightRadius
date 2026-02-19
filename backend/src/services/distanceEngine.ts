@@ -1,6 +1,7 @@
 import { calculateDistanceKm } from "./distance";
 export type DistancePosition = {
   callsign: string;
+  icao24?: string;
   lat: number;
   lon: number;
   altitude_m: number;
@@ -9,6 +10,7 @@ export type DistancePosition = {
 
 export type DistanceResult = {
   callsign: string;
+  icao24?: string;
   distance_km: number;
   lat: number;
   lon: number;
@@ -44,25 +46,32 @@ const normalizeCallsign = (callsign: string) => callsign.trim().toUpperCase();
 export const buildDistanceResults = (
   userLocation: UserLocation,
   positions: DistancePosition[],
-  callsigns: string[]
+  identifiers: string[]
 ): DistanceSummary => {
   const lookup = new Map(
-    positions.map((entry) => [entry.callsign.toUpperCase(), entry])
+    positions.flatMap((entry) => {
+      const keys = [entry.callsign.toUpperCase()];
+      if (entry.icao24) {
+        keys.push(entry.icao24.toLowerCase());
+      }
+      return keys.map((key) => [key, entry] as const);
+    })
   );
 
   const results: DistanceResult[] = [];
   const missing: string[] = [];
 
-  for (const callsign of callsigns) {
-    const normalized = normalizeCallsign(callsign);
-    const entry = lookup.get(normalized);
+  for (const identifier of identifiers) {
+    const normalized = normalizeCallsign(identifier);
+    const entry = lookup.get(normalized) || lookup.get(identifier.toLowerCase());
     if (!entry) {
       missing.push(normalized);
       continue;
     }
 
     results.push({
-      callsign: normalized,
+      callsign: entry.callsign.toUpperCase(),
+      icao24: entry.icao24,
       distance_km: calculateDistanceKm(
         userLocation.lat,
         userLocation.lon,

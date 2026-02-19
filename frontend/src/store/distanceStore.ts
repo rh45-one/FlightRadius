@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 
 export type DistanceResult = {
   callsign: string;
+  icao24?: string;
   distance_km: number;
   lat: number;
   lon: number;
@@ -37,6 +38,9 @@ type DistanceState = {
 const buildLookup = (results: DistanceResult[]) =>
   results.reduce<Record<string, DistanceResult>>((acc, result) => {
     acc[result.callsign] = result;
+    if (result.icao24) {
+      acc[result.icao24.toLowerCase()] = result;
+    }
     return acc;
   }, {});
 

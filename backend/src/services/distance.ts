@@ -18,6 +18,7 @@ export const calculateDistanceKm = (
     Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distance = EARTH_RADIUS_KM * c;
-
-  return Math.round(distance * 100) / 100;
+  const rounded = Math.round(distance * 100) / 100;
+  console.log(`[DISTANCE] ${lat1},${lon1} -> ${lat2},${lon2} = ${rounded} km`);
+  return rounded;
 };

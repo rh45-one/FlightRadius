@@ -70,6 +70,7 @@ export type AppStatePayload = {
 
 export type DistanceResult = {
   callsign: string;
+  icao24?: string;
   distance_km: number;
   lat: number;
   lon: number;
@@ -86,8 +87,6 @@ export type FleetProximityResult = {
 
 export type DistanceAircraftResponse = {
   results: DistanceResult[];
-  closest: DistanceResult | null;
-  missing: string[];
 };
 
 export type DistanceFleetResponse = {
@@ -217,7 +216,9 @@ export const computeAircraftDistances = async (payload: {
     throw new Error(body?.error || "Failed to compute aircraft distances");
   }
 
-  return (await response.json()) as DistanceAircraftResponse;
+  const data = (await response.json()) as DistanceAircraftResponse;
+  console.log("DISTANCE API RAW:", data);
+  return data;
 };
 
 export const computeFleetDistances = async (payload: {

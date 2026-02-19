@@ -14,6 +14,7 @@ type AircraftCardProps = {
   onRemove: () => void;
   telemetry?: AircraftTelemetry;
   distanceData?: DistanceResult;
+  distanceKm?: number;
   distanceUnit: "km" | "mi";
   rank?: number;
   dataSourceLabel?: string;
@@ -28,6 +29,7 @@ const AircraftCard = ({
   onRemove,
   telemetry,
   distanceData,
+  distanceKm,
   distanceUnit,
   rank,
   dataSourceLabel,
@@ -50,9 +52,12 @@ const AircraftCard = ({
     offline: "Offline"
   };
 
-  const distanceLabel = distanceData
-    ? formatDistance(distanceData.distance_km, distanceUnit)
-    : "—";
+  const distanceKmValue =
+    distanceKm !== undefined ? distanceKm : distanceData?.distance_km;
+  const distanceLabel =
+    distanceKmValue !== undefined
+      ? formatDistance(distanceKmValue, distanceUnit)
+      : "—";
   const altitudeFeet = telemetry
     ? Math.round(telemetry.altitude_m * 3.28084)
     : distanceData
@@ -129,6 +134,10 @@ const AircraftCard = ({
       {status === "offline" && errorMessage ? (
         <p className="mt-3 text-xs text-rose-200">{errorMessage}</p>
       ) : null}
+
+      <div className="mt-3 text-xs text-yellow-200">
+        DEBUG DISTANCE: {distanceKm !== undefined ? `${distanceKm} km` : "NO DATA"}
+      </div>
 
       <div className="mt-6 grid gap-3 text-xs text-slate-300">
         <div className="flex items-center justify-between">

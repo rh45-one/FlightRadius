@@ -71,16 +71,12 @@ router.post("/aircraft", async (req, res) => {
     callsigns: normalizedCallsigns,
     icao24s: normalizedIcao24s
   });
-  const summary = buildDistanceResults(
-    { lat, lon },
-    positions,
-    normalizedCallsigns
-  );
+  const identifiers = [...normalizedCallsigns, ...normalizedIcao24s];
+  const summary = buildDistanceResults({ lat, lon }, positions, identifiers);
 
+  console.log("[API RESPONSE]", summary.results);
   res.json({
-    results: summary.results,
-    closest: summary.closest,
-    missing: summary.missing
+    results: summary.results
   });
 });
 
@@ -160,10 +156,11 @@ router.post("/compute", async (req, res) => {
     callsigns: normalizedCallsigns,
     icao24s: normalizedIcao24s
   });
+  const identifiers = [...normalizedCallsigns, ...normalizedIcao24s];
   const overall = buildDistanceResults(
     { lat: user_location.lat, lon: user_location.lon },
     positions,
-    normalizedCallsigns
+    identifiers
   );
 
   const groupResults = Array.isArray(groups)

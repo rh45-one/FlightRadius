@@ -23,26 +23,21 @@ def _ensure_number(value: object, field: str) -> float:
 
 def calculate_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculate the great-circle distance between two points in kilometers."""
-    lat1_val = _ensure_number(lat1, "lat1")
-    lon1_val = _ensure_number(lon1, "lon1")
-    lat2_val = _ensure_number(lat2, "lat2")
-    lon2_val = _ensure_number(lon2, "lon2")
+    R = 6371
 
-    lat1_rad = math.radians(lat1_val)
-    lon1_rad = math.radians(lon1_val)
-    lat2_rad = math.radians(lat2_val)
-    lon2_rad = math.radians(lon2_val)
+    lat1 = math.radians(lat1)
+    lon1 = math.radians(lon1)
+    lat2 = math.radians(lat2)
+    lon2 = math.radians(lon2)
 
-    delta_lat = lat2_rad - lat1_rad
-    delta_lon = lon2_rad - lon1_rad
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
 
-    a = (
-        math.sin(delta_lat / 2) ** 2
-        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
-    )
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    distance = EARTH_RADIUS_KM * c
 
+    distance = R * c
+    print(f"[DISTANCE] {lat1},{lon1} -> {lat2},{lon2} = {distance} km")
     return round(distance, 2)
 
 
