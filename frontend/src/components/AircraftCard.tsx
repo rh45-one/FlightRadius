@@ -15,6 +15,7 @@ type AircraftCardProps = {
   telemetry?: AircraftTelemetry;
   distanceData?: DistanceResult;
   distanceKm?: number;
+  showDebug?: boolean;
   distanceUnit: "km" | "mi";
   rank?: number;
   dataSourceLabel?: string;
@@ -30,6 +31,7 @@ const AircraftCard = ({
   telemetry,
   distanceData,
   distanceKm,
+  showDebug,
   distanceUnit,
   rank,
   dataSourceLabel,
@@ -135,9 +137,12 @@ const AircraftCard = ({
         <p className="mt-3 text-xs text-rose-200">{errorMessage}</p>
       ) : null}
 
-      <div className="mt-3 text-xs text-yellow-200">
-        DEBUG DISTANCE: {distanceKm !== undefined ? `${distanceKm} km` : "NO DATA"}
-      </div>
+      {showDebug ? (
+        <div className="mt-3 text-xs text-yellow-200">
+          DEBUG DISTANCE:{" "}
+          {distanceKm !== undefined ? `${distanceKm} km` : "NO DATA"}
+        </div>
+      ) : null}
 
       <div className="mt-6 grid gap-3 text-xs text-slate-300">
         <div className="flex items-center justify-between">

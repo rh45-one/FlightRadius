@@ -78,6 +78,12 @@ const Monitoring = () => {
     {}
   );
   const [distanceMap, setDistanceMap] = useState<Record<string, number>>({});
+  const isDebug = useMemo(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return new URLSearchParams(window.location.search).get("debug") === "true";
+  }, []);
   const fetchInFlightRef = useRef(false);
   const schedulerRef = useRef<ReturnType<typeof createDistanceScheduler> | null>(
     null
@@ -447,12 +453,13 @@ const Monitoring = () => {
     return lookup;
   }, [fleetAircraft, getGroupById]);
 
+  const nearestAircraft = closestOverall || aircraftRanked[0] || null;
   const closestDistanceLabel = formatDistance(
-    closestOverall?.distance_km,
+    nearestAircraft?.distance_km,
     settings.distanceUnit
   );
-  const closestFleetLabel = closestOverall
-    ? callsignFleetLookup.get(closestOverall.callsign) || "Ungrouped"
+  const closestFleetLabel = nearestAircraft
+    ? callsignFleetLookup.get(nearestAircraft.callsign) || "Ungrouped"
     : "—";
   const hasAircraftResults = aircraftRanked.length > 0;
   const hasFleetResults = fleetDistances.length > 0;
@@ -520,7 +527,9 @@ const Monitoring = () => {
       });
 
       setDistanceMap(distanceMapNext);
-      console.log("DISTANCE MAP:", distanceMapNext);
+      if (isDebug) {
+        console.log("DISTANCE MAP:", distanceMapNext);
+      }
 
       const resultKeys = new Set<string>();
       aircraftResults.forEach((entry) => {
@@ -558,14 +567,18 @@ const Monitoring = () => {
   ]);
 
   useEffect(() => {
-    console.log("User location:", currentPosition);
+    if (isDebug) {
+      console.log("User location:", currentPosition);
+    }
     if (currentPosition) {
       refreshDistances();
     }
   }, [currentPosition, refreshDistances]);
 
   useEffect(() => {
-    console.log("Distances updated", distanceMap);
+    if (isDebug) {
+      console.log("Distances updated", distanceMap);
+    }
   }, [distanceMap]);
 
   useEffect(() => {
@@ -687,14 +700,16 @@ const Monitoring = () => {
         {closestOverall ? (
           <div className="mt-3 text-sm text-slate-200">
             <p className="text-lg font-semibold text-white">
-              {closestOverall.callsign}
+              {nearestAircraft?.callsign}
             </p>
             <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-300">
               <span>Distance: {closestDistanceLabel}</span>
               <span>Fleet: {closestFleetLabel}</span>
               <span>
                 Altitude:{" "}
-                {Math.round(closestOverall.altitude_m * 3.28084)} ft
+                {nearestAircraft
+                  ? Math.round(nearestAircraft.altitude_m * 3.28084)
+                  : "—"} ft
               </span>
             </div>
             <span className="mt-3 inline-flex rounded-full border border-emerald-400/40 px-2 py-0.5 text-[10px] uppercase tracking-[0.25em] text-emerald-200">
@@ -921,6 +936,7 @@ const Monitoring = () => {
                   telemetry={telemetryState?.data}
                   distanceData={distanceData}
                   distanceKm={distanceKm}
+                  showDebug={isDebug}
                   distanceUnit={settings.distanceUnit}
                   rank={rank}
                   dataSourceLabel={distanceData ? "Live OpenSky" : undefined}
@@ -935,23 +951,25 @@ const Monitoring = () => {
         )}
       </div>
 
-      <div className="fixed bottom-4 right-4 z-50 w-64 max-h-64 overflow-auto rounded-2xl border border-yellow-400/40 bg-slate-950/90 p-3 text-xs text-yellow-200 shadow-lg">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-yellow-200/80">
-          Debug distances
-        </p>
-        {Object.entries(distanceMap).length > 0 ? (
-          <div className="mt-2 space-y-1">
-            {Object.entries(distanceMap).map(([key, value]) => (
-              <div key={key} className="flex items-center justify-between">
-                <span className="truncate pr-2">{key}</span>
-                <span>{value} km</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-2 text-yellow-200/70">No distance data</p>
-        )}
-      </div>
+      {isDebug ? (
+        <div className="fixed bottom-4 right-4 z-50 w-64 max-h-64 overflow-auto rounded-2xl border border-yellow-400/40 bg-slate-950/90 p-3 text-xs text-yellow-200 shadow-lg">
+          <p className="text-[10px] uppercase tracking-[0.3em] text-yellow-200/80">
+            Debug distances
+          </p>
+          {Object.entries(distanceMap).length > 0 ? (
+            <div className="mt-2 space-y-1">
+              {Object.entries(distanceMap).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="truncate pr-2">{key}</span>
+                  <span>{value} km</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-yellow-200/70">No distance data</p>
+          )}
+        </div>
+      ) : null}
 
       <AddAircraftModal
         isOpen={isModalOpen}
