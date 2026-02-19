@@ -1,5 +1,11 @@
 import { calculateDistanceKm } from "./distance";
-import { MockAircraftPosition } from "./mockAircraft";
+export type DistancePosition = {
+  callsign: string;
+  lat: number;
+  lon: number;
+  altitude_m: number;
+  last_update: string;
+};
 
 export type DistanceResult = {
   callsign: string;
@@ -37,7 +43,7 @@ const normalizeCallsign = (callsign: string) => callsign.trim().toUpperCase();
 
 export const buildDistanceResults = (
   userLocation: UserLocation,
-  positions: MockAircraftPosition[],
+  positions: DistancePosition[],
   callsigns: string[]
 ): DistanceSummary => {
   const lookup = new Map(
@@ -81,7 +87,7 @@ export const buildDistanceResults = (
 
 export const buildGroupProximity = (
   userLocation: UserLocation,
-  positions: MockAircraftPosition[],
+  positions: DistancePosition[],
   groups: FleetGroupInput[]
 ): FleetProximityResult[] => {
   return groups.map((group) => {

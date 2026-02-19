@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { MockAircraftProvider } from "../providers/mockAircraftProvider";
+import { OpenSkyProvider } from "../providers/openSkyProvider";
 import { buildDistanceResults, buildGroupProximity } from "../services/distanceEngine";
 
 const router = Router();
@@ -45,7 +45,7 @@ router.post("/aircraft", async (req, res) => {
   }
 
   const normalizedCallsigns = normalizeCallsigns(callsigns);
-  const positions = await MockAircraftProvider.getPositions(normalizedCallsigns);
+  const positions = await OpenSkyProvider.getPositions(normalizedCallsigns);
   const summary = buildDistanceResults(
     { lat, lon },
     positions,
@@ -87,7 +87,7 @@ router.post("/fleets", async (req, res) => {
   const uniqueCallsigns = Array.from(
     new Set(normalizedFleets.flatMap((fleet) => fleet.callsigns))
   );
-  const positions = await MockAircraftProvider.getPositions(uniqueCallsigns);
+  const positions = await OpenSkyProvider.getPositions(uniqueCallsigns);
 
   const results = buildGroupProximity({ lat, lon }, positions, normalizedFleets);
 
@@ -122,7 +122,7 @@ router.post("/compute", async (req, res) => {
   }
 
   const normalizedCallsigns = normalizeCallsigns(callsigns);
-  const positions = await MockAircraftProvider.getPositions(normalizedCallsigns);
+  const positions = await OpenSkyProvider.getPositions(normalizedCallsigns);
   const overall = buildDistanceResults(
     { lat: user_location.lat, lon: user_location.lon },
     positions,

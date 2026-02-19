@@ -1,4 +1,5 @@
-import { getMockAircraftPositions, MockAircraftPosition } from "../services/mockAircraft";
+import { getMockAircraftPositions } from "../services/mockAircraft";
+import { DistancePosition } from "../services/distanceEngine";
 
 export class MockAircraftProvider {
   static async get_positions(callsigns: string[]) {
@@ -8,7 +9,7 @@ export class MockAircraftProvider {
   static async getPositions(callsigns: string[]) {
     const positions = await getMockAircraftPositions();
     if (!callsigns || callsigns.length === 0) {
-      return positions;
+      return positions as DistancePosition[];
     }
 
     const lookup = new Map(
@@ -17,6 +18,6 @@ export class MockAircraftProvider {
 
     return callsigns
       .map((callsign) => lookup.get(callsign.trim().toUpperCase()))
-      .filter((entry): entry is MockAircraftPosition => Boolean(entry));
+      .filter((entry): entry is DistancePosition => Boolean(entry));
   }
 }

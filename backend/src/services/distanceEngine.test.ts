@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calculateDistanceKm } from "./distance";
 import { buildDistanceResults, buildGroupProximity } from "./distanceEngine";
-import { MockAircraftPosition } from "./mockAircraft";
 
 describe("calculateDistanceKm", () => {
   it("returns a reasonable distance between London and Paris", () => {
@@ -12,7 +11,7 @@ describe("calculateDistanceKm", () => {
 });
 
 describe("buildDistanceResults", () => {
-  const positions: MockAircraftPosition[] = [
+  const positions = [
     {
       callsign: "AAA100",
       lat: 52.52,

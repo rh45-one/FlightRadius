@@ -1,8 +1,7 @@
 # FlightRadius
 
 FlightRadius is a Dockerized full-stack aircraft tracking dashboard. It uses
-mock aircraft positions while the OpenSky integration remains a swap-in
-provider for later.
+live OpenSky positions for telemetry and distance calculations.
 
 ## Location and Privacy
 
@@ -13,21 +12,18 @@ provider for later.
 To enable location, tap **Enable Location** in the Monitoring header and grant
 permission in the browser prompt.
 
-## Mock Aircraft Data
+## OpenSky Data
 
-Mock positions live at [backend/src/mock/aircraft_positions.json](backend/src/mock/aircraft_positions.json).
-The backend distance engine computes distances from this dataset for callsigns
-and fleet groups.
-
-You can test distance results by adding tracked callsigns (or bulk-importing
-fleet groups) that match entries in the mock dataset.
+Distance calculations use OpenSky aircraft positions. Callsigns are matched
+against the live OpenSky state vectors and may return no data if a callsign
+is not currently visible.
 
 ## Distance Computation
 
 - Uses the Haversine formula with Earth radius 6371 km.
 - Distances are rounded to 2 decimals.
 - Expect typical accuracy within about 0.5 km for short to medium ranges.
-- Mock data is static and does not reflect real aircraft movement.
+- OpenSky data is real-time and may be delayed or rate limited.
 
 ## Refresh Logic
 
@@ -53,5 +49,5 @@ docker compose up --build
 
 ## Future Providers
 
-The backend distance engine is provider-agnostic. Mock data can be replaced
-with OpenSky, FlightRadar, or ADS-B Exchange without changing distance logic.
+The backend distance engine is provider-agnostic. OpenSky can be replaced
+with FlightRadar or ADS-B Exchange without changing distance logic.

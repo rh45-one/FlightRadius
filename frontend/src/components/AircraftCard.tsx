@@ -16,6 +16,7 @@ type AircraftCardProps = {
   distanceData?: DistanceResult;
   distanceUnit: "km" | "mi";
   rank?: number;
+  dataSourceLabel?: string;
   status: "loading" | "live" | "stale" | "offline";
   errorMessage?: string;
   groupLabel?: string;
@@ -29,6 +30,7 @@ const AircraftCard = ({
   distanceData,
   distanceUnit,
   rank,
+  dataSourceLabel,
   status,
   errorMessage,
   groupLabel,
@@ -79,6 +81,11 @@ const AircraftCard = ({
           <h3 className="mt-2 text-lg font-semibold text-white">
             {aircraft.callsign || aircraft.icao24 || "Unassigned callsign"}
           </h3>
+          {dataSourceLabel ? (
+            <span className="mt-2 inline-flex rounded-full border border-emerald-400/40 px-2 py-0.5 text-[10px] uppercase tracking-[0.25em] text-emerald-200">
+              {dataSourceLabel}
+            </span>
+          ) : null}
           {aircraft.notes ? (
             <p className="mt-2 text-sm text-slate-300">{aircraft.notes}</p>
           ) : (

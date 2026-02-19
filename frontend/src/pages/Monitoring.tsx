@@ -558,8 +558,8 @@ const Monitoring = () => {
             Fleet Overview
           </h1>
           <p className="mt-2 max-w-xl text-sm text-slate-300">
-            Track multiple aircraft in one place. Distances use mock positions
-            until live providers are wired in.
+            Track multiple aircraft in one place. Distances now use live
+            OpenSky positions.
           </p>
         </div>
         <div className="w-full rounded-3xl border border-white/10 bg-white/5 p-4 shadow-glow backdrop-blur sm:max-w-sm">
@@ -646,6 +646,9 @@ const Monitoring = () => {
                 {Math.round(closestOverall.altitude_m * 3.28084)} ft
               </span>
             </div>
+            <span className="mt-3 inline-flex rounded-full border border-emerald-400/40 px-2 py-0.5 text-[10px] uppercase tracking-[0.25em] text-emerald-200">
+              Live OpenSky
+            </span>
           </div>
         ) : (
           <p className="mt-3 text-sm text-slate-400">
@@ -659,7 +662,7 @@ const Monitoring = () => {
       ) : null}
       {!distanceError && currentPosition && callsigns.length > 0 && !hasAircraftResults ? (
         <p className="mt-4 text-xs text-amber-200">
-          No aircraft positions found for the tracked callsigns.
+          No OpenSky positions found for the tracked callsigns.
         </p>
       ) : null}
       {!distanceError && currentPosition && groups.length > 0 && !hasFleetResults ? (
@@ -826,7 +829,7 @@ const Monitoring = () => {
                 : !normalizedCallsign
                 ? "Callsign required for distance"
                 : isMissing
-                ? "No mock position data for this callsign"
+                ? "No OpenSky data for this callsign"
                 : distanceError
                 ? distanceError
                 : hasComputed
@@ -849,6 +852,7 @@ const Monitoring = () => {
                   distanceData={distanceData}
                   distanceUnit={settings.distanceUnit}
                   rank={rank}
+                  dataSourceLabel={distanceData ? "Live OpenSky" : undefined}
                   status={status}
                   errorMessage={errorMessage}
                   groupLabel={group?.name}

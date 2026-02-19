@@ -16,6 +16,7 @@ describe("AircraftCard", () => {
         onRemove={() => undefined}
         distanceUnit="km"
         rank={2}
+        dataSourceLabel="Live OpenSky"
         status="live"
         telemetry={{
           icao24: "a1b2c3",
@@ -41,5 +42,6 @@ describe("AircraftCard", () => {
     expect(screen.getByText(/215.12 km/i)).toBeInTheDocument();
     expect(screen.getByText(/Last update/i)).toBeInTheDocument();
     expect(screen.getByText(/#2 closest/i)).toBeInTheDocument();
+    expect(screen.getByText(/Live OpenSky/i)).toBeInTheDocument();
   });
 });

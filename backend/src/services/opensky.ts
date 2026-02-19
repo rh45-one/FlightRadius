@@ -273,6 +273,33 @@ const getStatesSnapshot = async () => {
   return response.states || [];
 };
 
+export const getAircraftTelemetryByCallsigns = async (callsigns: string[]) => {
+  const targets = new Set(callsigns.map(normalizeCallsign));
+  if (targets.size === 0) {
+    return [] as AircraftTelemetry[];
+  }
+
+  const states = await getStatesSnapshot();
+  const telemetry: AircraftTelemetry[] = [];
+
+  for (const state of states) {
+    const value = typeof state[1] === "string" ? state[1].trim().toUpperCase() : "";
+    if (!value || !targets.has(value)) {
+      continue;
+    }
+
+    try {
+      const normalized = normalizeState(state);
+      telemetry.push(normalized);
+      setCacheEntry(normalized.icao24, normalized);
+    } catch (error) {
+      console.warn("Skipped telemetry entry", error);
+    }
+  }
+
+  return telemetry;
+};
+
 export const getAircraftTelemetryByCallsign = async (callsign: string) => {
   const target = normalizeCallsign(callsign);
   const states = await getStatesSnapshot();
