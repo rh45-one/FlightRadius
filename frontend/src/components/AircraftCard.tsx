@@ -1,4 +1,5 @@
-import { AircraftTelemetry, DistanceResult } from "../services/api";
+import { DistanceResult } from "../services/api";
+import { formatDistance } from "../utils/distance";
 
 type AircraftLike = {
   id: string;
@@ -11,9 +12,9 @@ type AircraftLike = {
 type AircraftCardProps = {
   aircraft: AircraftLike;
   onRemove: () => void;
-  telemetry?: AircraftTelemetry;
   distanceData?: DistanceResult;
   distanceUnit: "km" | "mi";
+  rank?: number;
   status: "loading" | "live" | "stale" | "offline";
   errorMessage?: string;
   groupLabel?: string;
@@ -23,9 +24,9 @@ type AircraftCardProps = {
 const AircraftCard = ({
   aircraft,
   onRemove,
-  telemetry,
   distanceData,
   distanceUnit,
+  rank,
   status,
   errorMessage,
   groupLabel,
@@ -45,25 +46,16 @@ const AircraftCard = ({
     offline: "Offline"
   };
 
-  const distanceValue = distanceData
-    ? distanceUnit === "mi"
-      ? distanceData.distance_km * 0.621371
-      : distanceData.distance_km
-    : null;
-  const distanceLabel = distanceValue !== null ? distanceValue.toFixed(2) : "—";
-  const altitudeFeet = telemetry
-    ? Math.round(telemetry.altitude_m * 3.28084)
-    : distanceData
+  const distanceLabel = distanceData
+    ? formatDistance(distanceData.distance_km, distanceUnit)
+    : "—";
+  const altitudeFeet = distanceData
     ? Math.round(distanceData.altitude_m * 3.28084)
     : null;
-  const coordinatesLabel = telemetry
-    ? `${telemetry.latitude.toFixed(4)}, ${telemetry.longitude.toFixed(4)}`
-    : distanceData
+  const coordinatesLabel = distanceData
     ? `${distanceData.lat.toFixed(4)}, ${distanceData.lon.toFixed(4)}`
     : "— , —";
-  const lastUpdate = telemetry?.last_contact
-    ? new Date(telemetry.last_contact * 1000).toLocaleTimeString()
-    : distanceData?.last_update
+  const lastUpdate = distanceData?.last_update
     ? new Date(distanceData.last_update).toLocaleTimeString()
     : "—";
 
@@ -126,11 +118,7 @@ const AircraftCard = ({
       <div className="mt-6 grid gap-3 text-xs text-slate-300">
         <div className="flex items-center justify-between">
           <span>Distance</span>
-          <span className="text-slate-100">
-            {distanceLabel === "—"
-              ? "—"
-              : `${distanceLabel} ${distanceUnit}`}
-          </span>
+          <span className="text-slate-100">{distanceLabel}</span>
         </div>
         <div className="flex items-center justify-between">
           <span>Coordinates</span>
@@ -145,6 +133,12 @@ const AircraftCard = ({
         <div className="flex items-center justify-between">
           <span>Last update</span>
           <span className="text-slate-100">{lastUpdate}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span>Rank</span>
+          <span className="text-slate-100">
+            {rank ? `#${rank} closest` : "—"}
+          </span>
         </div>
       </div>
 

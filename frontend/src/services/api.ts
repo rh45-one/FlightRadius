@@ -25,6 +25,7 @@ export type AppStatePayload = {
     distanceUnit: "km" | "mi";
     maxTrackedWarning: number;
     locationMode: "gps" | "manual";
+    autoRefreshOnMovement: boolean;
     autoEnableLocationOnDashboard: boolean;
     distanceUpdateIntervalSec: number;
     gpsPollingIntervalSec: number;
@@ -76,18 +77,21 @@ export type DistanceResult = {
   last_update: string;
 };
 
-export type GroupDistanceResult = {
-  name: string;
+export type FleetProximityResult = {
+  group_name: string;
+  closest_aircraft: DistanceResult | null;
+  members_ranked: DistanceResult[];
+  missing: string[];
+};
+
+export type DistanceAircraftResponse = {
   results: DistanceResult[];
   closest: DistanceResult | null;
   missing: string[];
 };
 
-export type DistanceComputeResponse = {
-  results: DistanceResult[];
-  closest: DistanceResult | null;
-  missing: string[];
-  groups: GroupDistanceResult[];
+export type DistanceFleetResponse = {
+  fleets: FleetProximityResult[];
 };
 
 export const getAircraftStatus = async (icao24: string) => {
@@ -194,12 +198,12 @@ export const saveAppState = async (payload: AppStatePayload) => {
   return (await response.json()) as AppStatePayload;
 };
 
-export const computeDistances = async (payload: {
-  user_location: { lat: number; lon: number };
+export const computeAircraftDistances = async (payload: {
+  lat: number;
+  lon: number;
   callsigns?: string[];
-  groups?: { name: string; callsigns: string[] }[];
 }) => {
-  const response = await fetch(`${API_BASE}/distance/compute`, {
+  const response = await fetch(`${API_BASE}/distance/aircraft`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -209,8 +213,29 @@ export const computeDistances = async (payload: {
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    throw new Error(body?.error || "Failed to compute distances");
+    throw new Error(body?.error || "Failed to compute aircraft distances");
   }
 
-  return (await response.json()) as DistanceComputeResponse;
+  return (await response.json()) as DistanceAircraftResponse;
+};
+
+export const computeFleetDistances = async (payload: {
+  lat: number;
+  lon: number;
+  fleets: { name: string; callsigns: string[] }[];
+}) => {
+  const response = await fetch(`${API_BASE}/distance/fleets`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error || "Failed to compute fleet distances");
+  }
+
+  return (await response.json()) as DistanceFleetResponse;
 };

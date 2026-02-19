@@ -14,6 +14,7 @@ export type StoredSettings = {
   distanceUnit: "km" | "mi";
   maxTrackedWarning: number;
   locationMode: "gps" | "manual";
+  autoRefreshOnMovement: boolean;
   autoEnableLocationOnDashboard: boolean;
   distanceUpdateIntervalSec: number;
   gpsPollingIntervalSec: number;
@@ -65,6 +66,7 @@ const defaultState: AppState = {
     distanceUnit: "km",
     maxTrackedWarning: 24,
     locationMode: "gps",
+    autoRefreshOnMovement: true,
     autoEnableLocationOnDashboard: false,
     distanceUpdateIntervalSec: 15,
     gpsPollingIntervalSec: 20,

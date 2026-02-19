@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { getMockAircraftPositions } from "../services/mockAircraft";
-import { buildDistanceResults } from "../services/distanceEngine";
+import { MockAircraftProvider } from "../providers/mockAircraftProvider";
+import { buildDistanceResults, buildGroupProximity } from "../services/distanceEngine";
 
 const router = Router();
 
@@ -23,6 +23,77 @@ const normalizeCallsigns = (input: unknown) => {
   );
 };
 
+const isValidCoordinates = (lat: number, lon: number) =>
+  lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+
+router.post("/aircraft", async (req, res) => {
+  const { lat, lon, callsigns } = req.body || {};
+
+  if (!isNumber(lat) || !isNumber(lon)) {
+    res.status(400).json({ error: "Invalid coordinates", status: 400 });
+    return;
+  }
+
+  if (!isValidCoordinates(lat, lon)) {
+    res.status(400).json({ error: "Invalid coordinates", status: 400 });
+    return;
+  }
+
+  if (callsigns !== undefined && !Array.isArray(callsigns)) {
+    res.status(400).json({ error: "Invalid callsigns list", status: 400 });
+    return;
+  }
+
+  const normalizedCallsigns = normalizeCallsigns(callsigns);
+  const positions = await MockAircraftProvider.getPositions(normalizedCallsigns);
+  const summary = buildDistanceResults(
+    { lat, lon },
+    positions,
+    normalizedCallsigns
+  );
+
+  res.json({
+    results: summary.results,
+    closest: summary.closest,
+    missing: summary.missing
+  });
+});
+
+router.post("/fleets", async (req, res) => {
+  const { lat, lon, fleets } = req.body || {};
+
+  if (!isNumber(lat) || !isNumber(lon)) {
+    res.status(400).json({ error: "Invalid coordinates", status: 400 });
+    return;
+  }
+
+  if (!isValidCoordinates(lat, lon)) {
+    res.status(400).json({ error: "Invalid coordinates", status: 400 });
+    return;
+  }
+
+  if (!Array.isArray(fleets)) {
+    res.status(400).json({ error: "Invalid fleets payload", status: 400 });
+    return;
+  }
+
+  const normalizedFleets = fleets
+    .filter((fleet) => fleet && typeof fleet.name === "string")
+    .map((fleet) => ({
+      name: fleet.name,
+      callsigns: normalizeCallsigns(fleet.callsigns)
+    }));
+
+  const uniqueCallsigns = Array.from(
+    new Set(normalizedFleets.flatMap((fleet) => fleet.callsigns))
+  );
+  const positions = await MockAircraftProvider.getPositions(uniqueCallsigns);
+
+  const results = buildGroupProximity({ lat, lon }, positions, normalizedFleets);
+
+  res.json({ fleets: results });
+});
+
 router.post("/compute", async (req, res) => {
   const { user_location, callsigns, groups } = req.body || {};
 
@@ -35,12 +106,7 @@ router.post("/compute", async (req, res) => {
     return;
   }
 
-  if (
-    user_location.lat < -90 ||
-    user_location.lat > 90 ||
-    user_location.lon < -180 ||
-    user_location.lon > 180
-  ) {
+  if (!isValidCoordinates(user_location.lat, user_location.lon)) {
     res.status(400).json({ error: "Invalid coordinates", status: 400 });
     return;
   }
@@ -55,8 +121,8 @@ router.post("/compute", async (req, res) => {
     return;
   }
 
-  const positions = await getMockAircraftPositions();
   const normalizedCallsigns = normalizeCallsigns(callsigns);
+  const positions = await MockAircraftProvider.getPositions(normalizedCallsigns);
   const overall = buildDistanceResults(
     { lat: user_location.lat, lon: user_location.lon },
     positions,
@@ -64,16 +130,16 @@ router.post("/compute", async (req, res) => {
   );
 
   const groupResults = Array.isArray(groups)
-    ? groups
-        .filter((group) => group && typeof group.name === "string")
-        .map((group) => ({
-          name: group.name,
-          ...buildDistanceResults(
-            { lat: user_location.lat, lon: user_location.lon },
-            positions,
-            normalizeCallsigns(group.callsigns)
-          )
-        }))
+    ? buildGroupProximity(
+        { lat: user_location.lat, lon: user_location.lon },
+        positions,
+        groups
+          .filter((group) => group && typeof group.name === "string")
+          .map((group) => ({
+            name: group.name,
+            callsigns: normalizeCallsigns(group.callsigns)
+          }))
+      )
     : [];
 
   res.json({

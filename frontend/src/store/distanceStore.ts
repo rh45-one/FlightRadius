@@ -11,22 +11,24 @@ export type DistanceResult = {
 };
 
 export type GroupDistanceResult = {
-  name: string;
-  results: DistanceResult[];
-  closest: DistanceResult | null;
+  group_name: string;
+  closest_aircraft: DistanceResult | null;
+  members_ranked: DistanceResult[];
   missing: string[];
 };
 
 type DistanceState = {
   aircraftDistances: Record<string, DistanceResult>;
-  groupClosest: Record<string, DistanceResult | null>;
-  groupResults: GroupDistanceResult[];
+  aircraftRanked: DistanceResult[];
+  fleetDistances: GroupDistanceResult[];
+  closestOverall: DistanceResult | null;
   missingCallsigns: string[];
   lastComputedAt: number | null;
   errorMessage: string | null;
   setDistanceResults: (payload: {
-    results: DistanceResult[];
-    groups: GroupDistanceResult[];
+    aircraftResults: DistanceResult[];
+    fleetResults: GroupDistanceResult[];
+    closestOverall: DistanceResult | null;
     missing: string[];
   }) => void;
   setError: (message: string | null) => void;
@@ -38,26 +40,27 @@ const buildLookup = (results: DistanceResult[]) =>
     return acc;
   }, {});
 
-const buildGroupClosest = (groups: GroupDistanceResult[]) =>
-  groups.reduce<Record<string, DistanceResult | null>>((acc, group) => {
-    acc[group.name] = group.closest;
-    return acc;
-  }, {});
-
 export const useDistanceStore = create<DistanceState>()(
   persist(
     (set) => ({
       aircraftDistances: {},
-      groupClosest: {},
-      groupResults: [],
+      aircraftRanked: [],
+      fleetDistances: [],
+      closestOverall: null,
       missingCallsigns: [],
       lastComputedAt: null,
       errorMessage: null,
-      setDistanceResults: ({ results, groups, missing }) =>
+      setDistanceResults: ({
+        aircraftResults,
+        fleetResults,
+        closestOverall,
+        missing
+      }) =>
         set(() => ({
-          aircraftDistances: buildLookup(results),
-          groupResults: groups,
-          groupClosest: buildGroupClosest(groups),
+          aircraftDistances: buildLookup(aircraftResults),
+          aircraftRanked: aircraftResults,
+          fleetDistances: fleetResults,
+          closestOverall,
           missingCallsigns: missing,
           lastComputedAt: Date.now(),
           errorMessage: null
@@ -68,8 +71,9 @@ export const useDistanceStore = create<DistanceState>()(
       name: "flightRadius.distances",
       partialize: (state) => ({
         aircraftDistances: state.aircraftDistances,
-        groupClosest: state.groupClosest,
-        groupResults: state.groupResults,
+        aircraftRanked: state.aircraftRanked,
+        fleetDistances: state.fleetDistances,
+        closestOverall: state.closestOverall,
         missingCallsigns: state.missingCallsigns,
         lastComputedAt: state.lastComputedAt
       })

@@ -90,6 +90,24 @@ const Settings = () => {
                 className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
               />
             </label>
+            <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3">
+              <div>
+                <p className="text-sm text-slate-100">Auto-refresh on movement</p>
+                <p className="text-xs text-slate-400">
+                  Recompute distances when your GPS position changes.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.autoRefreshOnMovement}
+                onChange={(event) =>
+                  updateSettings({
+                    autoRefreshOnMovement: event.target.checked
+                  })
+                }
+                className="h-5 w-5 accent-cyan-400"
+              />
+            </label>
             <label className="flex flex-col gap-2">
               Distance update frequency (seconds)
               <input

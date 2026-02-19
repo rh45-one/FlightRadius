@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { calculateDistanceKm } from "./distance";
-import { buildDistanceResults } from "./distanceEngine";
+import { buildDistanceResults, buildGroupProximity } from "./distanceEngine";
 import { MockAircraftPosition } from "./mockAircraft";
 
 describe("calculateDistanceKm", () => {
   it("returns a reasonable distance between London and Paris", () => {
     const distance = calculateDistanceKm(51.5074, -0.1278, 48.8566, 2.3522);
-    expect(distance).toBeGreaterThan(340);
-    expect(distance).toBeLessThan(350);
+    expect(distance).toBeGreaterThan(343);
+    expect(distance).toBeLessThan(344);
   });
 });
 
@@ -68,5 +68,21 @@ describe("buildDistanceResults", () => {
 
     expect(groupResult.results[0].callsign).toBe("BBB200");
     expect(groupResult.results[1].callsign).toBe("CCC300");
+  });
+
+  it("aggregates fleet proximity", () => {
+    const result = buildGroupProximity(
+      { lat: 50.1109, lon: 8.6821 },
+      positions,
+      [
+        { name: "Fleet A", callsigns: ["AAA100", "CCC300"] },
+        { name: "Fleet B", callsigns: ["BBB200"] }
+      ]
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result[0].group_name).toBe("Fleet A");
+    expect(result[0].closest_aircraft?.callsign).toBe("AAA100");
+    expect(result[1].members_ranked[0].callsign).toBe("BBB200");
   });
 });

@@ -21,6 +21,18 @@ export type UserLocation = {
   lon: number;
 };
 
+export type FleetGroupInput = {
+  name: string;
+  callsigns: string[];
+};
+
+export type FleetProximityResult = {
+  group_name: string;
+  closest_aircraft: DistanceResult | null;
+  members_ranked: DistanceResult[];
+  missing: string[];
+};
+
 const normalizeCallsign = (callsign: string) => callsign.trim().toUpperCase();
 
 export const buildDistanceResults = (
@@ -65,4 +77,20 @@ export const buildDistanceResults = (
     missing,
     closest: results.length > 0 ? results[0] : null
   };
+};
+
+export const buildGroupProximity = (
+  userLocation: UserLocation,
+  positions: MockAircraftPosition[],
+  groups: FleetGroupInput[]
+): FleetProximityResult[] => {
+  return groups.map((group) => {
+    const summary = buildDistanceResults(userLocation, positions, group.callsigns);
+    return {
+      group_name: group.name,
+      closest_aircraft: summary.closest,
+      members_ranked: summary.results,
+      missing: summary.missing
+    };
+  });
 };

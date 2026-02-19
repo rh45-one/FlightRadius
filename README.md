@@ -22,6 +22,19 @@ and fleet groups.
 You can test distance results by adding tracked callsigns (or bulk-importing
 fleet groups) that match entries in the mock dataset.
 
+## Distance Computation
+
+- Uses the Haversine formula with Earth radius 6371 km.
+- Distances are rounded to 2 decimals.
+- Expect typical accuracy within about 0.5 km for short to medium ranges.
+- Mock data is static and does not reflect real aircraft movement.
+
+## Refresh Logic
+
+- Recomputes every `distanceUpdateIntervalSec` seconds.
+- Also recomputes on GPS change when auto-refresh on movement is enabled.
+- Rapid GPS updates are debounced by 5 seconds to avoid duplicate calls.
+
 ## Mobile Instructions
 
 - Use HTTPS (the Docker setup exposes 8443) because mobile browsers require it
