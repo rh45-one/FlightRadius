@@ -27,6 +27,7 @@ const Settings = () => {
       | "refreshIntervalSec"
       | "maxTrackedWarning"
       | "gpsPollingIntervalSec"
+      | "distanceUpdateIntervalSec"
   ) =>
     (event: ChangeEvent<HTMLInputElement>) => {
       updateSettings({ [key]: Number(event.target.value) });
@@ -90,6 +91,16 @@ const Settings = () => {
               />
             </label>
             <label className="flex flex-col gap-2">
+              Distance update frequency (seconds)
+              <input
+                type="number"
+                min={5}
+                value={settings.distanceUpdateIntervalSec}
+                onChange={handleNumberChange("distanceUpdateIntervalSec")}
+                className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2"
+              />
+            </label>
+            <label className="flex flex-col gap-2">
               Distance unit
               <select
                 value={settings.distanceUnit}
@@ -120,6 +131,26 @@ const Settings = () => {
         <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-glow backdrop-blur">
           <h2 className="text-lg font-semibold text-white">Location</h2>
           <div className="mt-4 space-y-4 text-sm text-slate-200">
+            <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3">
+              <div>
+                <p className="text-sm text-slate-100">
+                  Auto-enable on dashboard
+                </p>
+                <p className="text-xs text-slate-400">
+                  Start location updates when permission has already been granted.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.autoEnableLocationOnDashboard}
+                onChange={(event) =>
+                  updateSettings({
+                    autoEnableLocationOnDashboard: event.target.checked
+                  })
+                }
+                className="h-5 w-5 accent-cyan-400"
+              />
+            </label>
             <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3">
               <div>
                 <p className="text-sm text-slate-100">Manual override</p>

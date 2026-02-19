@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { PositionData, PermissionStatus } from "../services/geolocation";
 
 type LocationState = {
@@ -13,18 +14,31 @@ type LocationState = {
   setError: (message: string | null) => void;
 };
 
-export const useLocationStore = create<LocationState>((set) => ({
-  currentPosition: null,
-  permissionStatus: "unknown",
-  pollingActive: false,
-  lastUpdated: null,
-  errorState: null,
-  setPosition: (position) =>
-    set(() => ({
-      currentPosition: position,
-      lastUpdated: position ? position.timestamp : null
-    })),
-  setPermissionStatus: (status) => set(() => ({ permissionStatus: status })),
-  setPollingActive: (active) => set(() => ({ pollingActive: active })),
-  setError: (message) => set(() => ({ errorState: message }))
-}));
+export const useLocationStore = create<LocationState>()(
+  persist(
+    (set) => ({
+      currentPosition: null,
+      permissionStatus: "unknown",
+      pollingActive: false,
+      lastUpdated: null,
+      errorState: null,
+      setPosition: (position) =>
+        set(() => ({
+          currentPosition: position,
+          lastUpdated: position ? position.timestamp : null
+        })),
+      setPermissionStatus: (status) =>
+        set(() => ({ permissionStatus: status })),
+      setPollingActive: (active) => set(() => ({ pollingActive: active })),
+      setError: (message) => set(() => ({ errorState: message }))
+    }),
+    {
+      name: "flightRadius.location",
+      partialize: (state) => ({
+        currentPosition: state.currentPosition,
+        permissionStatus: state.permissionStatus,
+        lastUpdated: state.lastUpdated
+      })
+    }
+  )
+);

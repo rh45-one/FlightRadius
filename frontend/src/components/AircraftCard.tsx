@@ -1,4 +1,4 @@
-import { AircraftTelemetry } from "../services/api";
+import { DistanceResult } from "../services/api";
 
 type AircraftLike = {
   id: string;
@@ -11,7 +11,8 @@ type AircraftLike = {
 type AircraftCardProps = {
   aircraft: AircraftLike;
   onRemove: () => void;
-  telemetry?: AircraftTelemetry;
+  distanceData?: DistanceResult;
+  distanceUnit: "km" | "mi";
   status: "loading" | "live" | "stale" | "offline";
   errorMessage?: string;
   groupLabel?: string;
@@ -21,7 +22,8 @@ type AircraftCardProps = {
 const AircraftCard = ({
   aircraft,
   onRemove,
-  telemetry,
+  distanceData,
+  distanceUnit,
   status,
   errorMessage,
   groupLabel,
@@ -41,12 +43,18 @@ const AircraftCard = ({
     offline: "Offline"
   };
 
-  const lastContact = telemetry?.last_contact
-    ? new Date(telemetry.last_contact * 1000).toLocaleTimeString()
-    : "—";
-  const altitudeFeet = telemetry
-    ? Math.round(telemetry.altitude_m * 3.28084)
+  const distanceValue = distanceData
+    ? distanceUnit === "mi"
+      ? distanceData.distance_km * 0.621371
+      : distanceData.distance_km
     : null;
+  const distanceLabel = distanceValue !== null ? distanceValue.toFixed(2) : "—";
+  const altitudeFeet = distanceData
+    ? Math.round(distanceData.altitude_m * 3.28084)
+    : null;
+  const lastUpdate = distanceData?.last_update
+    ? new Date(distanceData.last_update).toLocaleTimeString()
+    : "—";
 
   const primaryId = aircraft.callsign || aircraft.icao24 || "Unknown";
 
@@ -107,12 +115,18 @@ const AircraftCard = ({
       <div className="mt-6 grid gap-3 text-xs text-slate-300">
         <div className="flex items-center justify-between">
           <span>Distance</span>
-          <span className="text-slate-100">— km</span>
+          <span className="text-slate-100">
+            {distanceLabel === "—"
+              ? "—"
+              : `${distanceLabel} ${distanceUnit}`}
+          </span>
         </div>
         <div className="flex items-center justify-between">
           <span>Coordinates</span>
           <span className="text-slate-100">
-            {telemetry ? `${telemetry.latitude}, ${telemetry.longitude}` : "— , —"}
+            {distanceData
+              ? `${distanceData.lat.toFixed(4)}, ${distanceData.lon.toFixed(4)}`
+              : "— , —"}
           </span>
         </div>
         <div className="flex items-center justify-between">
@@ -122,20 +136,8 @@ const AircraftCard = ({
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span>Heading</span>
-          <span className="text-slate-100">
-            {telemetry ? `${telemetry.heading_deg} deg` : "—"}
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span>Velocity</span>
-          <span className="text-slate-100">
-            {telemetry ? `${telemetry.velocity_mps} m/s` : "—"}
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span>Last contact</span>
-          <span className="text-slate-100">{lastContact}</span>
+          <span>Last update</span>
+          <span className="text-slate-100">{lastUpdate}</span>
         </div>
       </div>
 

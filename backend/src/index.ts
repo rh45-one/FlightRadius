@@ -5,6 +5,7 @@ import aircraftRoutes from "./routes/aircraft";
 import locationRoutes from "./routes/location";
 import settingsRoutes from "./routes/settings";
 import appStateRoutes from "./routes/appState";
+import distanceRoutes from "./routes/distance";
 import { getCacheSize } from "./services/cache";
 import { pingOpenSky } from "./services/opensky";
 import {
@@ -38,6 +39,7 @@ app.get("/api/health", async (_req, res) => {
 app.use("/api/aircraft", aircraftRoutes);
 app.use("/api", locationRoutes);
 app.use("/api", appStateRoutes);
+app.use("/api/distance", distanceRoutes);
 app.use("/api/settings", settingsRoutes);
 
 app.listen(port, () => {

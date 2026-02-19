@@ -4,9 +4,9 @@ import {
   getAircraftTelemetry,
   getAircraftTelemetryByCallsign,
   isValidCallsign,
-  isValidIcao24,
-  validateCallsigns
+  isValidIcao24
 } from "../services/opensky";
+import { validateMockCallsigns } from "../services/mockAircraft";
 
 const router = Router();
 
@@ -78,11 +78,11 @@ router.post("/validate-callsigns", async (req, res) => {
   }
 
   try {
-    const result = await validateCallsigns(cleaned);
+    const result = await validateMockCallsigns(cleaned);
     res.json({ status: "ok", results: result });
   } catch (error) {
     console.error("Callsign validation error", error);
-    res.status(500).json({ error: "OpenSky unavailable", status: 500 });
+    res.status(500).json({ error: "Mock dataset unavailable", status: 500 });
   }
 });
 

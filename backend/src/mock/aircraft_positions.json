@@ -1,0 +1,128 @@
+[
+  {
+    "callsign": "BAW123",
+    "lat": 51.4700,
+    "lon": -0.4543,
+    "altitude_m": 10600,
+    "last_update": "2026-02-19T09:45:00Z"
+  },
+  {
+    "callsign": "AFR456",
+    "lat": 49.0097,
+    "lon": 2.5479,
+    "altitude_m": 11200,
+    "last_update": "2026-02-19T09:44:20Z"
+  },
+  {
+    "callsign": "DLH400",
+    "lat": 50.0379,
+    "lon": 8.5622,
+    "altitude_m": 10850,
+    "last_update": "2026-02-19T09:44:55Z"
+  },
+  {
+    "callsign": "KLM789",
+    "lat": 52.3105,
+    "lon": 4.7683,
+    "altitude_m": 10950,
+    "last_update": "2026-02-19T09:45:12Z"
+  },
+  {
+    "callsign": "SAS210",
+    "lat": 59.6519,
+    "lon": 17.9186,
+    "altitude_m": 11350,
+    "last_update": "2026-02-19T09:43:10Z"
+  },
+  {
+    "callsign": "FIN330",
+    "lat": 60.3172,
+    "lon": 24.9633,
+    "altitude_m": 11480,
+    "last_update": "2026-02-19T09:43:45Z"
+  },
+  {
+    "callsign": "TAP910",
+    "lat": 38.7742,
+    "lon": -9.1342,
+    "altitude_m": 10300,
+    "last_update": "2026-02-19T09:42:30Z"
+  },
+  {
+    "callsign": "IBE650",
+    "lat": 40.4983,
+    "lon": -3.5676,
+    "altitude_m": 10450,
+    "last_update": "2026-02-19T09:41:40Z"
+  },
+  {
+    "callsign": "ITA222",
+    "lat": 41.8003,
+    "lon": 12.2389,
+    "altitude_m": 10780,
+    "last_update": "2026-02-19T09:45:05Z"
+  },
+  {
+    "callsign": "AUA100",
+    "lat": 48.1103,
+    "lon": 16.5697,
+    "altitude_m": 11020,
+    "last_update": "2026-02-19T09:44:05Z"
+  },
+  {
+    "callsign": "SWR550",
+    "lat": 47.4581,
+    "lon": 8.5555,
+    "altitude_m": 10920,
+    "last_update": "2026-02-19T09:43:25Z"
+  },
+  {
+    "callsign": "RYR720",
+    "lat": 53.4264,
+    "lon": -6.2499,
+    "altitude_m": 10100,
+    "last_update": "2026-02-19T09:42:55Z"
+  },
+  {
+    "callsign": "LOT300",
+    "lat": 52.1657,
+    "lon": 20.9671,
+    "altitude_m": 11110,
+    "last_update": "2026-02-19T09:44:40Z"
+  },
+  {
+    "callsign": "CSA410",
+    "lat": 50.1008,
+    "lon": 14.26,
+    "altitude_m": 10810,
+    "last_update": "2026-02-19T09:43:58Z"
+  },
+  {
+    "callsign": "BEL610",
+    "lat": 50.9014,
+    "lon": 4.4844,
+    "altitude_m": 10720,
+    "last_update": "2026-02-19T09:45:18Z"
+  },
+  {
+    "callsign": "THY880",
+    "lat": 41.2753,
+    "lon": 28.7519,
+    "altitude_m": 11500,
+    "last_update": "2026-02-19T09:42:10Z"
+  },
+  {
+    "callsign": "AEE770",
+    "lat": 37.9364,
+    "lon": 23.9445,
+    "altitude_m": 10980,
+    "last_update": "2026-02-19T09:41:20Z"
+  },
+  {
+    "callsign": "BER890",
+    "lat": 52.3667,
+    "lon": 13.5033,
+    "altitude_m": 10890,
+    "last_update": "2026-02-19T09:44:22Z"
+  }
+]

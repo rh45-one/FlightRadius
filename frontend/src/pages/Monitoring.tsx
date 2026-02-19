@@ -1,21 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AircraftCard from "../components/AircraftCard";
 import AddAircraftModal from "../components/AddAircraftModal";
 import BulkAddAircraftModal from "../components/BulkAddAircraftModal";
 import { useAircraftStore } from "../store/aircraftStore";
 import {
-  getAircraftStatus,
-  getAircraftStatusByCallsign,
-  AircraftTelemetry
+  computeDistances,
+  DistanceResult
 } from "../services/api";
 import { useLocationStore } from "../store/locationStore";
 import { useFleetStore } from "../store/fleetStore";
-
-type TelemetryState = {
-  status: "loading" | "live" | "stale" | "offline";
-  data?: AircraftTelemetry;
-  errorMessage?: string;
-};
+import {
+  GeolocationError,
+  isGeolocationSupported,
+  requestLocation,
+  stopWatching,
+  watchLocation
+} from "../services/geolocation";
+import { createDistanceScheduler } from "../services/distanceScheduler";
+import { useDistanceStore } from "../store/distanceStore";
 
 type CombinedAircraft = {
   id: string;
@@ -28,7 +30,8 @@ type CombinedAircraft = {
 };
 
 const Monitoring = () => {
-  const { aircraft, addAircraft, removeAircraft, ui } = useAircraftStore();
+  const { aircraft, addAircraft, removeAircraft, ui, settings } =
+    useAircraftStore();
   const { fleetAircraft, removeFleetAircraft, getGroupById, groups } =
     useFleetStore();
   const {
@@ -36,13 +39,22 @@ const Monitoring = () => {
     permissionStatus,
     pollingActive,
     lastUpdated,
-    errorState
+    errorState,
+    setPosition,
+    setPermissionStatus,
+    setPollingActive,
+    setError
   } = useLocationStore();
+  const {
+    aircraftDistances,
+    groupResults,
+    missingCallsigns,
+    errorMessage: distanceError,
+    setDistanceResults,
+    setError: setDistanceError
+  } = useDistanceStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
-  const [telemetry, setTelemetry] = useState<Record<string, TelemetryState>>(
-    {}
-  );
 
   const locationBadge = () => {
     if (permissionStatus === "manual") {
@@ -54,13 +66,10 @@ const Monitoring = () => {
     if (permissionStatus === "unsupported") {
       return { label: "Unsupported", tone: "bg-rose-400/10 text-rose-200" };
     }
-    if (!pollingActive) {
-      return { label: "Disabled", tone: "bg-slate-400/10 text-slate-200" };
+    if (pollingActive || currentPosition) {
+      return { label: "Enabled", tone: "bg-emerald-400/10 text-emerald-200" };
     }
-    if (currentPosition) {
-      return { label: "Active", tone: "bg-emerald-400/10 text-emerald-200" };
-    }
-    return { label: "Pending", tone: "bg-slate-400/10 text-slate-200" };
+    return { label: "Not enabled", tone: "bg-slate-400/10 text-slate-200" };
   };
 
   const locationStatus = locationBadge();
@@ -87,74 +96,239 @@ const Monitoring = () => {
   }, [ui.cardDensity]);
 
   useEffect(() => {
-    let isActive = true;
-
-    if (combinedAircraft.length === 0) {
-      setTelemetry({});
+    if (settings.locationMode !== "manual") {
       return;
     }
 
-    setTelemetry((prev) => {
-      const next: Record<string, TelemetryState> = { ...prev };
-      for (const entry of combinedAircraft) {
-        next[entry.id] = {
-          status: "loading",
-          data: prev[entry.id]?.data
-        };
-      }
-      return next;
+    stopWatching();
+    setPollingActive(false);
+    setPermissionStatus("manual");
+
+    const latitude = Number(settings.manualLatitude);
+    const longitude = Number(settings.manualLongitude);
+    const isValidLatitude =
+      Number.isFinite(latitude) && latitude >= -90 && latitude <= 90;
+    const isValidLongitude =
+      Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
+
+    if (!isValidLatitude || !isValidLongitude) {
+      setError("Invalid manual coordinates");
+      setPosition(null);
+      return;
+    }
+
+    setError(null);
+    setPosition({
+      latitude,
+      longitude,
+      accuracy_m: 0,
+      timestamp: Date.now(),
+      source: "manual"
     });
+  }, [
+    settings.locationMode,
+    settings.manualLatitude,
+    settings.manualLongitude,
+    setError,
+    setPermissionStatus,
+    setPollingActive,
+    setPosition
+  ]);
 
-    const loadTelemetry = async () => {
-      await Promise.all(
-        combinedAircraft.map(async (entry) => {
-          try {
-            const data = entry.icao24
-              ? await getAircraftStatus(entry.icao24)
-              : entry.callsign
-              ? await getAircraftStatusByCallsign(entry.callsign)
-              : null;
+  useEffect(() => {
+    if (settings.locationMode === "gps" && permissionStatus === "manual") {
+      setPermissionStatus("unknown");
+      setError(null);
+    }
+  }, [permissionStatus, setError, setPermissionStatus, settings.locationMode]);
 
-            if (!data) {
-              throw new Error("Missing identifier");
-            }
-            if (!isActive) {
-              return;
-            }
+  const startWatching = useCallback(() => {
+    stopWatching();
 
-            const nowSec = Date.now() / 1000;
-            const isStale = nowSec - data.last_contact > 30;
-
-            setTelemetry((prev) => ({
-              ...prev,
-              [entry.id]: {
-                status: isStale ? "stale" : "live",
-                data
-              }
-            }));
-          } catch (error) {
-            if (!isActive) {
-              return;
-            }
-
-            setTelemetry((prev) => ({
-              ...prev,
-              [entry.id]: {
-                status: "offline",
-                errorMessage: (error as Error).message
-              }
-            }));
+    watchLocation(
+      {
+        highAccuracy: settings.gpsAccuracyMode === "high"
+      },
+      {
+        onUpdate: (position) => {
+          setError(null);
+          setPermissionStatus("granted");
+          setPollingActive(true);
+          setPosition(position);
+        },
+        onError: (error: GeolocationError) => {
+          setError(error.message);
+          if (error.permissionStatus === "denied") {
+            setPermissionStatus("denied");
+            setPollingActive(false);
+            stopWatching();
           }
-        })
-      );
-    };
+          if (error.permissionStatus === "unsupported") {
+            setPermissionStatus("unsupported");
+            setPollingActive(false);
+            stopWatching();
+          }
+        }
+      }
+    );
 
-    loadTelemetry();
+    setPollingActive(true);
+  }, [
+    setError,
+    setPermissionStatus,
+    setPollingActive,
+    setPosition,
+    settings.gpsAccuracyMode
+  ]);
+
+  const handleEnableLocation = useCallback(async () => {
+    if (!isGeolocationSupported()) {
+      setPermissionStatus("unsupported");
+      setError("Geolocation is not supported on this device.");
+      return;
+    }
+
+    setError(null);
+    try {
+      const position = await requestLocation({
+        highAccuracy: settings.gpsAccuracyMode === "high"
+      });
+      setPosition(position);
+      setPermissionStatus("granted");
+      startWatching();
+    } catch (error) {
+      const geoError = error as GeolocationError;
+      setError(geoError.message);
+      setPermissionStatus(geoError.permissionStatus || "denied");
+      setPollingActive(false);
+    }
+  }, [
+    setError,
+    setPermissionStatus,
+    setPollingActive,
+    setPosition,
+    settings.gpsAccuracyMode,
+    startWatching
+  ]);
+
+  useEffect(() => {
+    if (settings.locationMode !== "gps") {
+      return;
+    }
+
+    if (!settings.autoEnableLocationOnDashboard) {
+      return;
+    }
+
+    if (permissionStatus !== "granted" || pollingActive) {
+      return;
+    }
+
+    if (!isGeolocationSupported()) {
+      setPermissionStatus("unsupported");
+      return;
+    }
+
+    startWatching();
+  }, [
+    permissionStatus,
+    pollingActive,
+    setPermissionStatus,
+    settings.autoEnableLocationOnDashboard,
+    settings.locationMode,
+    startWatching
+  ]);
+
+  useEffect(() => {
+    return () => {
+      stopWatching();
+    };
+  }, []);
+
+  const callsigns = useMemo(() => {
+    const unique = new Set<string>();
+    combinedAircraft.forEach((item) => {
+      if (item.callsign) {
+        unique.add(item.callsign.toUpperCase());
+      }
+    });
+    return Array.from(unique);
+  }, [combinedAircraft]);
+
+  const groupPayload = useMemo(
+    () =>
+      groups
+        .map((group) => ({
+          name: group.name,
+          callsigns: fleetAircraft
+            .filter((item) => item.groupId === group.id)
+            .map((item) => item.callsign)
+        }))
+        .filter((group) => group.callsigns.length > 0),
+    [fleetAircraft, groups]
+  );
+
+  const groupResultLookup = useMemo(
+    () => new Map(groupResults.map((group) => [group.name, group])),
+    [groupResults]
+  );
+
+  const refreshDistances = useCallback(async () => {
+    if (!currentPosition) {
+      return;
+    }
+
+    if (callsigns.length === 0 && groupPayload.length === 0) {
+      setDistanceResults({ results: [], groups: [], missing: [] });
+      return;
+    }
+
+    try {
+      const response = await computeDistances({
+        user_location: {
+          lat: currentPosition.latitude,
+          lon: currentPosition.longitude
+        },
+        callsigns,
+        groups: groupPayload
+      });
+
+      setDistanceResults({
+        results: response.results,
+        groups: response.groups,
+        missing: response.missing
+      });
+    } catch (error) {
+      setDistanceError((error as Error).message);
+    }
+  }, [
+    callsigns,
+    currentPosition,
+    groupPayload,
+    setDistanceError,
+    setDistanceResults
+  ]);
+
+  useEffect(() => {
+    if (!currentPosition) {
+      return;
+    }
+
+    const scheduler = createDistanceScheduler(
+      {
+        intervalMs: Math.max(settings.distanceUpdateIntervalSec, 5) * 1000,
+        debounceMs: 800
+      },
+      refreshDistances
+    );
+
+    scheduler.start();
+    scheduler.trigger();
 
     return () => {
-      isActive = false;
+      scheduler.stop();
     };
-  }, [combinedAircraft]);
+  }, [currentPosition, refreshDistances, settings.distanceUpdateIntervalSec]);
 
   return (
     <section className="pt-8">
@@ -167,8 +341,8 @@ const Monitoring = () => {
             Fleet Overview
           </h1>
           <p className="mt-2 max-w-xl text-sm text-slate-300">
-            Track multiple aircraft in one place. Telemetry remains offline until
-            data providers are connected.
+            Track multiple aircraft in one place. Distances use mock position
+            data until live providers are connected.
           </p>
         </div>
         <div className="w-full rounded-3xl border border-white/10 bg-white/5 p-4 shadow-glow backdrop-blur sm:max-w-sm">
@@ -182,7 +356,18 @@ const Monitoring = () => {
               {locationStatus.label}
             </span>
           </div>
+          <button
+            className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-200 transition hover:border-white/40 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={handleEnableLocation}
+            disabled={settings.locationMode === "manual"}
+          >
+            Enable Location
+          </button>
           <div className="mt-3 space-y-2 text-xs text-slate-300">
+            <div className="flex items-center justify-between">
+              <span>Status</span>
+              <span className="text-slate-100">{locationStatus.label}</span>
+            </div>
             <div className="flex items-center justify-between">
               <span>Coordinates</span>
               <span className="text-slate-100">
@@ -194,13 +379,9 @@ const Monitoring = () => {
             <div className="flex items-center justify-between">
               <span>Accuracy</span>
               <span className="text-slate-100">
-                {currentPosition ? `${currentPosition.accuracy_m} m` : "—"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Source</span>
-              <span className="text-slate-100">
-                {currentPosition?.source || "—"}
+                {currentPosition
+                  ? `± ${Math.round(currentPosition.accuracy_m)} m`
+                  : "—"}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -228,6 +409,10 @@ const Monitoring = () => {
         </div>
       </div>
 
+      {distanceError ? (
+        <p className="mt-4 text-xs text-rose-200">{distanceError}</p>
+      ) : null}
+
       {groups.length > 0 ? (
         <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-glow backdrop-blur">
           <div className="flex items-center justify-between">
@@ -247,6 +432,85 @@ const Monitoring = () => {
         </div>
       ) : null}
 
+      {groups.length > 0 ? (
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          {groups.map((group) => {
+            const result = groupResultLookup.get(group.name);
+            const closest = result?.closest || null;
+            const distanceLabel = closest
+              ? `${(
+                  settings.distanceUnit === "mi"
+                    ? closest.distance_km * 0.621371
+                    : closest.distance_km
+                ).toFixed(2)} ${settings.distanceUnit}`
+              : "—";
+
+            return (
+              <div
+                key={group.id}
+                className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-glow backdrop-blur"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                      {group.name}
+                    </p>
+                    <h3 className="mt-2 text-lg font-semibold text-white">
+                      Closest aircraft
+                    </h3>
+                  </div>
+                  <span
+                    className="rounded-full px-3 py-1 text-xs"
+                    style={{
+                      backgroundColor: `${group.color}22`,
+                      color: group.color,
+                      border: `1px solid ${group.color}55`
+                    }}
+                  >
+                    {group.icon}
+                  </span>
+                </div>
+                <div className="mt-4 text-sm text-slate-200">
+                  <p>
+                    Closest Aircraft: {closest?.callsign || "—"}
+                  </p>
+                  <p className="mt-1 text-slate-300">Distance: {distanceLabel}</p>
+                </div>
+                <div className="mt-4 border-t border-white/10 pt-4 text-sm text-slate-300">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    Fleet Members
+                  </p>
+                  {result?.results && result.results.length > 0 ? (
+                    <ol className="mt-3 space-y-2">
+                      {result.results.map((entry, index) => (
+                        <li key={entry.callsign} className="flex justify-between">
+                          <span>
+                            {index + 1}. {entry.callsign}
+                          </span>
+                          <span className="text-slate-100">
+                            {(
+                              settings.distanceUnit === "mi"
+                                ? entry.distance_km * 0.621371
+                                : entry.distance_km
+                            ).toFixed(2)}
+                            {" "}
+                            {settings.distanceUnit}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="mt-3 text-xs text-slate-500">
+                      No distance data yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
       <div className="mt-8">
         {combinedAircraft.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-white/5 px-6 py-10 text-center shadow-glow backdrop-blur">
@@ -259,6 +523,28 @@ const Monitoring = () => {
           <div className={`grid grid-cols-1 ${densityClasses}`}>
             {combinedAircraft.map((item) => {
               const group = item.groupId ? getGroupById(item.groupId) : undefined;
+              const normalizedCallsign = item.callsign
+                ? item.callsign.toUpperCase()
+                : null;
+              const distanceData: DistanceResult | undefined =
+                normalizedCallsign
+                  ? aircraftDistances[normalizedCallsign]
+                  : undefined;
+              const isMissing = normalizedCallsign
+                ? missingCallsigns.includes(normalizedCallsign)
+                : false;
+              const status = distanceData
+                ? "live"
+                : isMissing
+                ? "offline"
+                : currentPosition
+                ? "loading"
+                : "offline";
+              const errorMessage = !normalizedCallsign
+                ? "Callsign required for distance"
+                : isMissing
+                ? "No mock position data for this callsign"
+                : undefined;
 
               return (
                 <AircraftCard
@@ -269,9 +555,10 @@ const Monitoring = () => {
                       ? removeFleetAircraft(item.id)
                       : removeAircraft(item.id)
                   }
-                  telemetry={telemetry[item.id]?.data}
-                  status={telemetry[item.id]?.status || "loading"}
-                  errorMessage={telemetry[item.id]?.errorMessage}
+                  distanceData={distanceData}
+                  distanceUnit={settings.distanceUnit}
+                  status={status}
+                  errorMessage={errorMessage}
                   groupLabel={group?.name}
                   groupColor={group?.color}
                 />

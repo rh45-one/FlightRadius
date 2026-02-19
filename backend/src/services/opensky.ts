@@ -348,6 +348,10 @@ export const getAircraftTelemetry = async (icao24: string) => {
 };
 
 export const pingOpenSky = async () => {
+  if (process.env.OPENSKY_ENABLED !== "true") {
+    return "disabled";
+  }
+
   const config = getConfig();
   try {
     await fetchStatesQueued(config);

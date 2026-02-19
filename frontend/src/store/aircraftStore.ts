@@ -13,6 +13,8 @@ export type TrackingSettings = {
   distanceUnit: "km" | "mi";
   maxTrackedWarning: number;
   locationMode: "gps" | "manual";
+  autoEnableLocationOnDashboard: boolean;
+  distanceUpdateIntervalSec: number;
   gpsPollingIntervalSec: number;
   manualLatitude: string;
   manualLongitude: string;
@@ -58,6 +60,8 @@ export const useAircraftStore = create<AircraftState>()((set) => ({
     distanceUnit: "km",
     maxTrackedWarning: 24,
     locationMode: "gps",
+    autoEnableLocationOnDashboard: false,
+    distanceUpdateIntervalSec: 15,
     gpsPollingIntervalSec: 20,
     manualLatitude: "",
     manualLongitude: "",

@@ -25,6 +25,8 @@ export type AppStatePayload = {
     distanceUnit: "km" | "mi";
     maxTrackedWarning: number;
     locationMode: "gps" | "manual";
+    autoEnableLocationOnDashboard: boolean;
+    distanceUpdateIntervalSec: number;
     gpsPollingIntervalSec: number;
     manualLatitude: string;
     manualLongitude: string;
@@ -63,6 +65,29 @@ export type AppStatePayload = {
       createdAt: string;
     }[];
   };
+};
+
+export type DistanceResult = {
+  callsign: string;
+  distance_km: number;
+  lat: number;
+  lon: number;
+  altitude_m: number;
+  last_update: string;
+};
+
+export type GroupDistanceResult = {
+  name: string;
+  results: DistanceResult[];
+  closest: DistanceResult | null;
+  missing: string[];
+};
+
+export type DistanceComputeResponse = {
+  results: DistanceResult[];
+  closest: DistanceResult | null;
+  missing: string[];
+  groups: GroupDistanceResult[];
 };
 
 export const getAircraftStatus = async (icao24: string) => {
@@ -167,4 +192,25 @@ export const saveAppState = async (payload: AppStatePayload) => {
     throw new Error("Failed to save app state");
   }
   return (await response.json()) as AppStatePayload;
+};
+
+export const computeDistances = async (payload: {
+  user_location: { lat: number; lon: number };
+  callsigns?: string[];
+  groups?: { name: string; callsigns: string[] }[];
+}) => {
+  const response = await fetch(`${API_BASE}/distance/compute`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error || "Failed to compute distances");
+  }
+
+  return (await response.json()) as DistanceComputeResponse;
 };
