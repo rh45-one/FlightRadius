@@ -17,13 +17,16 @@ const AddAircraftModal = ({ isOpen, onClose, onSave }: AddAircraftModalProps) =>
   }
 
   const handleSave = () => {
-    if (!icao24.trim()) {
+    const trimmedIcao = icao24.trim();
+    const trimmedCallsign = callsign.trim();
+
+    if (!trimmedIcao && !trimmedCallsign) {
       return;
     }
 
     onSave({
-      icao24: icao24.trim().toLowerCase(),
-      callsign: callsign.trim() || undefined,
+      icao24: trimmedIcao ? trimmedIcao.toLowerCase() : undefined,
+      callsign: trimmedCallsign ? trimmedCallsign.toUpperCase() : undefined,
       notes: notes.trim() || undefined
     });
 
@@ -46,7 +49,7 @@ const AddAircraftModal = ({ isOpen, onClose, onSave }: AddAircraftModalProps) =>
         </div>
         <div className="mt-5 space-y-4 text-sm text-slate-200">
           <label className="flex flex-col gap-2">
-            ICAO24 hex
+            ICAO24 hex (optional)
             <input
               type="text"
               value={icao24}
@@ -56,7 +59,7 @@ const AddAircraftModal = ({ isOpen, onClose, onSave }: AddAircraftModalProps) =>
             />
           </label>
           <label className="flex flex-col gap-2">
-            Callsign (optional)
+            Callsign (required for mock distances)
             <input
               type="text"
               value={callsign}
