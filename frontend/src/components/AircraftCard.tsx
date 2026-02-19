@@ -1,4 +1,4 @@
-import { DistanceResult } from "../services/api";
+import { AircraftTelemetry, DistanceResult } from "../services/api";
 
 type AircraftLike = {
   id: string;
@@ -11,6 +11,7 @@ type AircraftLike = {
 type AircraftCardProps = {
   aircraft: AircraftLike;
   onRemove: () => void;
+  telemetry?: AircraftTelemetry;
   distanceData?: DistanceResult;
   distanceUnit: "km" | "mi";
   status: "loading" | "live" | "stale" | "offline";
@@ -22,6 +23,7 @@ type AircraftCardProps = {
 const AircraftCard = ({
   aircraft,
   onRemove,
+  telemetry,
   distanceData,
   distanceUnit,
   status,
@@ -49,10 +51,19 @@ const AircraftCard = ({
       : distanceData.distance_km
     : null;
   const distanceLabel = distanceValue !== null ? distanceValue.toFixed(2) : "—";
-  const altitudeFeet = distanceData
+  const altitudeFeet = telemetry
+    ? Math.round(telemetry.altitude_m * 3.28084)
+    : distanceData
     ? Math.round(distanceData.altitude_m * 3.28084)
     : null;
-  const lastUpdate = distanceData?.last_update
+  const coordinatesLabel = telemetry
+    ? `${telemetry.latitude.toFixed(4)}, ${telemetry.longitude.toFixed(4)}`
+    : distanceData
+    ? `${distanceData.lat.toFixed(4)}, ${distanceData.lon.toFixed(4)}`
+    : "— , —";
+  const lastUpdate = telemetry?.last_contact
+    ? new Date(telemetry.last_contact * 1000).toLocaleTimeString()
+    : distanceData?.last_update
     ? new Date(distanceData.last_update).toLocaleTimeString()
     : "—";
 
@@ -123,11 +134,7 @@ const AircraftCard = ({
         </div>
         <div className="flex items-center justify-between">
           <span>Coordinates</span>
-          <span className="text-slate-100">
-            {distanceData
-              ? `${distanceData.lat.toFixed(4)}, ${distanceData.lon.toFixed(4)}`
-              : "— , —"}
-          </span>
+          <span className="text-slate-100">{coordinatesLabel}</span>
         </div>
         <div className="flex items-center justify-between">
           <span>Altitude</span>
