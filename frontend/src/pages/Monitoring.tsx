@@ -6,6 +6,9 @@ import { useAircraftStore } from "../store/aircraftStore";
 import {
   computeAircraftDistances,
   computeFleetDistances,
+  getAircraftStatus,
+  getAircraftStatusByCallsign,
+  AircraftTelemetry,
   DistanceResult,
   FleetProximityResult
 } from "../services/api";
@@ -22,6 +25,12 @@ import {
 import { createDistanceScheduler } from "../services/distanceScheduler";
 import { useDistanceStore } from "../store/distanceStore";
 import { formatDistance } from "../utils/distance";
+
+type TelemetryState = {
+  status: "loading" | "live" | "stale" | "offline";
+  data?: AircraftTelemetry;
+  errorMessage?: string;
+};
 
 type CombinedAircraft = {
   id: string;
@@ -55,12 +64,16 @@ const Monitoring = () => {
     fleetDistances,
     closestOverall,
     missingCallsigns,
+    lastComputedAt,
     errorMessage: distanceError,
     setDistanceResults,
     setError: setDistanceError
   } = useDistanceStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
+  const [telemetry, setTelemetry] = useState<Record<string, TelemetryState>>(
+    {}
+  );
   const [expandedFleets, setExpandedFleets] = useState<Record<string, boolean>>(
     {}
   );
@@ -163,6 +176,81 @@ const Monitoring = () => {
       ? "gap-4 sm:grid-cols-2 lg:grid-cols-3"
       : "gap-6 sm:grid-cols-2 lg:grid-cols-3";
   }, [ui.cardDensity]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (combinedAircraft.length === 0) {
+      setTelemetry({});
+      return () => undefined;
+    }
+
+    setTelemetry((prev) => {
+      const next: Record<string, TelemetryState> = { ...prev };
+      for (const entry of combinedAircraft) {
+        next[entry.id] = {
+          status: "loading",
+          data: prev[entry.id]?.data
+        };
+      }
+      return next;
+    });
+
+    const loadTelemetry = async () => {
+      await Promise.all(
+        combinedAircraft.map(async (entry) => {
+          try {
+            const data = entry.icao24
+              ? await getAircraftStatus(entry.icao24)
+              : entry.callsign
+              ? await getAircraftStatusByCallsign(entry.callsign)
+              : null;
+
+            if (!data) {
+              throw new Error("Missing identifier");
+            }
+            if (!isActive) {
+              return;
+            }
+
+            const nowSec = Date.now() / 1000;
+            const isStale = nowSec - data.last_contact > 30;
+
+            setTelemetry((prev) => ({
+              ...prev,
+              [entry.id]: {
+                status: isStale ? "stale" : "live",
+                data
+              }
+            }));
+          } catch (error) {
+            if (!isActive) {
+              return;
+            }
+
+            setTelemetry((prev) => ({
+              ...prev,
+              [entry.id]: {
+                status: "offline",
+                errorMessage: (error as Error).message
+              }
+            }));
+          }
+        })
+      );
+    };
+
+    loadTelemetry();
+    const intervalId = window.setInterval(
+      loadTelemetry,
+      Math.max(settings.refreshIntervalSec, 10) * 1000
+    );
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
+  }, [combinedAircraft, settings.refreshIntervalSec]);
 
   useEffect(() => {
     if (settings.locationMode !== "manual") {
@@ -716,19 +804,33 @@ const Monitoring = () => {
               const isMissing = normalizedCallsign
                 ? missingCallsigns.includes(normalizedCallsign)
                 : false;
-              const status = !normalizedCallsign
+              const hasComputed = Boolean(lastComputedAt);
+              const telemetryState = telemetry[item.id];
+              const status = telemetryState?.status
+                ? telemetryState.status
+                : !normalizedCallsign
                 ? "offline"
                 : distanceData
                 ? "live"
                 : isMissing
                 ? "offline"
+                : distanceError
+                ? "offline"
+                : hasComputed
+                ? "offline"
                 : currentPosition
                 ? "loading"
                 : "offline";
-              const errorMessage = !normalizedCallsign
+              const errorMessage = telemetryState?.errorMessage
+                ? telemetryState.errorMessage
+                : !normalizedCallsign
                 ? "Callsign required for distance"
                 : isMissing
                 ? "No mock position data for this callsign"
+                : distanceError
+                ? distanceError
+                : hasComputed
+                ? "No distance data available"
                 : undefined;
               const rank = normalizedCallsign
                 ? rankLookup[normalizedCallsign]
@@ -743,6 +845,7 @@ const Monitoring = () => {
                       ? removeFleetAircraft(item.id)
                       : removeAircraft(item.id)
                   }
+                  telemetry={telemetryState?.data}
                   distanceData={distanceData}
                   distanceUnit={settings.distanceUnit}
                   rank={rank}

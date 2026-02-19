@@ -17,6 +17,16 @@ describe("AircraftCard", () => {
         distanceUnit="km"
         rank={2}
         status="live"
+        telemetry={{
+          icao24: "a1b2c3",
+          callsign: "BAW123",
+          latitude: 51.47,
+          longitude: -0.45,
+          altitude_m: 10600,
+          velocity_mps: 220,
+          heading_deg: 180,
+          last_contact: 1739967900
+        }}
         distanceData={{
           callsign: "BAW123",
           distance_km: 215.12,

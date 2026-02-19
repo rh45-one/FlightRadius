@@ -1,4 +1,4 @@
-import { DistanceResult } from "../services/api";
+import { AircraftTelemetry, DistanceResult } from "../services/api";
 import { formatDistance } from "../utils/distance";
 
 type AircraftLike = {
@@ -12,6 +12,7 @@ type AircraftLike = {
 type AircraftCardProps = {
   aircraft: AircraftLike;
   onRemove: () => void;
+  telemetry?: AircraftTelemetry;
   distanceData?: DistanceResult;
   distanceUnit: "km" | "mi";
   rank?: number;
@@ -24,6 +25,7 @@ type AircraftCardProps = {
 const AircraftCard = ({
   aircraft,
   onRemove,
+  telemetry,
   distanceData,
   distanceUnit,
   rank,
@@ -49,13 +51,19 @@ const AircraftCard = ({
   const distanceLabel = distanceData
     ? formatDistance(distanceData.distance_km, distanceUnit)
     : "—";
-  const altitudeFeet = distanceData
+  const altitudeFeet = telemetry
+    ? Math.round(telemetry.altitude_m * 3.28084)
+    : distanceData
     ? Math.round(distanceData.altitude_m * 3.28084)
     : null;
-  const coordinatesLabel = distanceData
+  const coordinatesLabel = telemetry
+    ? `${telemetry.latitude.toFixed(4)}, ${telemetry.longitude.toFixed(4)}`
+    : distanceData
     ? `${distanceData.lat.toFixed(4)}, ${distanceData.lon.toFixed(4)}`
     : "— , —";
-  const lastUpdate = distanceData?.last_update
+  const lastUpdate = telemetry?.last_contact
+    ? new Date(telemetry.last_contact * 1000).toLocaleTimeString()
+    : distanceData?.last_update
     ? new Date(distanceData.last_update).toLocaleTimeString()
     : "—";
 
