@@ -716,7 +716,9 @@ const Monitoring = () => {
               const isMissing = normalizedCallsign
                 ? missingCallsigns.includes(normalizedCallsign)
                 : false;
-              const status = distanceData
+              const status = !normalizedCallsign
+                ? "offline"
+                : distanceData
                 ? "live"
                 : isMissing
                 ? "offline"
