@@ -4,6 +4,8 @@ FlightRadius is a Dockerized full-stack aircraft monitoring dashboard. It
 fetches live aircraft telemetry from OpenSky and computes real-time distance
 from your current location to each tracked aircraft.
 
+Please note FlightRadius is still under development. Users may encounter bugs, unfinished functionality implementations, or security flaws. 
+
 ## Index
 
 - [Quick start](#quick-start)
