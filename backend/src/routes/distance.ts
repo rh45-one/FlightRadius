@@ -1,8 +1,14 @@
-import { Router } from "express";
+import { NextFunction, Request, Response, Router } from "express";
 import { OpenSkyProvider } from "../providers/openSkyProvider";
 import { buildDistanceResults, buildGroupProximity } from "../services/distanceEngine";
 
 const router = Router();
+
+const asyncHandler =
+  (handler: (req: Request, res: Response) => Promise<void>) =>
+  (req: Request, res: Response, next: NextFunction) => {
+    handler(req, res).catch(next);
+  };
 
 const isNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -42,7 +48,7 @@ const normalizeIcao24s = (input: unknown) => {
 const isValidCoordinates = (lat: number, lon: number) =>
   lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
 
-router.post("/aircraft", async (req, res) => {
+router.post("/aircraft", asyncHandler(async (req, res) => {
   const { lat, lon, callsigns, icao24s } = req.body || {};
 
   if (!isNumber(lat) || !isNumber(lon)) {
@@ -78,9 +84,9 @@ router.post("/aircraft", async (req, res) => {
   res.json({
     results: summary.results
   });
-});
+}));
 
-router.post("/fleets", async (req, res) => {
+router.post("/fleets", asyncHandler(async (req, res) => {
   const { lat, lon, fleets } = req.body || {};
 
   if (!isNumber(lat) || !isNumber(lon)) {
@@ -116,9 +122,9 @@ router.post("/fleets", async (req, res) => {
   const results = buildGroupProximity({ lat, lon }, positions, normalizedFleets);
 
   res.json({ fleets: results });
-});
+}));
 
-router.post("/compute", async (req, res) => {
+router.post("/compute", asyncHandler(async (req, res) => {
   const { user_location, callsigns, groups, icao24s } = req.body || {};
 
   if (
@@ -182,6 +188,6 @@ router.post("/compute", async (req, res) => {
     missing: overall.missing,
     groups: groupResults
   });
-});
+}));
 
 export default router;

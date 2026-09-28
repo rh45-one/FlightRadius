@@ -1,15 +1,21 @@
-import { Router } from "express";
-import { getAppState, saveAppState } from "../services/appStateStore";
+import { NextFunction, Request, Response, Router } from "express";
+import { getAppState, maskSecrets, saveAppState } from "../services/appStateStore";
 import { setApiSettings } from "../services/settings";
 
 const router = Router();
 
-router.get("/app/state", async (_req, res) => {
-  const state = await getAppState();
-  res.json(state);
-});
+const asyncHandler =
+  (handler: (req: Request, res: Response) => Promise<void>) =>
+  (req: Request, res: Response, next: NextFunction) => {
+    handler(req, res).catch(next);
+  };
 
-router.post("/app/state", async (req, res) => {
+router.get("/app/state", asyncHandler(async (_req, res) => {
+  const state = await getAppState();
+  res.json(maskSecrets(state));
+}));
+
+router.post("/app/state", asyncHandler(async (req, res) => {
   const incoming = req.body || {};
   const updated = await saveAppState(incoming);
 
@@ -24,7 +30,7 @@ router.post("/app/state", async (req, res) => {
     });
   }
 
-  res.json(updated);
-});
+  res.json(maskSecrets(updated));
+}));
 
 export default router;

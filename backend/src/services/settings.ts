@@ -23,26 +23,26 @@ export const getApiSettings = () => ({ ...apiSettings });
 export const setApiSettings = (input: Partial<ApiSettings>) => {
   const update: Partial<ApiSettings> = {};
 
-  const applyIfNonEmpty = <K extends keyof ApiSettings>(key: K) => {
+  const applyIfString = <K extends keyof ApiSettings>(key: K) => {
     const value = input[key];
-    if (typeof value === "string" && value.trim() !== "") {
-      update[key] = value as ApiSettings[K];
+    if (typeof value === "string") {
+      update[key] = value.trim() as ApiSettings[K];
     }
   };
 
   const applyIfHttpUrl = (key: "baseUrl" | "authUrl") => {
     const value = input[key];
     if (typeof value === "string" && /^https?:\/\//i.test(value.trim())) {
-      update[key] = value as ApiSettings[typeof key];
+      update[key] = value.trim() as ApiSettings[typeof key];
     }
   };
 
   applyIfHttpUrl("baseUrl");
   applyIfHttpUrl("authUrl");
-  applyIfNonEmpty("username");
-  applyIfNonEmpty("password");
-  applyIfNonEmpty("clientId");
-  applyIfNonEmpty("clientSecret");
+  applyIfString("username");
+  applyIfString("password");
+  applyIfString("clientId");
+  applyIfString("clientSecret");
 
   apiSettings = {
     ...apiSettings,

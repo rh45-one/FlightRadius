@@ -29,7 +29,19 @@ export const getCacheEntry = <T>(
   };
 };
 
+const MAX_ENTRIES = 10_000;
+
 export const setCacheEntry = <T>(key: string, value: T, ttlMs = DEFAULT_TTL_MS) => {
+  if (cache.size >= MAX_ENTRIES) {
+    purgeExpiredEntries();
+    if (cache.size >= MAX_ENTRIES) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) {
+        cache.delete(oldest);
+      }
+    }
+  }
+
   cache.set(key, {
     value,
     expiresAt: Date.now() + ttlMs

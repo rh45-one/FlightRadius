@@ -20,8 +20,15 @@ dotenv.config();
 const app = express();
 const port = Number(process.env.PORT) || 3000;
 
-app.use(cors());
-app.use(express.json());
+const corsOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
+
+if (corsOrigins.length > 0) {
+  app.use(cors({ origin: corsOrigins }));
+}
+app.use(express.json({ limit: "1mb" }));
 
 app.get("/api/health", async (_req, res) => {
   const openskyStatus = await pingOpenSky();
@@ -42,19 +49,37 @@ app.use("/api", appStateRoutes);
 app.use("/api/distance", distanceRoutes);
 app.use("/api/settings", settingsRoutes);
 
+app.use(
+  (
+    err: unknown,
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction
+  ) => {
+    if (err instanceof SyntaxError) {
+      res.status(400).json({ error: "Malformed JSON", status: 400 });
+      return;
+    }
+
+    console.error("Unhandled request error", err);
+    res.status(500).json({ error: "Internal server error", status: 500 });
+  }
+);
+
 app.listen(port, () => {
   console.log(`Backend listening on port ${port}`);
 });
 
 getAppState()
   .then((state) => {
+    const s = state.settings;
     setApiSettings({
-      baseUrl: state.settings.apiBaseUrl,
-      authUrl: state.settings.apiAuthUrl,
-      username: state.settings.apiUsername,
-      password: state.settings.apiPassword,
-      clientId: state.settings.apiClientId,
-      clientSecret: state.settings.apiClientSecret
+      ...(s.apiBaseUrl ? { baseUrl: s.apiBaseUrl } : {}),
+      ...(s.apiAuthUrl ? { authUrl: s.apiAuthUrl } : {}),
+      ...(s.apiUsername ? { username: s.apiUsername } : {}),
+      ...(s.apiPassword ? { password: s.apiPassword } : {}),
+      ...(s.apiClientId ? { clientId: s.apiClientId } : {}),
+      ...(s.apiClientSecret ? { clientSecret: s.apiClientSecret } : {})
     });
   })
   .catch(() => undefined);

@@ -93,6 +93,15 @@ const defaultState: AppState = {
   }
 };
 
+export const SECRET_MASK = "********";
+
+const SECRET_FIELDS = [
+  "apiPassword",
+  "apiClientSecret",
+  "apiUsername",
+  "apiClientId"
+] as const;
+
 const filePath =
   process.env.APP_STATE_PATH || path.join(__dirname, "../../data/app-state.json");
 
@@ -162,9 +171,34 @@ export const getAppState = async () => {
   return cachedState;
 };
 
+export const maskSecrets = (state: AppState): AppState => ({
+  ...state,
+  settings: {
+    ...state.settings,
+    ...Object.fromEntries(
+      SECRET_FIELDS.filter((field) => state.settings[field]).map((field) => [
+        field,
+        SECRET_MASK
+      ])
+    )
+  }
+});
+
 export const saveAppState = async (incoming: Partial<AppState>) => {
   const current = await getAppState();
-  const merged = mergeState(incoming, current);
+  const sanitized = { ...incoming };
+
+  if (incoming.settings) {
+    const settings = { ...incoming.settings };
+    for (const field of SECRET_FIELDS) {
+      if (settings[field] === SECRET_MASK) {
+        settings[field] = current.settings[field];
+      }
+    }
+    sanitized.settings = settings;
+  }
+
+  const merged = mergeState(sanitized, current);
   cachedState = {
     ...merged,
     settings: normalizeSettings(merged.settings, defaultState.settings)
@@ -172,8 +206,11 @@ export const saveAppState = async (incoming: Partial<AppState>) => {
 
   if (!writePromise) {
     writePromise = (async () => {
-      await writeStateFile(cachedState as AppState);
-      writePromise = null;
+      try {
+        await writeStateFile(cachedState as AppState);
+      } finally {
+        writePromise = null;
+      }
     })();
   }
 
