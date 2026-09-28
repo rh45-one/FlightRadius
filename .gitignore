@@ -421,3 +421,7 @@ FodyWeavers.xsd
 
 # Build output
 dist/
+
+# Runtime state and local certs
+web/backend/data/
+web/nginx/certs/

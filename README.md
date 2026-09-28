@@ -1,8 +1,21 @@
 # FlightRadius
 
-FlightRadius is a Dockerized full-stack aircraft monitoring dashboard. It
-fetches live aircraft telemetry from OpenSky and computes real-time distance
-from your current location to each tracked aircraft.
+FlightRadius is a full-stack aircraft monitoring platform. It fetches live
+aircraft telemetry from OpenSky and computes real-time distance from your
+current location to each tracked aircraft.
+
+## Repository layout
+
+This is a monorepo hosting multiple clients over a shared backend:
+
+- `web/` — Dockerized web version (React frontend + Express backend +
+  nginx HTTPS proxy). This is the original app; run it with
+  `docker compose -f web/docker-compose.yml up --build`.
+- `android/` — native Android app (in progress). See
+  [docs/ANDROID_APP_PROMPT.md](docs/ANDROID_APP_PROMPT.md).
+- `docs/` — cross-cutting design and API documentation.
+
+The sections below describe the web version.
 
 Please note FlightRadius is still under development. Users may encounter bugs, unfinished functionality implementations, or security flaws. 
 
@@ -28,7 +41,7 @@ Please note FlightRadius is still under development. Users may encounter bugs, u
 ### Run with Docker
 
 ```bash
-docker compose up --build
+docker compose -f web/docker-compose.yml up --build
 ```
 
 - Frontend: https://localhost:8443
@@ -69,7 +82,7 @@ These settings are persisted in the backend app state.
 ### Fields and where they are stored
 
 - API base URL, auth URL, username, password, client ID, client secret
-- Saved in [backend/data/app-state.json](backend/data/app-state.json)
+- Saved in [web/backend/data/app-state.json](web/backend/data/app-state.json)
 
 If you want to set these directly, edit the JSON file and restart the
 containers.
