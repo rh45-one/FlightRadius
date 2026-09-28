@@ -6,6 +6,9 @@ export type DistancePosition = {
   lon: number;
   altitude_m: number;
   last_update: string;
+  velocity_mps?: number | null;
+  heading_deg?: number | null;
+  last_contact?: number | null;
 };
 
 export type DistanceResult = {
@@ -16,6 +19,9 @@ export type DistanceResult = {
   lon: number;
   altitude_m: number;
   last_update: string;
+  velocity_mps?: number | null;
+  heading_deg?: number | null;
+  last_contact?: number | null;
 };
 
 export type DistanceSummary = {
@@ -81,7 +87,10 @@ export const buildDistanceResults = (
       lat: entry.lat,
       lon: entry.lon,
       altitude_m: entry.altitude_m,
-      last_update: entry.last_update
+      last_update: entry.last_update,
+      velocity_mps: entry.velocity_mps ?? null,
+      heading_deg: entry.heading_deg ?? null,
+      last_contact: entry.last_contact ?? null
     });
   }
 

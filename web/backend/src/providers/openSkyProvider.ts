@@ -55,7 +55,10 @@ export class OpenSkyProvider {
         lat: hasValidLat ? entry.latitude : fallbackLat,
         lon: hasValidLon ? entry.longitude : fallbackLon,
       altitude_m: entry.altitude_m,
-      last_update: new Date(entry.last_contact * 1000).toISOString()
+      last_update: new Date(entry.last_contact * 1000).toISOString(),
+      velocity_mps: entry.velocity_mps ?? null,
+      heading_deg: entry.heading_deg ?? null,
+      last_contact: entry.last_contact ?? null
       };
     });
   }

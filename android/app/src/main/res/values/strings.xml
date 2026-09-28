@@ -1,0 +1,211 @@
+<resources>
+    <string name="app_name">FlightRadius</string>
+
+    <!-- Navigation -->
+    <string name="nav_radar">Radar</string>
+    <string name="nav_aircraft">Aircraft</string>
+    <string name="nav_fleets">Fleets</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Common actions -->
+    <string name="action_add">Add</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_edit_aircraft">Edit aircraft</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_fix">Fix</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_open_settings">Open settings</string>
+    <string name="action_snooze_15">Snooze 15 min</string>
+    <string name="action_snooze_30">Snooze 30 min</string>
+    <string name="action_snooze_60">Snooze 1 h</string>
+    <string name="action_disable_battery_opt">Disable battery optimization</string>
+    <string name="action_location_settings">Location settings</string>
+    <string name="checking">Checking…</string>
+
+    <!-- Radar -->
+    <string name="radar_start">Start monitoring</string>
+    <string name="radar_stop">Stop</string>
+    <string name="radar_pause">Pause</string>
+    <string name="radar_resume">Resume</string>
+    <string name="radar_preview_banner">Live preview — alerts only while monitoring is on</string>
+    <string name="radar_not_reporting">Not reporting</string>
+    <string name="radar_no_live_data">No live data — may be on the ground</string>
+    <string name="radar_empty_title">No aircraft tracked yet</string>
+    <string name="radar_empty_body">Add aircraft callsigns or ICAO24 addresses to start tracking their distance.</string>
+    <string name="radar_empty_image_desc">Radar illustration</string>
+    <string name="radar_add_aircraft">Add aircraft</string>
+    <string name="gauge_description">%1$s, alert radius %2$s</string>
+    <string name="radius_label">radius %1$s</string>
+    <string name="bearing_label">Bearing</string>
+    <string name="closing_label">closing</string>
+    <string name="alert_inside">INSIDE RADIUS</string>
+    <string name="alert_snoozed">snoozed</string>
+
+    <!-- Radar chips / issues -->
+    <string name="chip_location">Location</string>
+    <string name="chip_backend">Backend / OpenSky</string>
+    <string name="chip_monitoring">Monitoring</string>
+    <string name="issue_location_denied">Location permission needed</string>
+    <string name="issue_location_denied_body">GPS monitoring needs location access, or switch to a manual location in Settings.</string>
+    <string name="issue_lan">Nearby devices access required</string>
+    <string name="issue_lan_body">Your backend is on your local network; Android 17 requires the Nearby devices permission to reach it.</string>
+    <string name="issue_offline">Offline</string>
+    <string name="issue_offline_body">No network connection — monitoring will resume automatically.</string>
+    <string name="issue_background_location">Background location needed for boot resume</string>
+    <string name="issue_background_location_body">Resume-on-boot in GPS mode needs "Allow all the time" location access; grant it in app settings.</string>
+    <string name="issue_last_error">Last error</string>
+
+    <!-- Detail sheet -->
+    <string name="detail_distance">Distance</string>
+    <string name="detail_radius">Alert radius</string>
+    <string name="detail_bearing">Bearing</string>
+    <string name="detail_altitude">Altitude</string>
+    <string name="detail_speed">Speed</string>
+    <string name="detail_heading">Heading</string>
+    <string name="detail_closing">Closing</string>
+    <string name="detail_last_contact">Last contact</string>
+    <string name="detail_fleets">Fleets</string>
+
+    <!-- Aircraft -->
+    <string name="aircraft_search">Search callsign or ICAO24</string>
+    <string name="aircraft_bulk_add">Bulk add</string>
+    <string name="aircraft_empty_title">No aircraft yet</string>
+    <string name="aircraft_empty_body">Track callsigns (e.g. IBE3174) or ICAO24 hex addresses (e.g. 4ca123).</string>
+    <string name="aircraft_add">Add aircraft</string>
+    <string name="aircraft_add_title">Add aircraft</string>
+    <string name="aircraft_callsign">Callsign</string>
+    <string name="aircraft_icao24">ICAO24 address</string>
+    <string name="aircraft_suggest_icao24">Looks like an ICAO24 address — switch type?</string>
+    <string name="aircraft_invalid_format">Invalid format (callsign: 2–8 A–Z/0–9; icao24: 6 hex)</string>
+    <string name="aircraft_duplicate">Already tracked</string>
+    <string name="aircraft_check">Check</string>
+    <string name="aircraft_live_now">Live now ✓</string>
+    <string name="aircraft_no_data">No current data — will track when airborne</string>
+    <string name="aircraft_notes">Notes</string>
+    <string name="aircraft_radius_override">Radius override (%1$s)</string>
+    <string name="aircraft_use_default_radius">Use default (%1$s)</string>
+    <string name="aircraft_radius_label">radius %1$s %2$s</string>
+    <string name="override_label">(override)</string>
+    <string name="default_label">(default)</string>
+    <string name="aircraft_fleets">Fleet membership</string>
+    <string name="aircraft_removed">Aircraft removed</string>
+    <string name="aircraft_bulk_title">Bulk add</string>
+    <string name="aircraft_bulk_hint">Callsigns or ICAO24s, separated by commas or newlines</string>
+    <string name="aircraft_parse">Parse</string>
+    <string name="aircraft_bulk_none">Nothing parseable in the input.</string>
+    <string name="bulk_invalid">invalid</string>
+    <string name="bulk_tracked">already tracked</string>
+    <string name="bulk_not_validated">not validated</string>
+    <string name="bulk_add_n">Add %1$d</string>
+    <string name="error_not_a_number">Not a number</string>
+
+    <!-- Fleets -->
+    <string name="aircraft_title">Aircraft</string>
+    <string name="fleets_title">Fleets</string>
+    <string name="fleets_add">New fleet</string>
+    <string name="fleets_add_title">New fleet</string>
+    <string name="fleets_edit_title">Edit fleet</string>
+    <string name="fleets_name">Name</string>
+    <string name="fleets_color">Color</string>
+    <string name="fleets_radius_override">Fleet radius override</string>
+    <string name="fleets_members">Members</string>
+    <string name="fleets_member_count">%1$d members</string>
+    <string name="fleets_radius">radius %1$s</string>
+    <string name="fleets_closest">closest %1$s · %2$s</string>
+    <string name="fleets_no_members">No members</string>
+    <string name="fleets_missing">no data</string>
+    <string name="fleets_expand">Show members</string>
+    <string name="fleets_collapse">Hide members</string>
+    <string name="fleets_empty_title">No fleets yet</string>
+    <string name="fleets_empty_body">Group aircraft into fleets for shared alert radii and summaries.</string>
+    <string name="fleets_stale_title">Fleet distances stale</string>
+    <string name="fleets_stale_body">No recent snapshot — refresh resolves callsign members (ICAO24 members resolve via monitoring only).</string>
+    <string name="fleets_manual_refresh">Refreshed %1$s</string>
+    <string name="fleets_delete_title">Delete fleet?</string>
+    <string name="fleets_delete_body">Fleet "%1$s" will be removed; its aircraft stay tracked.</string>
+
+    <!-- Settings -->
+    <string name="settings_backend">Backend</string>
+    <string name="settings_backend_url">Backend URL</string>
+    <string name="error_invalid_url">Enter a valid http(s) URL</string>
+    <string name="settings_test_connection">Test connection</string>
+    <string name="settings_opensky">OpenSky credentials</string>
+    <string name="settings_creds_hint">Credentials are forwarded to the backend and never stored on this device.</string>
+    <string name="creds_client_id">Client ID</string>
+    <string name="creds_client_secret">Client secret</string>
+    <string name="creds_username">Username</string>
+    <string name="creds_password">Password</string>
+    <string name="creds_send">Send to backend</string>
+    <string name="creds_clear">Clear credentials on backend</string>
+    <string name="creds_clear_title">Clear credentials?</string>
+    <string name="creds_clear_body">This removes the OpenSky credentials stored on the backend.</string>
+    <string name="settings_import">Import</string>
+    <string name="settings_import_button">Import aircraft &amp; fleets from backend</string>
+    <string name="import_result">Added %1$d aircraft (%2$d skipped), %3$d fleets, %4$d memberships</string>
+    <string name="settings_monitoring">Monitoring</string>
+    <string name="settings_interval">Poll interval</string>
+    <string name="settings_radius">Global alert radius: %1$s</string>
+    <string name="settings_high_priority">High-priority mode</string>
+    <string name="settings_high_priority_body">Keeps the CPU awake between cycles — reliable in doze, much higher battery use.</string>
+    <string name="settings_resume_boot">Resume monitoring on boot</string>
+    <string name="settings_resume_boot_body">Restart monitoring after reboot. GPS mode needs "Allow all the time" location access.</string>
+    <string name="settings_radar_chirp">Radar chirp</string>
+    <string name="settings_radar_chirp_body">Audio beeps at a distance-scaled cadence. Can\'t play after a boot-resume on Android 17.</string>
+    <string name="settings_location">Location</string>
+    <string name="settings_lat">Latitude</string>
+    <string name="settings_lon">Longitude</string>
+    <string name="settings_use_gps_fix">Use current GPS fix</string>
+    <string name="settings_alerts">Alerts</string>
+    <string name="settings_alert_sound">Alert sound</string>
+    <string name="settings_alert_vibration">Alert vibration</string>
+    <string name="settings_alert_sheet">Full-screen in-app alert</string>
+    <string name="settings_notif_settings">System notification settings</string>
+    <string name="settings_test_alert">Test alert</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="theme_system">System</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light">Light</string>
+    <string name="settings_dynamic_color">Dynamic color</string>
+    <string name="settings_units">Units</string>
+    <string name="settings_debug">Debug</string>
+    <string name="settings_debug_logging">Debug logging</string>
+    <string name="settings_open_debug">Open debug console</string>
+    <string name="settings_about">About</string>
+
+    <!-- Debug console -->
+    <string name="debug_state_title">Monitoring state</string>
+    <string name="debug_filter_all">All</string>
+    <string name="debug_copy_all">Copy all</string>
+    <string name="debug_clear">Clear</string>
+    <string name="debug_search">Search logs</string>
+
+    <!-- Proximity alert -->
+    <string name="alert_title">PROXIMITY ALERT</string>
+    <string name="alert_more">+%1$d more</string>
+    <string name="alert_within">within %1$s radius</string>
+    <string name="alert_stat_distance">Distance</string>
+    <string name="alert_stat_bearing">Bearing</string>
+    <string name="alert_stat_closing">Closing</string>
+    <string name="alert_stat_altitude">Altitude</string>
+    <string name="alert_stat_speed">Speed</string>
+    <string name="alert_stat_heading">Heading</string>
+    <string name="aircraft_bulk_explainer">Callsigns and ICAO24 codes are accepted. Prefix with icao: (e.g. icao:4ca12f) to force ICAO24 interpretation.</string>
+    <string name="debug_title">Debug console</string>
+    <string name="action_back">Back</string>
+    <string name="fleets_radius_default">radius %1$s · global default</string>
+    <string name="fleets_stale_ago">%1$s ago · stale</string>
+    <string name="settings_build_default">Build default</string>
+    <string name="creds_auth_mode">Auth mode: %1$s</string>
+    <string name="creds_auth_anonymous">Anonymous</string>
+    <string name="creds_oauth_client">OAuth2 client:</string>
+    <string name="creds_basic_auth">Basic auth:</string>
+    <string name="creds_configured">Configured</string>
+    <string name="creds_not_set">Not set</string>
+    <string name="alert_stat_radius">Radius</string>
+</resources>

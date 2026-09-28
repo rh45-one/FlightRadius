@@ -69,6 +69,41 @@ describe("buildDistanceResults", () => {
     expect(groupResult.results[1].callsign).toBe("CCC300");
   });
 
+  it("passes through velocity, heading and last_contact when present", () => {
+    const result = buildDistanceResults(
+      { lat: 50.1109, lon: 8.6821 },
+      [
+        {
+          callsign: "AAA100",
+          lat: 52.52,
+          lon: 13.405,
+          altitude_m: 11000,
+          last_update: "2026-02-19T09:40:00Z",
+          velocity_mps: 245.5,
+          heading_deg: 271.3,
+          last_contact: 1740043200
+        }
+      ],
+      ["AAA100"]
+    );
+
+    expect(result.results[0].velocity_mps).toBe(245.5);
+    expect(result.results[0].heading_deg).toBe(271.3);
+    expect(result.results[0].last_contact).toBe(1740043200);
+  });
+
+  it("nulls optional telemetry fields when positions omit them", () => {
+    const result = buildDistanceResults(
+      { lat: 50.1109, lon: 8.6821 },
+      positions,
+      ["AAA100"]
+    );
+
+    expect(result.results[0].velocity_mps).toBeNull();
+    expect(result.results[0].heading_deg).toBeNull();
+    expect(result.results[0].last_contact).toBeNull();
+  });
+
   it("aggregates fleet proximity", () => {
     const result = buildGroupProximity(
       { lat: 50.1109, lon: 8.6821 },

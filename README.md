@@ -11,8 +11,9 @@ This is a monorepo hosting multiple clients over a shared backend:
 - `web/` — Dockerized web version (React frontend + Express backend +
   nginx HTTPS proxy). This is the original app; run it with
   `docker compose -f web/docker-compose.yml up --build`.
-- `android/` — native Android app (in progress). See
-  [docs/ANDROID_APP_PROMPT.md](docs/ANDROID_APP_PROMPT.md).
+- `android/` — native Android app (Kotlin + Jetpack Compose). See
+  [android/README.md](android/README.md) for build, backend wiring and the
+  monitoring architecture.
 - `docs/` — cross-cutting design and API documentation.
 
 The sections below describe the web version.
