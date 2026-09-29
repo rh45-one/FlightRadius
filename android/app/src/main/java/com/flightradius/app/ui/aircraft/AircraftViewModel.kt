@@ -3,12 +3,12 @@ package com.flightradius.app.ui.aircraft
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightradius.app.data.api.ApiResult
-import com.flightradius.app.data.api.ValidateCallsignsResponseDto
 import com.flightradius.app.data.repo.AircraftRepository
 import com.flightradius.app.data.repo.FleetRepository
-import com.flightradius.app.data.repo.FlightRadiusRepository
+import com.flightradius.app.data.source.SelectedFlightDataSource
 import com.flightradius.app.domain.Fleet
 import com.flightradius.app.domain.IdentifierType
+import com.flightradius.app.domain.Identifiers
 import com.flightradius.app.domain.TrackedAircraft
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -32,7 +32,7 @@ sealed interface CheckResult {
 class AircraftViewModel @Inject constructor(
     private val aircraftRepository: AircraftRepository,
     private val fleetRepository: FleetRepository,
-    private val repository: FlightRadiusRepository
+    private val flightData: SelectedFlightDataSource
 ) : ViewModel() {
 
     val search = MutableStateFlow("")
@@ -108,40 +108,31 @@ class AircraftViewModel @Inject constructor(
         }
     }
 
-    /** Check a callsign against the backend (live / no-data / error). */
-    suspend fun checkCallsign(callsign: String): CheckResult =
-        when (val r = repository.validateCallsigns(listOf(callsign))) {
-            is ApiResult.Success -> {
-                val v: ValidateCallsignsResponseDto = r.data
-                val live = v.results.any {
-                    it.callsign.equals(callsign, ignoreCase = true) &&
-                        it.status == "valid"
-                }
-                if (live) CheckResult.Live else CheckResult.NoData
-            }
+    /** Is this callsign broadcasting right now (live / no-data / error)? */
+    suspend fun checkCallsign(raw: String): CheckResult {
+        val callsign = Identifiers.normalize(raw, IdentifierType.CALLSIGN)
+            ?: return CheckResult.NoData
+        return when (val r = flightData.liveCallsigns(listOf(callsign))) {
+            is ApiResult.Success -> if (callsign in r.data) CheckResult.Live else CheckResult.NoData
             is ApiResult.Failure -> CheckResult.NetworkError(r.error.message)
         }
+    }
 
-    /** Check an icao24 against the backend. */
-    suspend fun checkIcao24(icao24: String): CheckResult =
-        when (val r = repository.lookupIcao24(icao24)) {
-            is ApiResult.Success -> CheckResult.Live
-            is ApiResult.Failure -> {
-                if (r.error is com.flightradius.app.data.api.ApiError.Http ||
-                    r.error is com.flightradius.app.data.api.ApiError.BadRequest
-                ) CheckResult.NoData
-                else CheckResult.NetworkError(r.error.message)
-            }
+    /** Is this transponder reporting right now? */
+    suspend fun checkIcao24(raw: String): CheckResult {
+        val icao24 = Identifiers.normalize(raw, IdentifierType.ICAO24)
+            ?: return CheckResult.NoData
+        return when (val r = flightData.isIcao24Live(icao24)) {
+            is ApiResult.Success -> if (r.data) CheckResult.Live else CheckResult.NoData
+            is ApiResult.Failure -> CheckResult.NetworkError(r.error.message)
         }
+    }
 
-    /** One validate-call for all bulk callsigns -> set of live callsigns. */
-    suspend fun validateBulkCallsigns(callsigns: List<String>): Set<String>? =
-        when (val r = repository.validateCallsigns(callsigns)) {
-            is ApiResult.Success ->
-                r.data.results.filter { it.status == "valid" }
-                    .mapNotNull { it.callsign?.uppercase() }.toSet()
-            is ApiResult.Failure -> null
-        }
+    /** One lookup for all bulk callsigns -> set of live callsigns (null on error). */
+    suspend fun validateBulkCallsigns(callsigns: List<String>): Set<String>? {
+        val normalized = callsigns.mapNotNull { Identifiers.normalize(it, IdentifierType.CALLSIGN) }
+        return (flightData.liveCallsigns(normalized) as? ApiResult.Success)?.data
+    }
 
     fun addBulk(
         entries: List<BulkAddEntry>,

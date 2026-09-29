@@ -3,6 +3,7 @@ package com.flightradius.app.ui.format
 import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.domain.AlertText
 import com.flightradius.app.domain.DistanceUnit
+import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
@@ -64,6 +65,23 @@ object Format {
             sec < 3600 -> "${sec / 60}m ${sec % 60}s"
             else -> "${sec / 3600}h"
         }
+    }
+
+    /** Compact duration: "45 s", "2 min 30 s", "3 h 5 min". */
+    fun duration(totalSec: Long): String {
+        val sec = totalSec.coerceAtLeast(0)
+        return when {
+            sec < 60 -> "$sec s"
+            sec < 3600 -> if (sec % 60 == 0L) "${sec / 60} min" else "${sec / 60} min ${sec % 60} s"
+            else -> if (sec % 3600 < 60) "${sec / 3600} h" else "${sec / 3600} h ${(sec % 3600) / 60} min"
+        }
+    }
+
+    /** Coverage estimate: "< 1 h", "7.5 h", "1 day+". */
+    fun hours(h: Double): String = when {
+        h < 1.0 -> "< 1 h"
+        h >= 24.0 -> "1 day+"
+        else -> String.format(Locale.ROOT, "%.1f h", h).replace(".0 h", " h")
     }
 
     /** "▲ approaching · 380 km/h" / "▼ receding · …" / "steady" (<5 km/h). */

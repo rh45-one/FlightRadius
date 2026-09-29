@@ -3,6 +3,8 @@ package com.flightradius.app.ui.radar
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightradius.app.data.api.LocalNetworkGuard
+import com.flightradius.app.data.opensky.CreditState
+import com.flightradius.app.data.opensky.CreditTracker
 import com.flightradius.app.data.prefs.AppSettings
 import com.flightradius.app.data.prefs.SettingsRepository
 import com.flightradius.app.data.repo.AircraftRepository
@@ -47,6 +49,7 @@ class RadarViewModel @Inject constructor(
     private val cycleRunner: MonitoringCycleRunner,
     val controller: MonitoringController,
     val connectivity: ConnectivityMonitor,
+    creditTracker: CreditTracker,
     val localNetworkGuard: LocalNetworkGuard
 ) : ViewModel() {
 
@@ -70,6 +73,7 @@ class RadarViewModel @Inject constructor(
     val locationStatus: StateFlow<LocationStatus> = locationRepository.status
     val fix: StateFlow<UserFix?> = locationRepository.fix
     val online: StateFlow<Boolean> = connectivity.online
+    val credits: StateFlow<CreditState> = creditTracker.state
 
     private var previewJob: Job? = null
     @Volatile private var screenVisible = false
@@ -95,9 +99,10 @@ class RadarViewModel @Inject constructor(
                             acquired = true
                         }
                         cycleRunner.runCycle("ui-preview")
-                        val interval = settingsRepository.settings.first()
-                            .monitoringIntervalSec * 1000L
-                        delay(interval)
+                        // Same credit-aware interval the service would use.
+                        val intervalSec = stateRepository.state.value.plannedIntervalSec
+                            ?: settingsRepository.settings.first().monitoringIntervalSec
+                        delay(intervalSec * 1000L)
                     } else {
                         if (acquired) {
                             locationRepository.release(UI_LOCATION_OWNER)

@@ -1,7 +1,6 @@
 package com.flightradius.app.ui.settings
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
@@ -16,8 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +44,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flightradius.app.BuildConfig
 import com.flightradius.app.R
+import com.flightradius.app.data.prefs.DataSource
 import com.flightradius.app.data.prefs.GpsAccuracy
 import com.flightradius.app.data.prefs.LocationMode
 import com.flightradius.app.data.prefs.ThemeMode
@@ -55,7 +53,9 @@ import com.flightradius.app.location.LocationStatus
 import com.flightradius.app.service.BatteryOptimization
 import com.flightradius.app.ui.components.SectionHeader
 import com.flightradius.app.ui.format.Format
+import com.flightradius.app.ui.radar.locationLabel
 import com.flightradius.app.ui.theme.extended
+import java.util.Locale
 
 private val INTERVAL_PRESETS = listOf(10, 15, 20, 30, 45, 60, 120, 300, 600)
 
@@ -79,14 +79,13 @@ fun SettingsScreen(
     var urlText by remember { mutableStateOf<String?>(null) }
     var latText by remember { mutableStateOf<String?>(null) }
     var lonText by remember { mutableStateOf<String?>(null) }
-    var showClearCreds by remember { mutableStateOf(false) }
-    var credsMsg by remember { mutableStateOf<String?>(null) }
-    var credClientId by remember { mutableStateOf("") }
-    var credClientSecret by remember { mutableStateOf("") }
-    var credUsername by remember { mutableStateOf("") }
-    var credPassword by remember { mutableStateOf("") }
+    val storedCredentials by viewModel.storedCredentials.collectAsStateWithLifecycle()
+    val credentialCheck by viewModel.credentialCheck.collectAsStateWithLifecycle()
+    val credits by viewModel.credits.collectAsStateWithLifecycle()
+    val monitoring by viewModel.monitoring.collectAsStateWithLifecycle()
+    val directMode = settings.dataSource == DataSource.DIRECT
 
-    LaunchedEffect(Unit) { viewModel.refreshApiStatus() }
+    LaunchedEffect(directMode) { if (!directMode) viewModel.refreshApiStatus() }
 
     Column(
         Modifier
@@ -100,6 +99,28 @@ fun SettingsScreen(
             modifier = Modifier.padding(top = 8.dp)
         )
 
+        // ---- Data source + account ----
+        DataSourceSection(settings.dataSource, viewModel::setDataSource)
+        if (directMode) {
+            OpenSkyAccountSection(
+                stored = storedCredentials,
+                check = credentialCheck,
+                onSave = viewModel::saveDirectCredentials,
+                onVerify = viewModel::verifyDirectCredentials,
+                onRemove = viewModel::removeDirectCredentials
+            )
+        }
+        if (directMode || credits.remaining != null) {
+            CreditsSection(
+                credits = credits,
+                monitoring = monitoring,
+                userIntervalSec = settings.monitoringIntervalSec,
+                adaptive = settings.adaptiveCredits,
+                nowMs = now,
+                onAdaptiveChange = viewModel::setAdaptiveCredits
+            )
+        }
+
         // ---- Backend ----
         SectionHeader(stringResource(R.string.settings_backend))
         Card(
@@ -108,6 +129,12 @@ fun SettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer)
         ) {
             Column(Modifier.padding(16.dp)) {
+                if (directMode) {
+                    Text(
+                        stringResource(R.string.settings_backend_optional),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 val usingDefault = settings.backendBaseUrl == null
                 val url = urlText ?: settings.backendBaseUrl
                     ?: BuildConfig.DEFAULT_BACKEND_URL
@@ -164,91 +191,13 @@ fun SettingsScreen(
             }
         }
 
-        // ---- OpenSky credentials ----
-        SectionHeader(stringResource(R.string.settings_opensky))
-        Card(
-            Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer)
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                apiStatus?.api?.let { api ->
-                    val ok = MaterialTheme.colorScheme.extended.success
-                    val off = MaterialTheme.colorScheme.onSurfaceVariant
-                    fun dot(enabled: Boolean) = if (enabled) "\u25cf" else "\u25cb"
-                    val authLabel = when (api.authMode?.lowercase()) {
-                        "oauth2", "oauth" -> "OAuth2"
-                        "basic" -> "Basic"
-                        "anonymous" -> stringResource(R.string.creds_auth_anonymous)
-                        else -> api.authMode ?: "?"
-                    }
-                    Text(
-                        stringResource(R.string.creds_auth_mode, authLabel),
-                        style = MaterialTheme.typography.bodySmall)
-                    Text(
-                        stringResource(R.string.creds_oauth_client) +
-                            if (api.clientConfigured == true)
-                                " " + dot(true) + " " +
-                                    stringResource(R.string.creds_configured)
-                            else " " + dot(false) + " " +
-                                stringResource(R.string.creds_not_set),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (api.clientConfigured == true) ok else off)
-                    Text(
-                        stringResource(R.string.creds_basic_auth) +
-                            if (api.basicConfigured == true)
-                                " " + dot(true) + " " +
-                                    stringResource(R.string.creds_configured)
-                            else " " + dot(false) + " " +
-                                stringResource(R.string.creds_not_set),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (api.basicConfigured == true) ok else off)
-                }
-                apiStatusError?.let {
-                    Text(it, color = MaterialTheme.colorScheme.extended.danger,
-                        style = MaterialTheme.typography.bodySmall)
-                }
-                Text(
-                    stringResource(R.string.settings_creds_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                SecretField(stringResource(R.string.creds_client_id), credClientId) {
-                    credClientId = it
-                }
-                SecretField(stringResource(R.string.creds_client_secret), credClientSecret) {
-                    credClientSecret = it
-                }
-                OutlinedTextField(
-                    value = credUsername,
-                    onValueChange = { credUsername = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.creds_username)) },
-                    singleLine = true
-                )
-                SecretField(stringResource(R.string.creds_password), credPassword) {
-                    credPassword = it
-                }
-                Row {
-                    TextButton(onClick = {
-                        viewModel.sendCredentials(
-                            credClientId, credClientSecret,
-                            credUsername, credPassword
-                        ) { ok, msg ->
-                            credsMsg = if (ok) "Sent" else msg
-                            if (ok) {
-                                credClientId = ""; credClientSecret = ""
-                                credUsername = ""; credPassword = ""
-                            }
-                        }
-                    }) { Text(stringResource(R.string.creds_send)) }
-                    TextButton(onClick = { showClearCreds = true }) {
-                        Text(stringResource(R.string.creds_clear))
-                    }
-                }
-                credsMsg?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall)
-                }
-            }
+        if (!directMode) {
+            BackendCredentialsSection(
+                apiStatus = apiStatus,
+                apiStatusError = apiStatusError,
+                onSend = viewModel::sendBackendCredentials,
+                onClear = viewModel::clearBackendCredentials
+            )
         }
 
         // ---- Import ----
@@ -440,15 +389,12 @@ fun SettingsScreen(
                     }
                 }
                 Text(
-                    when (locationStatus) {
-                        is LocationStatus.Fix ->
-                            "fix %.4f,%.4f · %s".format(
-                                fix?.lat ?: 0.0, fix?.lon ?: 0.0,
-                                Format.age(now, fix?.timeMs ?: now))
-                        else -> "status: ${locationStatus.javaClass.simpleName}"
-                    },
+                    // Never print class names: R8 obfuscates them in release.
+                    fix?.takeIf { locationStatus is LocationStatus.Fix }?.let {
+                        String.format(Locale.ROOT, "%s · %.4f, %.4f",
+                            locationLabel(locationStatus, it, now), it.lat, it.lon)
+                    } ?: locationLabel(locationStatus, fix, now),
                     style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                    
                     modifier = Modifier.padding(top = 8.dp))
                 TextButton(onClick = {
                     context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
@@ -585,30 +531,10 @@ fun SettingsScreen(
         Spacer(Modifier.height(80.dp))
     }
 
-    if (showClearCreds) {
-        AlertDialog(
-            onDismissRequest = { showClearCreds = false },
-            title = { Text(stringResource(R.string.creds_clear_title)) },
-            text = { Text(stringResource(R.string.creds_clear_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.clearCredentials { ok, msg ->
-                        credsMsg = if (ok) "Cleared" else msg
-                    }
-                    showClearCreds = false
-                }) { Text(stringResource(R.string.action_delete)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearCreds = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            }
-        )
-    }
 }
 
 @Composable
-private fun SecretField(
+internal fun SecretField(
     label: String,
     value: String,
     onChange: (String) -> Unit
@@ -638,7 +564,7 @@ private fun FilterChipLike(
 }
 
 @Composable
-private fun SwitchRow(
+internal fun SwitchRow(
     title: String,
     body: String?,
     checked: Boolean,

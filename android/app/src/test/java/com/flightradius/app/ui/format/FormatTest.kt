@@ -94,4 +94,17 @@ class FormatTest {
         assertNull(Format.closingParts(
             o.copy(closingSpeedKmh = null), DistanceUnit.KM))
     }
+
+    @Test
+    fun `durations and coverage hours`() {
+        assertEquals("45 s", Format.duration(45))
+        assertEquals("2 min", Format.duration(120))
+        assertEquals("2 min 30 s", Format.duration(150))
+        assertEquals("3 h", Format.duration(3 * 3600 + 30))
+        assertEquals("3 h 5 min", Format.duration(3 * 3600 + 300))
+        assertEquals("< 1 h", Format.hours(0.4))
+        assertEquals("7.5 h", Format.hours(7.5))
+        assertEquals("7 h", Format.hours(7.0))
+        assertEquals("1 day+", Format.hours(30.0))
+    }
 }

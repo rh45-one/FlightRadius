@@ -125,8 +125,7 @@
     <string name="fleets_empty_title">No fleets yet</string>
     <string name="fleets_empty_body">Group aircraft into fleets for shared alert radii and summaries.</string>
     <string name="fleets_stale_title">Fleet distances stale</string>
-    <string name="fleets_stale_body">No recent snapshot — refresh resolves callsign members (ICAO24 members resolve via monitoring only).</string>
-    <string name="fleets_manual_refresh">Refreshed %1$s</string>
+    <string name="fleets_stale_body">No recent snapshot. Refresh runs one monitoring cycle to update fleet distances.</string>
     <string name="fleets_delete_title">Delete fleet?</string>
     <string name="fleets_delete_body">Fleet "%1$s" will be removed; its aircraft stay tracked.</string>
 
@@ -135,12 +134,9 @@
     <string name="settings_backend_url">Backend URL</string>
     <string name="error_invalid_url">Enter a valid http(s) URL</string>
     <string name="settings_test_connection">Test connection</string>
-    <string name="settings_opensky">OpenSky credentials</string>
-    <string name="settings_creds_hint">Credentials are forwarded to the backend and never stored on this device.</string>
+    <string name="settings_creds_hint">Sent to your backend, which stores and uses them. Nothing is kept on this device.</string>
     <string name="creds_client_id">Client ID</string>
     <string name="creds_client_secret">Client secret</string>
-    <string name="creds_username">Username</string>
-    <string name="creds_password">Password</string>
     <string name="creds_send">Send to backend</string>
     <string name="creds_clear">Clear credentials on backend</string>
     <string name="creds_clear_title">Clear credentials?</string>
@@ -203,9 +199,40 @@
     <string name="settings_build_default">Build default</string>
     <string name="creds_auth_mode">Auth mode: %1$s</string>
     <string name="creds_auth_anonymous">Anonymous</string>
-    <string name="creds_oauth_client">OAuth2 client:</string>
-    <string name="creds_basic_auth">Basic auth:</string>
-    <string name="creds_configured">Configured</string>
-    <string name="creds_not_set">Not set</string>
     <string name="alert_stat_radius">Radius</string>
+
+    <!-- Data source & OpenSky account -->
+    <string name="settings_data_source">Flight data</string>
+    <string name="data_source_direct">OpenSky (direct)</string>
+    <string name="data_source_backend">Own backend</string>
+    <string name="data_source_direct_body">The app queries OpenSky itself and works anywhere with internet. No server needed.</string>
+    <string name="data_source_backend_body">Your self-hosted FlightRadius backend proxies OpenSky. Only reachable where the backend is.</string>
+    <string name="settings_opensky_account">OpenSky account</string>
+    <string name="settings_opensky_backend">OpenSky credentials (backend)</string>
+    <string name="creds_direct_hint">Create an API client on your OpenSky account page and paste its client ID and secret. They are encrypted with a key that never leaves this device.</string>
+    <string name="creds_status_anonymous">Not set: anonymous access (400 credits/day)</string>
+    <string name="creds_status_stored">API client saved on this device (encrypted)</string>
+    <string name="creds_status_verified">API client verified with OpenSky</string>
+    <string name="creds_status_rejected">OpenSky rejected this API client. Check the ID and secret.</string>
+    <string name="creds_status_unreadable">Saved credentials can\'t be decrypted. Please enter them again.</string>
+    <string name="creds_save_verify">Save &amp; verify</string>
+    <string name="creds_verify">Verify</string>
+    <string name="creds_remove">Remove</string>
+    <string name="creds_removed">API client removed. Using anonymous access.</string>
+    <string name="creds_remove_title">Remove API client?</string>
+    <string name="creds_remove_body">The client ID and secret are deleted from this device. The app falls back to anonymous access.</string>
+    <string name="creds_sent">Sent to backend</string>
+    <string name="creds_cleared">Cleared on backend</string>
+    <string name="settings_backend_optional">Optional in direct mode: only used to import aircraft and fleets from the web app.</string>
+
+    <!-- Credits -->
+    <string name="settings_credits">OpenSky credits</string>
+    <string name="credits_unknown">Balance appears after the first request.</string>
+    <string name="credits_remaining">%1$,d of %2$,d left today</string>
+    <string name="credits_interval">Refresh every %1$s</string>
+    <string name="credits_per_cycle">%1$d per refresh</string>
+    <string name="credits_coverage">lasts %1$s</string>
+    <string name="credits_blocked">Out of credits. Retrying in %1$s.</string>
+    <string name="credits_adaptive">Stretch credits across the day</string>
+    <string name="credits_adaptive_body">Slows refreshes when needed so monitoring keeps running until credits refill.</string>
 </resources>

@@ -35,4 +35,10 @@ class NextDelayPolicyTest {
             NextDelayPolicy.delayMs(false, false, 15_000L, 9)
         )
     }
+
+    @Test
+    fun `a retry-after hint waits at least that long`() {
+        assertEquals(600_000L, NextDelayPolicy.delayMs(false, false, 15_000L, 1, retryAfterMs = 600_000L))
+        assertEquals(15_000L, NextDelayPolicy.delayMs(false, false, 15_000L, 1, retryAfterMs = 1_000L))
+    }
 }

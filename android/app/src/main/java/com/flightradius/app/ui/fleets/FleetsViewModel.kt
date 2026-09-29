@@ -2,13 +2,13 @@ package com.flightradius.app.ui.fleets
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.flightradius.app.data.api.ApiResult
+import com.flightradius.app.data.api.ApiError
 import com.flightradius.app.data.repo.AircraftRepository
 import com.flightradius.app.data.repo.FleetRepository
-import com.flightradius.app.data.repo.FlightRadiusRepository
 import com.flightradius.app.domain.Fleet
-import com.flightradius.app.domain.GroupOutcome
 import com.flightradius.app.domain.TrackedAircraft
+import com.flightradius.app.service.CycleResult
+import com.flightradius.app.service.MonitoringCycleRunner
 import com.flightradius.app.service.MonitoringStateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -17,15 +17,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.first
 
 @HiltViewModel
 class FleetsViewModel @Inject constructor(
     private val fleetRepository: FleetRepository,
     private val aircraftRepository: AircraftRepository,
-    private val repository: FlightRadiusRepository,
     private val stateRepository: MonitoringStateRepository,
-    private val locationRepository: com.flightradius.app.location.LocationRepository
+    private val cycleRunner: MonitoringCycleRunner
 ) : ViewModel() {
 
     val fleets: StateFlow<List<Fleet>> = fleetRepository.fleets
@@ -37,11 +35,9 @@ class FleetsViewModel @Inject constructor(
     /** Latest snapshot: fleet statuses + staleness for the Refresh affordance. */
     val snapshot = stateRepository.state
 
-    /** Manual refresh result for fleets when no fresh snapshot exists. */
+    /** Manual refresh state for when no fresh snapshot exists. */
     val refreshError = MutableStateFlow<String?>(null)
     val refreshing = MutableStateFlow(false)
-    val manualOutcomes = MutableStateFlow<List<GroupOutcome>?>(null)
-    val manualRefreshAtMs = MutableStateFlow<Long?>(null)
 
     fun createOrUpdate(
         id: Long?,
@@ -78,29 +74,20 @@ class FleetsViewModel @Inject constructor(
         viewModelScope.launch { fleetRepository.remove(fleet.id) }
     }
 
-    /** Explicit refresh via /api/distance/fleets with the current fix. */
+    /**
+     * Explicit refresh: runs one regular cycle through the selected data
+     * source; fleet statuses come from the resulting snapshot.
+     */
     fun refresh() {
+        if (refreshing.value) return
         viewModelScope.launch {
-            val fix = locationRepository.currentFix()
-            if (fix == null) {
-                refreshError.value = "No location fix yet"
-                return@launch
-            }
             refreshing.value = true
             refreshError.value = null
             try {
-                when (val r = repository.fleetsSummary(
-                    fix, fleets.value, aircraftRepository.getAll()
-                )) {
-                    is ApiResult.Success -> {
-                        manualOutcomes.value = r.data
-                        manualRefreshAtMs.value = System.currentTimeMillis()
-                        refreshing.value = false
-                    }
-                    is ApiResult.Failure -> {
-                        refreshing.value = false
-                        refreshError.value = r.error.message
-                    }
+                refreshError.value = when (val r = cycleRunner.runCycle("fleets-refresh")) {
+                    is CycleResult.Success, is CycleResult.Idle -> null
+                    CycleResult.Offline -> ApiError.Offline.message
+                    is CycleResult.Failure -> r.error.message
                 }
             } finally {
                 refreshing.value = false

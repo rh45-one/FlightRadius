@@ -7,7 +7,8 @@ import settingsRoutes from "./routes/settings";
 import appStateRoutes from "./routes/appState";
 import distanceRoutes from "./routes/distance";
 import { getCacheSize } from "./services/cache";
-import { pingOpenSky } from "./services/opensky";
+import { getCreditsRemaining, pingOpenSky } from "./services/opensky";
+import { errorHandler } from "./middleware/http";
 import {
   getLastLocationTimestamp,
   getLocationIngestStatus
@@ -39,7 +40,8 @@ app.get("/api/health", async (_req, res) => {
     opensky_status: openskyStatus,
     cache_entries: getCacheSize(),
     location_ingest_status: getLocationIngestStatus(),
-    last_location_timestamp: getLastLocationTimestamp()
+    last_location_timestamp: getLastLocationTimestamp(),
+    opensky_credits_remaining: getCreditsRemaining()
   });
 });
 
@@ -49,22 +51,7 @@ app.use("/api", appStateRoutes);
 app.use("/api/distance", distanceRoutes);
 app.use("/api/settings", settingsRoutes);
 
-app.use(
-  (
-    err: unknown,
-    _req: express.Request,
-    res: express.Response,
-    _next: express.NextFunction
-  ) => {
-    if (err instanceof SyntaxError) {
-      res.status(400).json({ error: "Malformed JSON", status: 400 });
-      return;
-    }
-
-    console.error("Unhandled request error", err);
-    res.status(500).json({ error: "Internal server error", status: 500 });
-  }
-);
+app.use(errorHandler);
 
 app.listen(port, () => {
   console.log(`Backend listening on port ${port}`);

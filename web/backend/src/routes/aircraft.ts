@@ -1,6 +1,6 @@
 import { Router } from "express";
+import { asyncHandler, setCreditsHeader } from "../middleware/http";
 import {
-  ApiError,
   getAircraftTelemetry,
   getAircraftTelemetryByCallsign,
   isValidCallsign,
@@ -10,7 +10,7 @@ import {
 
 const router = Router();
 
-router.get("/callsign/:callsign", async (req, res) => {
+router.get("/callsign/:callsign", asyncHandler(async (req, res) => {
   const { callsign } = req.params;
 
   if (!isValidCallsign(callsign)) {
@@ -18,21 +18,12 @@ router.get("/callsign/:callsign", async (req, res) => {
     return;
   }
 
-  try {
-    const telemetry = await getAircraftTelemetryByCallsign(callsign);
-    res.json(telemetry);
-  } catch (error) {
-    if (error instanceof ApiError) {
-      res.status(error.status).json({ error: error.message, status: error.status });
-      return;
-    }
+  const telemetry = await getAircraftTelemetryByCallsign(callsign);
+  setCreditsHeader(res);
+  res.json(telemetry);
+}));
 
-    console.error("Telemetry error", error);
-    res.status(500).json({ error: "OpenSky unavailable", status: 500 });
-  }
-});
-
-router.get("/:icao24", async (req, res) => {
+router.get("/:icao24", asyncHandler(async (req, res) => {
   const { icao24 } = req.params;
 
   if (!isValidIcao24(icao24)) {
@@ -40,21 +31,12 @@ router.get("/:icao24", async (req, res) => {
     return;
   }
 
-  try {
-    const telemetry = await getAircraftTelemetry(icao24);
-    res.json(telemetry);
-  } catch (error) {
-    if (error instanceof ApiError) {
-      res.status(error.status).json({ error: error.message, status: error.status });
-      return;
-    }
+  const telemetry = await getAircraftTelemetry(icao24);
+  setCreditsHeader(res);
+  res.json(telemetry);
+}));
 
-    console.error("Telemetry error", error);
-    res.status(500).json({ error: "OpenSky unavailable", status: 500 });
-  }
-});
-
-router.post("/validate-callsigns", async (req, res) => {
+router.post("/validate-callsigns", asyncHandler(async (req, res) => {
   const { callsigns } = req.body || {};
 
   if (!Array.isArray(callsigns)) {
@@ -77,13 +59,9 @@ router.post("/validate-callsigns", async (req, res) => {
     return;
   }
 
-  try {
-    const result = await validateCallsigns(cleaned);
-    res.json({ status: "ok", results: result });
-  } catch (error) {
-    console.error("Callsign validation error", error);
-    res.status(500).json({ error: "OpenSky unavailable", status: 500 });
-  }
-});
+  const result = await validateCallsigns(cleaned);
+  setCreditsHeader(res);
+  res.json({ status: "ok", results: result });
+}));
 
 export default router;

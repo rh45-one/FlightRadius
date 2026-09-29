@@ -1,5 +1,7 @@
 package com.flightradius.app.location
 
+import com.flightradius.app.data.prefs.DataSource
+import com.flightradius.app.data.prefs.RuntimeSettings
 import com.flightradius.app.data.repo.FlightRadiusRepository
 import com.flightradius.app.di.ApplicationScope
 import com.flightradius.app.domain.TimeSource
@@ -15,12 +17,14 @@ import kotlinx.coroutines.launch
 /**
  * Uploads acquired fixes to /api/user/location — throttled by
  * [UploadThrottle] (≥30s apart unless moved ≥100m; manual once per change).
- * Best-effort: failures are logged at DEBUG only.
+ * Backend mode only: in direct mode there is no server to tell. Best-effort:
+ * failures are logged at DEBUG only.
  */
 @Singleton
 class LocationUploader @Inject constructor(
     private val locationRepository: LocationRepository,
     private val repository: FlightRadiusRepository,
+    private val runtimeSettings: RuntimeSettings,
     @ApplicationScope private val scope: CoroutineScope,
     private val time: TimeSource
 ) {
@@ -33,6 +37,7 @@ class LocationUploader @Inject constructor(
         job = scope.launch {
             locationRepository.fix.collect { fix ->
                 if (fix != null &&
+                    runtimeSettings.dataSource == DataSource.BACKEND &&
                     UploadThrottle.shouldUpload(
                         time.nowMs(), fix, lastUploaded, lastUploadedAtMs)
                 ) {

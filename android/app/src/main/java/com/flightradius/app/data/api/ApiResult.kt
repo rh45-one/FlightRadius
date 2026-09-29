@@ -48,9 +48,19 @@ sealed interface ApiError {
         override val message = detail ?: "Invalid request"
     }
 
-    data object RateLimited : ApiError {
+    /**
+     * OpenSky credits exhausted (HTTP 429). [retryAfterSec] is the server's
+     * hint for when requests will succeed again, when provided.
+     */
+    data class RateLimited(val retryAfterSec: Long? = null) : ApiError {
         override val retryable = false
-        override val message = "Rate limited — slow down"
+        override val message = "OpenSky credits exhausted — waiting for refill"
+    }
+
+    /** OpenSky rejected the API client credentials. */
+    data object AuthFailed : ApiError {
+        override val retryable = false
+        override val message = "OpenSky rejected the API client credentials"
     }
 
     /** 502 from our backend when OpenSky is unreachable/auth failed. */
@@ -115,20 +125,8 @@ suspend fun <T> safeApiCall(
         block()
     } catch (ce: CancellationException) {
         throw ce
-    } catch (e: SocketTimeoutException) {
-        return ApiResult.Failure(ApiError.Timeout(e.message))
-    } catch (e: InterruptedIOException) {
-        return ApiResult.Failure(ApiError.Timeout(e.message))
-    } catch (e: SSLException) {
-        return ApiResult.Failure(ApiError.Tls(e.message))
-    } catch (e: java.io.IOException) {
-        return ApiResult.Failure(mapIOException(e))
-    } catch (e: SerializationException) {
-        return ApiResult.Failure(ApiError.Malformed(e.message))
-    } catch (e: IllegalArgumentException) {
-        return ApiResult.Failure(ApiError.Malformed(e.message))
     } catch (t: Throwable) {
-        return ApiResult.Failure(ApiError.Unknown(t.message))
+        return ApiResult.Failure(t.toApiError(mapIOException))
     }
 
     if (response.isSuccessful) {
@@ -150,11 +148,25 @@ suspend fun <T> safeApiCall(
 
     val error: ApiError = when (response.code()) {
         400 -> ApiError.BadRequest(detail)
-        429 -> ApiError.RateLimited
+        429 -> ApiError.RateLimited(response.headers()["Retry-After"]?.toLongOrNull())
         502 -> ApiError.OpenSkyUnavailable(detail ?: "OpenSky unavailable")
         504 -> ApiError.OpenSkyTimeout
         in 500..599 -> ApiError.Server(response.code(), detail)
         else -> ApiError.Http(response.code(), detail)
     }
     return ApiResult.Failure(error)
+}
+
+/**
+ * Classifies a transport/parse failure. Callers must rethrow
+ * [CancellationException] themselves before calling this.
+ */
+fun Throwable.toApiError(
+    mapIOException: (java.io.IOException) -> ApiError = { ApiError.Network(it.message) }
+): ApiError = when (this) {
+    is SocketTimeoutException, is InterruptedIOException -> ApiError.Timeout(message)
+    is SSLException -> ApiError.Tls(message)
+    is java.io.IOException -> mapIOException(this)
+    is SerializationException, is IllegalArgumentException -> ApiError.Malformed(message)
+    else -> ApiError.Unknown(message)
 }

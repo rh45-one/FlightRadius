@@ -1,6 +1,6 @@
 import {
-  getAircraftTelemetry,
-  getAircraftTelemetryByCallsigns
+  getAircraftTelemetryByCallsigns,
+  getAircraftTelemetryByIcao24s
 } from "../services/opensky";
 import { DistancePosition } from "../services/distanceEngine";
 
@@ -23,19 +23,12 @@ export class OpenSkyProvider {
       ? await getAircraftTelemetryByCallsigns(callsigns)
       : [];
 
-    const telemetryByIcao = await Promise.all(
-      icao24s.map(async (icao24) => {
-        try {
-          return await getAircraftTelemetry(icao24);
-        } catch (_error) {
-          return null;
-        }
-      })
-    );
+    // One icao24-filtered request (1 credit) instead of a lookup per aircraft.
+    const telemetryByIcao = icao24s.length > 0
+      ? await getAircraftTelemetryByIcao24s(icao24s)
+      : [];
 
-    const combined = [...telemetryByCallsign, ...telemetryByIcao].filter(
-      (entry): entry is NonNullable<typeof entry> => Boolean(entry)
-    );
+    const combined = [...telemetryByCallsign, ...telemetryByIcao];
 
     return combined.map((entry) => {
       const fallbackLat = 40.4168;

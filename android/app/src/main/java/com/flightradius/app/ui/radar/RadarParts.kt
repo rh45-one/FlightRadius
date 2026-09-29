@@ -27,15 +27,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.flightradius.app.R
-import com.flightradius.app.data.api.ApiError
+import com.flightradius.app.data.opensky.CreditState
 import com.flightradius.app.data.prefs.AppSettings
+import com.flightradius.app.data.prefs.DataSource
 import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.domain.Fleet
@@ -54,6 +53,8 @@ import com.flightradius.app.ui.components.ShimmerBox
 import com.flightradius.app.ui.components.zoneColor
 import com.flightradius.app.ui.format.Format
 import com.flightradius.app.ui.theme.extended
+import java.util.Locale
+
 
 // ---------- label helpers ----------
 
@@ -78,23 +79,39 @@ internal fun locationColor(s: LocationStatus): Color = when (s) {
     LocationStatus.PlayServicesUnavailable -> RoseDanger
 }
 
-internal fun backendLabel(s: OpenSkyStatus, online: Boolean): String = when {
+internal fun backendLabel(s: OpenSkyStatus, online: Boolean, source: DataSource): String = when {
     !online -> "Offline"
     s == OpenSkyStatus.OK -> "OpenSky OK"
-    s == OpenSkyStatus.RATE_LIMITED -> "Rate limited"
+    s == OpenSkyStatus.RATE_LIMITED -> "Out of credits"
+    s == OpenSkyStatus.AUTH_FAILED -> "OpenSky login failed"
     s == OpenSkyStatus.UNAVAILABLE -> "OpenSky down"
     s == OpenSkyStatus.TIMEOUT -> "OpenSky timeout"
-    s == OpenSkyStatus.BACKEND_UNREACHABLE -> "Backend unreachable"
-    else -> "Backend unknown"
+    s == OpenSkyStatus.UNREACHABLE ->
+        if (source == DataSource.DIRECT) "OpenSky unreachable" else "Backend unreachable"
+    else -> if (source == DataSource.DIRECT) "OpenSky" else "Backend"
 }
 
 internal fun backendColor(s: OpenSkyStatus, online: Boolean): Color = when {
     !online -> AmberYellow
     s == OpenSkyStatus.OK -> EmeraldGreen
     s == OpenSkyStatus.RATE_LIMITED || s == OpenSkyStatus.TIMEOUT -> AmberYellow
-    s == OpenSkyStatus.UNAVAILABLE ||
-        s == OpenSkyStatus.BACKEND_UNREACHABLE -> RoseDanger
+    s == OpenSkyStatus.UNAVAILABLE || s == OpenSkyStatus.UNREACHABLE ||
+        s == OpenSkyStatus.AUTH_FAILED -> RoseDanger
     else -> CyanInfo
+}
+
+/** "3.4k credits" chip label; null until a balance has been observed. */
+internal fun creditsLabel(c: CreditState): String? = c.remaining?.let {
+    if (it >= 1000) String.format(Locale.ROOT, "%.1fk credits", it / 1000.0) else "$it credits"
+}
+
+internal fun creditsColor(c: CreditState): Color {
+    val fraction = (c.remaining ?: return CyanInfo).toFloat() / c.dailyQuota
+    return when {
+        fraction >= 0.25f -> EmeraldGreen
+        fraction >= 0.10f -> AmberYellow
+        else -> RoseDanger
+    }
 }
 
 internal fun monitoringLabel(s: MonitoringStatus): String = when (s) {
@@ -567,6 +584,7 @@ internal fun ChipDetail(
     fix: UserFix?,
     online: Boolean,
     settings: AppSettings,
+    credits: CreditState,
     now: Long,
     onOpenSettings: () -> Unit,
     onStartMonitoring: () -> Unit
@@ -576,7 +594,13 @@ internal fun ChipDetail(
             "location" -> stringResource(R.string.chip_location) to
                 locationLabel(locationStatus, fix, now)
             "backend" -> stringResource(R.string.chip_backend) to
-                backendLabel(state.openSkyStatus, online)
+                backendLabel(state.openSkyStatus, online, settings.dataSource)
+            "credits" -> stringResource(R.string.settings_credits) to
+                (credits.remaining?.let {
+                    stringResource(R.string.credits_remaining, it, credits.dailyQuota) + " · " +
+                        stringResource(R.string.credits_interval,
+                            Format.duration((state.plannedIntervalSec ?: settings.monitoringIntervalSec).toLong()))
+                } ?: stringResource(R.string.credits_unknown))
             else -> stringResource(R.string.chip_monitoring) to
                 monitoringLabel(state.status)
         }
@@ -590,7 +614,7 @@ internal fun ChipDetail(
         }
         Spacer(Modifier.height(12.dp))
         when (which) {
-            "location" -> TextButton(onClick = onOpenSettings) {
+            "location", "credits" -> TextButton(onClick = onOpenSettings) {
                 Text(stringResource(R.string.action_open_settings))
             }
             "monitoring" -> if (state.status == MonitoringStatus.STOPPED) {

@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,7 +35,6 @@ import androidx.navigation.navArgument
 import com.flightradius.app.data.api.LocalNetworkGuard
 import com.flightradius.app.data.prefs.AppSettings
 import com.flightradius.app.data.prefs.SettingsRepository
-import com.flightradius.app.data.prefs.ThemeMode
 import com.flightradius.app.location.LocationRepository
 import com.flightradius.app.service.MonitoringController
 import com.flightradius.app.service.MonitoringStateRepository
@@ -133,7 +133,7 @@ class MainActivity : ComponentActivity() {
             locationRepository = locationRepository,
             localNetworkGuard = localNetworkGuard,
             settings = settings,
-            onGoToLocationSettings = { nav.navigate("settings") }
+            onGoToLocationSettings = { nav.navigateToTab(NavItem.Settings.route) }
         )
         startMonitoringAction = { starter.begin() }
 
@@ -153,15 +153,7 @@ class MainActivity : ComponentActivity() {
                             NavigationBarItem(
                                 selected = route?.startsWith(item.route) == true ||
                                     (route == "debug" && item == NavItem.Settings),
-                                onClick = {
-                                    nav.navigate(item.route) {
-                                        popUpTo(nav.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
+                                onClick = { nav.navigateToTab(item.route) },
                                 icon = {
                                     Icon(item.icon, contentDescription =
                                         stringResource(item.labelRes))
@@ -177,12 +169,12 @@ class MainActivity : ComponentActivity() {
                         composable(NavItem.Radar.route) {
                             RadarScreen(
                                 onStartMonitoring = { starter.begin() },
-                                onOpenSettings = { nav.navigate("settings") },
+                                onOpenSettings = { nav.navigateToTab(NavItem.Settings.route) },
                                 onOpenAircraft = { add ->
-                                    nav.navigate("aircraft?add=$add")
+                                    nav.navigateToTab("aircraft?add=$add", restore = false)
                                 },
                                 onEditAircraft = { id ->
-                                    nav.navigate("aircraft?edit=$id")
+                                    nav.navigateToTab("aircraft?edit=$id", restore = false)
                                 }
                             )
                         }
@@ -239,6 +231,20 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Switches to a top-level tab instead of pushing onto the current tab's
+     * stack; otherwise cross-links (e.g. Radar -> Settings) would leave the
+     * Radar tab permanently restoring to Settings. [restore] = false when the
+     * route carries arguments that must take effect.
+     */
+    private fun NavHostController.navigateToTab(route: String, restore: Boolean = true) {
+        navigate(route) {
+            popUpTo(graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = restore
         }
     }
 

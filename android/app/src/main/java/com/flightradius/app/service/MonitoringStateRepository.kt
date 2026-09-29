@@ -1,7 +1,6 @@
 package com.flightradius.app.service
 
 import com.flightradius.app.data.api.ApiError
-import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.domain.AlertEvent
 import com.flightradius.app.domain.MonitoringSnapshot
 import com.flightradius.app.domain.OpenSkyStatus
@@ -34,7 +33,11 @@ data class MonitoringState(
     val dozing: Boolean = false,
     val highPriority: Boolean = false,
     /** false when the service was started from boot (no audio allowed). */
-    val startedFromBackground: Boolean = false
+    val startedFromBackground: Boolean = false,
+    /** Interval chosen for the next cycle (credit-aware), null before the first plan. */
+    val plannedIntervalSec: Int? = null,
+    /** OpenSky credits a regular cycle is expected to cost. */
+    val creditsPerCycle: Int = 0
 )
 
 /**

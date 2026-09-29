@@ -3,8 +3,6 @@ import { getApiSettings } from "./settings";
 
 export type OpenSkyConfig = {
   baseUrl: string;
-  username?: string;
-  password?: string;
   authUrl?: string;
   clientId?: string;
   clientSecret?: string;
@@ -21,9 +19,11 @@ export type AircraftTelemetry = {
   last_contact: number;
 };
 
+type OpenSkyState = Array<string | number | boolean | null>;
+
 type OpenSkyResponse = {
   time?: number;
-  states?: (Array<string | number | null>)[] | null;
+  states?: OpenSkyState[] | null;
 };
 
 type TokenResponse = {
@@ -34,58 +34,66 @@ type TokenResponse = {
 
 class ApiError extends Error {
   status: number;
+  retryAfterSec?: number;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, retryAfterSec?: number) {
     super(message);
     this.status = status;
+    this.retryAfterSec = retryAfterSec;
   }
 }
 
+/** Minimum spacing between any two upstream `/states/all` calls. */
 const RATE_LIMIT_MS = 5_000;
+/** Global snapshots are reused this long (OpenSky resolution is 5–10 s). */
+const SNAPSHOT_TTL_MS = 10_000;
+/** icao24 filters per request; each request costs 1 credit regardless. */
+const ICAO24_CHUNK_SIZE = 100;
+const DEFAULT_AUTH_URL =
+  "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
+/** Placeholder address used for the 1-credit reachability probe. */
+const PROBE_ICAO24 = "000000";
+
 let lastFetchAt = 0;
-let inFlight: Promise<OpenSkyResponse> | null = null;
+let upstreamQueue: Promise<unknown> = Promise.resolve();
+const inFlight = new Map<string, Promise<OpenSkyResponse>>();
+let globalSnapshot: { states: OpenSkyState[]; fetchedAt: number } | null = null;
+let creditsRemaining: number | null = null;
 let tokenCache: { accessToken: string; expiresAt: number } | null = null;
 let tokenInFlight: Promise<string> | null = null;
+let warnedAboutBasicAuth = false;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const buildBasicAuthHeader = (config: OpenSkyConfig) => {
-  if (!config.username || !config.password) {
-    return undefined;
-  }
-
-  const token = Buffer.from(`${config.username}:${config.password}`).toString(
-    "base64"
-  );
-  return `Basic ${token}`;
-};
-
 const getConfig = (): OpenSkyConfig => {
   const settings = getApiSettings();
+  if (
+    !warnedAboutBasicAuth &&
+    settings.username &&
+    settings.password &&
+    !(settings.clientId && settings.clientSecret)
+  ) {
+    warnedAboutBasicAuth = true;
+    console.warn(
+      "OpenSky no longer accepts username/password; configure an API client " +
+        "(client ID + secret). Falling back to anonymous access."
+    );
+  }
   return {
     baseUrl: settings.baseUrl || "https://opensky-network.org/api",
     authUrl: settings.authUrl || undefined,
-    username: settings.username || undefined,
-    password: settings.password || undefined,
     clientId: settings.clientId || undefined,
     clientSecret: settings.clientSecret || undefined
   };
 };
 
-const resetToken = () => {
-  tokenCache = null;
-};
+/** Last `X-Rate-Limit-Remaining` value seen from OpenSky, if any. */
+export const getCreditsRemaining = () => creditsRemaining;
 
 const fetchAccessToken = async (config: OpenSkyConfig) => {
   if (!config.clientId || !config.clientSecret) {
     throw new ApiError("OpenSky auth not configured", 401);
   }
-
-  const authUrl =
-    config.authUrl ||
-    "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
-
-  console.log("OpenSky token request start");
 
   const body = new URLSearchParams({
     grant_type: "client_credentials",
@@ -93,11 +101,9 @@ const fetchAccessToken = async (config: OpenSkyConfig) => {
     client_secret: config.clientSecret
   });
 
-  const response = await fetch(authUrl, {
+  const response = await fetch(config.authUrl || DEFAULT_AUTH_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString()
   });
 
@@ -106,77 +112,82 @@ const fetchAccessToken = async (config: OpenSkyConfig) => {
   }
 
   const payload = (await response.json()) as TokenResponse;
-  const accessToken = payload.access_token;
-  const expiresIn = payload.expires_in ?? 1800;
-
-  if (!accessToken) {
+  if (!payload.access_token) {
     throw new ApiError("OpenSky auth failed", 502);
   }
 
+  const expiresIn = payload.expires_in ?? 1800;
   tokenCache = {
-    accessToken,
+    accessToken: payload.access_token,
     expiresAt: Date.now() + (expiresIn - 60) * 1000
   };
-
-  console.log("OpenSky token request end");
-  return accessToken;
+  return payload.access_token;
 };
 
 const getAccessToken = async (config: OpenSkyConfig) => {
   if (!config.clientId || !config.clientSecret) {
     return null;
   }
-
   if (tokenCache && Date.now() < tokenCache.expiresAt) {
     return tokenCache.accessToken;
   }
-
-  if (tokenInFlight) {
-    return tokenInFlight;
+  if (!tokenInFlight) {
+    tokenInFlight = fetchAccessToken(config).finally(() => {
+      tokenInFlight = null;
+    });
   }
+  return tokenInFlight;
+};
 
-  tokenInFlight = fetchAccessToken(config);
-  try {
-    return await tokenInFlight;
-  } finally {
-    tokenInFlight = null;
+const buildStatesUrl = (baseUrl: string, icao24s?: string[]) => {
+  const params = new URLSearchParams();
+  for (const icao24 of icao24s ?? []) {
+    params.append("icao24", icao24);
+  }
+  const query = params.toString();
+  return `${baseUrl}/states/all${query ? `?${query}` : ""}`;
+};
+
+const recordCredits = (response: Response) => {
+  const raw = response.headers.get("X-Rate-Limit-Remaining");
+  const value = raw === null ? NaN : Number(raw);
+  if (Number.isFinite(value)) {
+    creditsRemaining = value;
   }
 };
 
-const buildAuthHeader = async (config: OpenSkyConfig) => {
+const fetchStates = async (
+  config: OpenSkyConfig,
+  icao24s: string[] | undefined,
+  allowRetry = true
+): Promise<OpenSkyResponse> => {
   const token = await getAccessToken(config);
-  if (token) {
-    return { header: `Bearer ${token}`, scheme: "bearer" } as const;
-  }
-
-  const basic = buildBasicAuthHeader(config);
-  if (basic) {
-    return { header: basic, scheme: "basic" } as const;
-  }
-
-  return { header: undefined, scheme: "none" } as const;
-};
-
-const fetchStates = async (config: OpenSkyConfig, allowRetry = true) => {
-  const auth = await buildAuthHeader(config);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
 
-  console.log("OpenSky request start", {
-    auth: auth.scheme,
-    baseUrl: config.baseUrl
-  });
-
   try {
-    const response = await fetch(`${config.baseUrl}/states/all`, {
+    const response = await fetch(buildStatesUrl(config.baseUrl, icao24s), {
       method: "GET",
-      headers: auth.header ? { Authorization: auth.header } : undefined,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       signal: controller.signal
     });
+    recordCredits(response);
 
-    if (response.status === 401 && auth.scheme === "bearer" && allowRetry) {
-      resetToken();
-      return fetchStates(config, false);
+    if (response.status === 401 && token && allowRetry) {
+      tokenCache = null;
+      return fetchStates(config, icao24s, false);
+    }
+
+    if (response.status === 429) {
+      const retryAfter = Number(
+        response.headers.get("X-Rate-Limit-Retry-After-Seconds")
+      );
+      creditsRemaining = 0;
+      throw new ApiError(
+        "OpenSky credits exhausted",
+        429,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
+      );
     }
 
     if (!response.ok) {
@@ -188,15 +199,13 @@ const fetchStates = async (config: OpenSkyConfig, allowRetry = true) => {
       throw new ApiError("OpenSky unavailable", 502);
     }
 
-    const data = (await response.json()) as OpenSkyResponse;
-    console.log("OpenSky request end");
-    return data;
+    return (await response.json()) as OpenSkyResponse;
   } catch (error) {
-    if ((error as Error).name === "AbortError") {
-      throw new ApiError("OpenSky timeout", 504);
-    }
     if (error instanceof ApiError) {
       throw error;
+    }
+    if ((error as Error).name === "AbortError") {
+      throw new ApiError("OpenSky timeout", 504);
     }
     throw new ApiError("OpenSky unavailable", 502);
   } finally {
@@ -204,31 +213,47 @@ const fetchStates = async (config: OpenSkyConfig, allowRetry = true) => {
   }
 };
 
-const fetchStatesQueued = async (config: OpenSkyConfig) => {
-  if (inFlight) {
-    return inFlight;
+/**
+ * Serializes upstream calls behind the rate limiter and deduplicates
+ * identical concurrent queries (keyed by the icao24 filter, or "global").
+ */
+const fetchStatesQueued = (config: OpenSkyConfig, icao24s?: string[]) => {
+  const key = icao24s && icao24s.length > 0 ? [...icao24s].sort().join(",") : "global";
+  const existing = inFlight.get(key);
+  if (existing) {
+    return existing;
   }
 
-  inFlight = (async () => {
-    const now = Date.now();
-    const elapsed = now - lastFetchAt;
-    if (elapsed < RATE_LIMIT_MS) {
-      console.log("Rate limit triggered");
-      await delay(RATE_LIMIT_MS - elapsed);
-    }
+  const request = upstreamQueue
+    .catch(() => undefined)
+    .then(async () => {
+      const elapsed = Date.now() - lastFetchAt;
+      if (elapsed < RATE_LIMIT_MS) {
+        await delay(RATE_LIMIT_MS - elapsed);
+      }
+      lastFetchAt = Date.now();
+      return fetchStates(config, icao24s);
+    })
+    .finally(() => {
+      inFlight.delete(key);
+    });
 
-    lastFetchAt = Date.now();
-    return fetchStates(config);
-  })();
-
-  try {
-    return await inFlight;
-  } finally {
-    inFlight = null;
-  }
+  upstreamQueue = request;
+  inFlight.set(key, request);
+  return request;
 };
 
-const normalizeState = (state: Array<string | number | null>) => {
+const getGlobalStates = async () => {
+  if (globalSnapshot && Date.now() - globalSnapshot.fetchedAt < SNAPSHOT_TTL_MS) {
+    return globalSnapshot.states;
+  }
+  const response = await fetchStatesQueued(getConfig());
+  const states = response.states ?? [];
+  globalSnapshot = { states, fetchedAt: Date.now() };
+  return states;
+};
+
+const normalizeState = (state: OpenSkyState) => {
   const icao24 = typeof state[0] === "string" ? state[0].toLowerCase() : null;
   const callsign = typeof state[1] === "string" ? state[1].trim() : null;
   const longitude = typeof state[5] === "number" ? state[5] : null;
@@ -262,56 +287,50 @@ const normalizeState = (state: Array<string | number | null>) => {
   } satisfies AircraftTelemetry;
 };
 
+const tryNormalize = (state: OpenSkyState) => {
+  try {
+    const telemetry = normalizeState(state);
+    setCacheEntry(telemetry.icao24, telemetry);
+    return telemetry;
+  } catch (_error) {
+    return null;
+  }
+};
+
 const normalizeCallsign = (callsign: string) => callsign.trim().toUpperCase();
+
+const stateCallsign = (state: OpenSkyState) =>
+  typeof state[1] === "string" ? state[1].trim().toUpperCase() : "";
 
 export const isValidCallsign = (input: string) =>
   /^[A-Z0-9]{2,8}$/.test(normalizeCallsign(input));
 
-const getStatesSnapshot = async () => {
-  const config = getConfig();
-  const response = await fetchStatesQueued(config);
-  return response.states || [];
-};
+export const isValidIcao24 = (input: string) => /^[a-f0-9]{6}$/i.test(input);
 
+/**
+ * Telemetry for several aircraft by callsign. OpenSky has no callsign filter,
+ * so this needs a global snapshot (4 credits), reused for SNAPSHOT_TTL_MS.
+ */
 export const getAircraftTelemetryByCallsigns = async (callsigns: string[]) => {
   const targets = new Set(callsigns.map(normalizeCallsign));
   if (targets.size === 0) {
     return [] as AircraftTelemetry[];
   }
 
-  const states = await getStatesSnapshot();
-  const telemetry: AircraftTelemetry[] = [];
-
-  for (const state of states) {
-    const value = typeof state[1] === "string" ? state[1].trim().toUpperCase() : "";
-    if (!value || !targets.has(value)) {
-      continue;
-    }
-
-    try {
-      const normalized = normalizeState(state);
-      telemetry.push(normalized);
-      setCacheEntry(normalized.icao24, normalized);
-    } catch (error) {
-      console.warn("Skipped telemetry entry", error);
-    }
-  }
-
-  return telemetry;
+  const states = await getGlobalStates();
+  return states
+    .filter((state) => targets.has(stateCallsign(state)))
+    .map(tryNormalize)
+    .filter((entry): entry is AircraftTelemetry => entry !== null);
 };
 
 export const getAircraftTelemetryByCallsign = async (callsign: string) => {
   const target = normalizeCallsign(callsign);
-  const states = await getStatesSnapshot();
-  const state = states.find((item) => {
-    const value = typeof item[1] === "string" ? item[1].trim().toUpperCase() : "";
-    return value === target;
-  });
-
+  const states = await getGlobalStates();
+  const state = states.find((item) => stateCallsign(item) === target);
   if (!state) {
     throw new ApiError("Aircraft not found", 404);
   }
-
   const telemetry = normalizeState(state);
   setCacheEntry(telemetry.icao24, telemetry);
   return telemetry;
@@ -319,78 +338,84 @@ export const getAircraftTelemetryByCallsign = async (callsign: string) => {
 
 export const validateCallsigns = async (callsigns: string[]) => {
   const targets = new Set(callsigns.map(normalizeCallsign));
-  const states = await getStatesSnapshot();
-  const found = new Set<string>();
+  const states = await getGlobalStates();
+  const found = new Set(
+    states.map(stateCallsign).filter((value) => value && targets.has(value))
+  );
 
-  for (const state of states) {
-    const value = typeof state[1] === "string" ? state[1].trim().toUpperCase() : "";
-    if (value && targets.has(value)) {
-      found.add(value);
+  return callsigns.map((callsign) => ({
+    callsign,
+    status: found.has(normalizeCallsign(callsign)) ? "valid" : "no-data"
+  }) as const);
+};
+
+/**
+ * Telemetry for several aircraft by icao24 using OpenSky's icao24 filter
+ * (1 credit per request of up to ICAO24_CHUNK_SIZE addresses). Fresh cache
+ * entries are served without an upstream call.
+ */
+export const getAircraftTelemetryByIcao24s = async (icao24s: string[]) => {
+  const keys = Array.from(new Set(icao24s.map((value) => value.toLowerCase())));
+  const results: AircraftTelemetry[] = [];
+  const misses: string[] = [];
+
+  for (const key of keys) {
+    const cached = getCacheEntry<AircraftTelemetry>(key);
+    if (cached) {
+      results.push(cached.value);
+    } else {
+      misses.push(key);
     }
   }
 
-  return callsigns.map((callsign) => {
-    const normalized = normalizeCallsign(callsign);
-    return {
-      callsign,
-      status: found.has(normalized) ? "valid" : "no-data"
-    } as const;
-  });
+  const config = getConfig();
+  for (let i = 0; i < misses.length; i += ICAO24_CHUNK_SIZE) {
+    const chunk = misses.slice(i, i + ICAO24_CHUNK_SIZE);
+    const response = await fetchStatesQueued(config, chunk);
+    for (const state of response.states ?? []) {
+      const telemetry = tryNormalize(state);
+      if (telemetry) {
+        results.push(telemetry);
+      }
+    }
+  }
+
+  return results;
 };
 
 export const getAircraftTelemetry = async (icao24: string) => {
   const key = icao24.toLowerCase();
   const cached = getCacheEntry<AircraftTelemetry>(key);
-
   if (cached) {
-    console.log("Cache hit", key);
     return cached.value;
   }
 
-  const now = Date.now();
-  if (now - lastFetchAt < RATE_LIMIT_MS) {
+  if (Date.now() - lastFetchAt < RATE_LIMIT_MS) {
     const stale = getCacheEntry<AircraftTelemetry>(key, { allowStale: true });
     if (stale) {
-      console.log("Rate limited, returning cached", key);
       return stale.value;
     }
   }
 
-  console.log("Cache miss", key);
-
-  const config = getConfig();
-  const response = await fetchStatesQueued(config);
-  const states = response.states || [];
-  const state = states.find(
-    (item) => typeof item[0] === "string" && item[0].toLowerCase() === key
-  );
-
-  if (!state) {
+  const [telemetry] = await getAircraftTelemetryByIcao24s([key]);
+  if (!telemetry) {
     throw new ApiError("Aircraft not found", 404);
   }
-
-  const telemetry = normalizeState(state);
-  setCacheEntry(key, telemetry);
   return telemetry;
 };
 
+/** Reachability probe: a 1-credit icao24 query instead of a global fetch. */
 export const pingOpenSky = async () => {
   if (process.env.OPENSKY_ENABLED !== "true") {
     return "disabled";
   }
-
-  const config = getConfig();
   try {
-    await fetchStatesQueued(config);
+    await fetchStatesQueued(getConfig(), [PROBE_ICAO24]);
     return "reachable";
   } catch (error) {
     console.error("OpenSky ping error", error);
     return "unreachable";
   }
-};
-
-export const isValidIcao24 = (input: string) => {
-  return /^[a-f0-9]{6}$/i.test(input);
 };
 
 export { ApiError };

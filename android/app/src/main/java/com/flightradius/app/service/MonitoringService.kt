@@ -21,7 +21,6 @@ import com.flightradius.app.data.prefs.LocationMode
 import com.flightradius.app.data.prefs.SettingsRepository
 import com.flightradius.app.domain.AircraftAlertState
 import com.flightradius.app.domain.AlertText
-import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.domain.MonitoringSnapshot
 import com.flightradius.app.domain.NextDelayPolicy
 import com.flightradius.app.domain.ProximityAlertEngine
@@ -378,7 +377,6 @@ class MonitoringService : Service() {
             ).also { wakeLock = it }
             cycleWl.acquire(CYCLE_WAKELOCK_MS)
             stateRepository.update { it.copy(wakeLockHeld = true) }
-            var lastIntervalMs = s.monitoringIntervalSec * 1000L
             val result: CycleResult = try {
                 runCatching { cycleRunner.runCycle("loop") }
                     .onFailure { if (it is CancellationException) throw it }
@@ -415,11 +413,15 @@ class MonitoringService : Service() {
                     }
             }
 
-            val success = result is CycleResult.Success
-            val retryable = (result as? CycleResult.Failure)?.error?.retryable ?: true
+            val failure = (result as? CycleResult.Failure)?.error
+            val lastIntervalMs = (stateRepository.state.value.plannedIntervalSec
+                ?: s.monitoringIntervalSec) * 1000L
             val delayMs = NextDelayPolicy.delayMs(
-                success, retryable, lastIntervalMs,
-                stateRepository.state.value.consecutiveFailures
+                success = result is CycleResult.Success,
+                retryable = failure?.retryable ?: true,
+                intervalMs = lastIntervalMs,
+                consecutiveFailures = stateRepository.state.value.consecutiveFailures,
+                retryAfterMs = (failure as? ApiError.RateLimited)?.retryAfterSec?.times(1000)
             )
             // Radar cadence follows the freshest snapshot on EVERY cycle;
             // the player silences itself when the snapshot goes stale.

@@ -1,6 +1,7 @@
 package com.flightradius.app.data.api
 
 import android.content.Context
+import com.flightradius.app.data.prefs.DataSource
 import com.flightradius.app.data.prefs.RuntimeSettings
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -17,9 +18,13 @@ class LocalNetworkGuard @Inject constructor(
     @ApplicationContext private val context: Context,
     private val runtimeSettings: RuntimeSettings
 ) {
-    /** True when the resolved backend URL is LAN and the grant is missing. */
+    /**
+     * True in backend mode when the backend URL is on the LAN and the grant
+     * is missing. Direct mode only talks to public OpenSky hosts.
+     */
     fun isBlocked(): Boolean =
-        LocalNetwork.isRequired(context, runtimeSettings.baseUrl)
+        runtimeSettings.dataSource == DataSource.BACKEND &&
+            LocalNetwork.isRequired(context, runtimeSettings.baseUrl)
 
     /** IOException mapper for safeApiCall: reclassify IO failures on LAN backends. */
     val ioErrorMapper = IoErrorMapper { e ->

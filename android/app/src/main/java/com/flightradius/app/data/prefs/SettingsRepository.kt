@@ -27,12 +27,24 @@ enum class GpsAccuracy { HIGH, BALANCED, LOW_POWER }
 enum class LocationMode { GPS, MANUAL }
 enum class ThemeMode { SYSTEM, DARK, LIGHT }
 
+/** Where flight data comes from. */
+enum class DataSource {
+    /** The app queries OpenSky itself (default; works anywhere). */
+    DIRECT,
+
+    /** A self-hosted FlightRadius backend proxies OpenSky. */
+    BACKEND
+}
+
 /**
  * App settings snapshot. [backendBaseUrl] is null when unset (BuildConfig
- * default applies). OpenSky credentials are NEVER stored on device — they
- * are write-only and forwarded straight to the backend.
+ * default applies). OpenSky credentials are not part of settings: they live
+ * encrypted in CredentialStore.
  */
 data class AppSettings(
+    val dataSource: DataSource = DataSource.DIRECT,
+    /** Stretch the OpenSky credit balance until the daily refill. */
+    val adaptiveCredits: Boolean = true,
     val backendBaseUrl: String? = null,
     val distanceUnit: DistanceUnit = DistanceUnit.KM,
     val monitoringIntervalSec: Int = 15,
@@ -59,6 +71,8 @@ class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private object Keys {
+        val DATA_SOURCE = stringPreferencesKey("data_source")
+        val ADAPTIVE_CREDITS = booleanPreferencesKey("adaptive_credits")
         val BACKEND_BASE_URL = stringPreferencesKey("backend_base_url")
         val DISTANCE_UNIT = stringPreferencesKey("distance_unit")
         val MONITORING_INTERVAL_SEC = intPreferencesKey("monitoring_interval_sec")
@@ -89,6 +103,8 @@ class SettingsRepository @Inject constructor(
     private fun Preferences.toAppSettings(): AppSettings {
         val defaults = AppSettings()
         return AppSettings(
+            dataSource = enumOr(this[Keys.DATA_SOURCE], defaults.dataSource),
+            adaptiveCredits = this[Keys.ADAPTIVE_CREDITS] ?: defaults.adaptiveCredits,
             backendBaseUrl = this[Keys.BACKEND_BASE_URL]?.takeIf { it.isNotBlank() },
             distanceUnit = enumOr(this[Keys.DISTANCE_UNIT], defaults.distanceUnit),
             monitoringIntervalSec =
@@ -116,6 +132,9 @@ class SettingsRepository @Inject constructor(
 
     private inline fun <reified T : Enum<T>> enumOr(raw: String?, fallback: T): T =
         raw?.let { runCatching { enumValueOf<T>(it) }.getOrNull() } ?: fallback
+
+    suspend fun setDataSource(value: DataSource) = edit { it[Keys.DATA_SOURCE] = value.name }
+    suspend fun setAdaptiveCredits(value: Boolean) = edit { it[Keys.ADAPTIVE_CREDITS] = value }
 
     suspend fun setBackendBaseUrl(value: String?) = edit {
         if (value.isNullOrBlank()) it.remove(Keys.BACKEND_BASE_URL)

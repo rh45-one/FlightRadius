@@ -1,9 +1,13 @@
 # FlightRadius Android
 
-Native Android client for FlightRadius: tracks aircraft via the existing
-TypeScript backend (`web/backend`), which remains the authoritative source for
-OpenSky access and distance calculation. The app never talks to OpenSky
-directly — every cycle is one batched `POST /api/distance/compute` call.
+Native Android client for FlightRadius: tracks aircraft near you and alerts
+when they come within a configurable radius. Flight data comes from one of
+two sources (Settings → Flight data):
+
+- **OpenSky (direct)** — the default. The app queries OpenSky itself,
+  computes distances on-device and works anywhere with internet.
+- **Own backend** — the self-hosted `web/backend` proxies OpenSky (shared
+  with the web app); every cycle is one batched `POST /api/distance/compute`.
 
 ## Architecture
 
@@ -11,12 +15,17 @@ Single-module app (`app/`), Kotlin + Jetpack Compose + Hilt:
 
 ```
 app/src/main/java/com/flightradius/app/
-  data/api        Retrofit API, DTOs, ApiError mapping, BackendUrl, LocalNetwork
+  data/api        Backend Retrofit API, DTOs, ApiError mapping, BackendUrl, LocalNetwork
+  data/opensky    Direct OpenSky: client, OAuth2 token provider, state-vector
+                  parser, CreditTracker, credit interceptors
+  data/secure     CredentialStore + Keystore AES-GCM SecretCipher
+  data/source     FlightDataSource (OpenSky direct / backend / selected)
   data/db         Room: aircraft, fleets, fleet memberships
   data/prefs      DataStore settings (SettingsRepository/AppSettings)
   data/repo       AircraftRepository, FleetRepository, FlightRadiusRepository
   domain          Pure logic: ProximityAlertEngine, SnapshotBuilder, Identifiers,
-                  AlertText, EffectiveRadius, Backoff, Geo, UploadThrottle
+                  AlertText, EffectiveRadius, Backoff, Geo, UploadThrottle,
+                  CallsignResolver, CreditPlanner, OpenSkyPricing, StateVector
   location        LocationRepository (GPS/manual, ref-counted owners)
   service         MonitoringService (FGS), MonitoringCycleRunner,
                   MonitoringController, MonitoringStateRepository,
@@ -112,15 +121,55 @@ distribution.
 
 No exact alarms, no full-screen intent.
 
+## OpenSky credits
+
+OpenSky meters `/states/all` in daily credits (anonymous 400, account with an
+API client 4,000, active feeder 8,000). A worldwide query costs 4 credits; a
+query for specific transponders, or a box of ≤ 25 sq°, costs 1. The app
+spends as few as possible:
+
+- **Tracked by ICAO24** → one icao24-filtered request per cycle (1 credit
+  per 100 aircraft).
+- **Tracked by callsign** → OpenSky can't filter by callsign, so
+  `CallsignResolver` learns each callsign's transponder from an occasional
+  global snapshot (validation when adding an aircraft doubles as that
+  lookup) and then polls it by icao24. Unresolved callsigns are retried with
+  back-off (10 min doubling to 1 h); a mapping is dropped when the airframe
+  starts broadcasting another callsign or vanishes for 30 min. Global
+  searches are skipped when the balance can't afford them.
+- **Adaptive interval** (Settings → OpenSky credits, on by default):
+  `CreditPlanner` stretches the remaining balance (minus a 20-credit
+  reserve) evenly until the assumed refill at UTC midnight, never going
+  below your configured interval. The balance comes from OpenSky's
+  `X-Rate-Limit-Remaining` header (or the backend's
+  `X-OpenSky-Credits-Remaining`).
+- **Out of credits (429)** → no requests until `X-Rate-Limit-Retry-After-Seconds`
+  has elapsed (15 min when OpenSky gives no hint); the Radar chip shows
+  "Out of credits".
+
+## OpenSky credentials
+
+OpenSky only accepts OAuth2 client credentials (username/password login is
+no longer supported). Create an API client on your OpenSky account page.
+
+- **Direct mode**: enter the client ID and secret in Settings → OpenSky
+  account. They're stored in their own DataStore file, encrypted with
+  AES-256-GCM under a non-exportable Android Keystore key, excluded from
+  cloud backup and device transfer (`res/xml/data_extraction_rules.xml`),
+  and never logged. "Save & verify" fetches a token (free); a rejected client
+  isn't retried every cycle until it changes or you press "Verify". Without
+  credentials the app runs anonymously.
+- **Backend mode**: the ID and secret are sent to the backend, which stores
+  them in `web/backend/data/app-state.json`; nothing is kept on the device.
+
 ## How monitoring works
 
 `MonitoringService` is a foreground service (types `location|dataSync`,
 `START_STICKY`). Each cycle:
 
-1. `MonitoringCycleRunner` resolves the current fix (GPS or manual), builds a
-   `POST /api/distance/compute` request for **all** tracked aircraft at once —
-   the backend is rate-limited by OpenSky (~5 s), so the app must never poll
-   per-aircraft.
+1. `MonitoringCycleRunner` resolves the current fix (GPS or manual) and asks
+   the selected `FlightDataSource` for all tracked aircraft at once —
+   never per-aircraft.
 2. `SnapshotBuilder` ranks observations, computes bearing/closing, resolves
    the effective radius per aircraft:
    **aircraft override → maximum fleet radius → global radius**.
@@ -131,9 +180,10 @@ No exact alarms, no full-screen intent.
    - Stale: `last_contact` older than 120 s is ignored for zone changes;
      10 min without fresh data resets the zone to OUTSIDE.
    - Snooze suppresses alerts for 15 min / 1 h (in-app sheet) or 30 min
-    (notification action).
-4. Failures back off exponentially up to 5 min; success resets to the
-   configured interval (10–600 s, default 15 s).
+     (notification action).
+4. The next cycle runs after the credit-aware interval (see above; 10–600 s,
+   default 15 s). Failures back off exponentially up to 5 min; a 429 waits
+   for its retry-after hint.
 
 ### Power, doze, Android 15/17
 
@@ -165,11 +215,13 @@ No exact alarms, no full-screen intent.
 
 - Room is the local source of truth for aircraft + fleets; monitoring state
   is process-local (`MonitoringStateRepository`).
-- Settings → Import pulls `/api/app/state` **once** (one-way import; nothing
-  is pushed back).
-- OpenSky credentials are **write-only**: Settings sends them to the backend
-  and clears the fields; they are never stored on-device or logged
-  (`AppLog` redacts secrets/tokens/passwords/IDs).
+- Settings → Import pulls `/api/app/state` **once** from a backend
+  (one-way import; nothing is pushed back). Works in either data-source mode.
+- OpenSky credentials: see "OpenSky credentials" above. `AppLog` redacts
+  secrets/tokens/passwords/IDs.
+- In direct mode the device location never leaves the phone: tracked-aircraft
+  queries carry only transponder IDs, and distances are computed on-device.
+  In backend mode fixes are posted to `/api/user/location`.
 
 ## Debug console
 
@@ -190,9 +242,12 @@ Enable via the "Debug logging" switch (also shows the radar debug overlay).
 - **TLS errors** → release is HTTPS-only; rebuild with
   `-Pflightradius.allowCleartextInRelease=true` for http, or install your
   self-signed CA on the device.
-- **OpenSky rate-limited/down** → the backend returns 429/502/504; the app
-  maps them to the "Rate limited"/"OpenSky down"/"OpenSky timeout" chips and
-  backs off. Note `/api/health` triggers a real OpenSky fetch — "Test
-  connection" consumes backend rate limit.
+- **Out of credits / OpenSky down** → 429/502/504 (directly or passed
+  through by the backend) map to the "Out of credits"/"OpenSky down"/
+  "OpenSky timeout" chips; the app waits or backs off. Add an API client
+  (4,000 credits/day) or keep "Stretch credits across the day" on. In backend
+  mode, "Test connection" costs at most a 1-credit OpenSky probe.
+- **"OpenSky login failed"** → the stored API client was rejected; re-enter
+  it in Settings → OpenSky account.
 - **Emulator GPS delivers no fix** (`dumpsys location` shows null) → switch
   Settings → Location to Manual and enter coordinates.

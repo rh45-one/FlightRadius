@@ -4,6 +4,7 @@ import android.Manifest
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
+import com.flightradius.app.data.prefs.DataSource
 import com.flightradius.app.data.prefs.LocationMode
 import com.flightradius.app.data.prefs.RuntimeSettings
 import com.flightradius.app.data.prefs.SettingsRepository
@@ -106,12 +107,15 @@ class MonitoringServiceTest {
 
         // Point the app at the mock backend; wait until the hot settings
         // view reflects it (RuntimeSettings applies DataStore asynchronously).
+        // These tests exercise the backend path against a local mock server.
+        settingsRepository.setDataSource(DataSource.BACKEND)
         settingsRepository.setBackendBaseUrl(server.url("/").toString())
         settingsRepository.setLocationMode(LocationMode.MANUAL)
         settingsRepository.setManualLocation(52.0, 13.0)
         settingsRepository.setMonitoringIntervalSec(10)
         withTimeout(10_000) {
-            while (runtimeSettings.baseUrl.port != server.port) delay(50)
+            while (runtimeSettings.baseUrl.port != server.port ||
+                runtimeSettings.dataSource != DataSource.BACKEND) delay(50)
         }
 
         aircraftRepository.add("IBE3174", IdentifierType.CALLSIGN)

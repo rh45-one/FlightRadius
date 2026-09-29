@@ -1,6 +1,10 @@
 package com.flightradius.app.domain
 
-/** OpenSky/backend health derived from the last compute outcome. */
+/**
+ * Health of the flight-data path derived from the last fetch outcome.
+ * [UNREACHABLE] means the configured source (OpenSky directly, or the
+ * self-hosted backend) could not be reached or returned garbage.
+ */
 enum class OpenSkyStatus {
-    UNKNOWN, OK, RATE_LIMITED, UNAVAILABLE, TIMEOUT, BACKEND_UNREACHABLE
+    UNKNOWN, OK, RATE_LIMITED, AUTH_FAILED, UNAVAILABLE, TIMEOUT, UNREACHABLE
 }

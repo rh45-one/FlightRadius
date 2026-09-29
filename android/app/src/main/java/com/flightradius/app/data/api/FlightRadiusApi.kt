@@ -15,9 +15,6 @@ interface FlightRadiusApi {
     @POST("api/distance/compute")
     suspend fun compute(@Body body: ComputeRequestDto): Response<ComputeResponseDto>
 
-    @POST("api/distance/fleets")
-    suspend fun fleets(@Body body: FleetsRequestDto): Response<FleetsResponseDto>
-
     @POST("api/aircraft/validate-callsigns")
     suspend fun validateCallsigns(
         @Body body: ValidateCallsignsRequestDto

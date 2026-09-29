@@ -6,13 +6,21 @@ import androidx.lifecycle.viewModelScope
 import com.flightradius.app.data.api.ApiResult
 import com.flightradius.app.data.api.ApiSettingsStatusDto
 import com.flightradius.app.data.api.HealthResponseDto
+import com.flightradius.app.data.api.ApiError
+import com.flightradius.app.data.opensky.CreditState
+import com.flightradius.app.data.opensky.CreditTracker
+import com.flightradius.app.data.opensky.OpenSkyClient
+import com.flightradius.app.data.opensky.OpenSkyCredentials
 import com.flightradius.app.data.prefs.AppSettings
+import com.flightradius.app.data.prefs.DataSource
 import com.flightradius.app.data.prefs.GpsAccuracy
 import com.flightradius.app.data.prefs.LocationMode
 import com.flightradius.app.data.prefs.SettingsRepository
 import com.flightradius.app.data.prefs.ThemeMode
 import com.flightradius.app.data.repo.FlightRadiusRepository
 import com.flightradius.app.data.repo.ImportReport
+import com.flightradius.app.data.secure.CredentialStore
+import com.flightradius.app.data.secure.StoredCredentials
 import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.domain.AlertEvent
 import com.flightradius.app.domain.DistanceUnit
@@ -22,6 +30,7 @@ import com.flightradius.app.location.LocationStatus
 import com.flightradius.app.notifications.AlertNotifier
 import com.flightradius.app.service.BatteryOptimization
 import com.flightradius.app.service.ConnectivityMonitor
+import com.flightradius.app.service.MonitoringState
 import com.flightradius.app.service.MonitoringStateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -30,6 +39,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+/** Outcome of saving/verifying the on-device OpenSky API client. */
+sealed interface CredentialCheck {
+    data object Idle : CredentialCheck
+    data object Checking : CredentialCheck
+    data object Verified : CredentialCheck
+    data object Removed : CredentialCheck
+    data class Failed(val message: String, val rejected: Boolean) : CredentialCheck
+}
 
 sealed interface HealthState {
     data object Idle : HealthState
@@ -45,6 +63,9 @@ class SettingsViewModel @Inject constructor(
     private val locationRepository: LocationRepository,
     private val stateRepository: MonitoringStateRepository,
     private val notifier: AlertNotifier,
+    private val credentialStore: CredentialStore,
+    private val openSky: OpenSkyClient,
+    credits: CreditTracker,
     val connectivity: ConnectivityMonitor
 ) : ViewModel() {
 
@@ -54,6 +75,12 @@ class SettingsViewModel @Inject constructor(
     val locationStatus: StateFlow<LocationStatus> = locationRepository.status
     val fix: StateFlow<UserFix?> = locationRepository.fix
 
+    val storedCredentials: StateFlow<StoredCredentials> = credentialStore.stored
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StoredCredentials.None)
+    val credits: StateFlow<CreditState> = credits.state
+    val monitoring: StateFlow<MonitoringState> = stateRepository.state
+    val credentialCheck = MutableStateFlow<CredentialCheck>(CredentialCheck.Idle)
+
     val health = MutableStateFlow<HealthState>(HealthState.Idle)
     val apiStatus = MutableStateFlow<ApiSettingsStatusDto?>(null)
     val apiStatusError = MutableStateFlow<String?>(null)
@@ -61,6 +88,39 @@ class SettingsViewModel @Inject constructor(
     val importResult = MutableStateFlow<ImportReport?>(null)
     val importError = MutableStateFlow<String?>(null)
     val importing = MutableStateFlow(false)
+
+    fun setDataSource(v: DataSource) = viewModelScope.launch {
+        settingsRepository.setDataSource(v)
+    }
+    fun setAdaptiveCredits(v: Boolean) = viewModelScope.launch {
+        settingsRepository.setAdaptiveCredits(v)
+    }
+
+    /** Stores the API client encrypted on-device, then verifies it with OpenSky. */
+    fun saveDirectCredentials(clientId: String, clientSecret: String) = viewModelScope.launch {
+        credentialCheck.value = CredentialCheck.Checking
+        credentialStore.save(OpenSkyCredentials(clientId.trim(), clientSecret.trim()))
+        verify()
+    }
+
+    fun verifyDirectCredentials() = viewModelScope.launch {
+        credentialCheck.value = CredentialCheck.Checking
+        verify()
+    }
+
+    fun removeDirectCredentials() = viewModelScope.launch {
+        credentialStore.clear()
+        credentialCheck.value = CredentialCheck.Removed
+    }
+
+    private suspend fun verify() {
+        credentialCheck.value = when (val r = openSky.verifyCredentials()) {
+            is ApiResult.Success ->
+                if (r.data) CredentialCheck.Verified else CredentialCheck.Idle
+            is ApiResult.Failure -> CredentialCheck.Failed(
+                r.error.message, rejected = r.error is ApiError.AuthFailed)
+        }
+    }
 
     fun saveBackendUrl(raw: String) = viewModelScope.launch {
         settingsRepository.setBackendBaseUrl(raw.trim().ifBlank { null })
@@ -127,17 +187,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** Send credentials to the backend; values never stored locally. */
-    fun sendCredentials(
-        clientId: String, clientSecret: String,
-        username: String, password: String,
+    /** Backend mode: forward the API client to the backend (not stored here). */
+    fun sendBackendCredentials(
+        clientId: String,
+        clientSecret: String,
         onDone: (ok: Boolean, msg: String?) -> Unit
     ) = viewModelScope.launch {
         val r = repository.updateCredentials(
-            clientId = clientId.ifBlank { null },
-            clientSecret = clientSecret.ifBlank { null },
-            username = username.ifBlank { null },
-            password = password.ifBlank { null }
+            clientId = clientId.trim().ifBlank { null },
+            clientSecret = clientSecret.trim().ifBlank { null }
         )
         when (r) {
             is ApiResult.Success -> {
@@ -148,10 +206,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun clearCredentials(onDone: (ok: Boolean, msg: String?) -> Unit) =
+    fun clearBackendCredentials(onDone: (ok: Boolean, msg: String?) -> Unit) =
         viewModelScope.launch {
-            val r = repository.updateCredentials("", "", "", "")
-            when (r) {
+            when (val r = repository.updateCredentials(clientId = "", clientSecret = "")) {
                 is ApiResult.Success -> {
                     onDone(true, null)
                     refreshApiStatus()

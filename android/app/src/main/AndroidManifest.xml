@@ -29,6 +29,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.FlightRadius"
         android:networkSecurityConfig="${networkSecurityConfig}"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:supportsRtl="true">
 
         <activity

@@ -19,8 +19,13 @@ class OpenSkyStatusMapperTest {
     }
 
     @Test
+    fun `AuthFailed maps to AUTH_FAILED`() {
+        assertEquals(OpenSkyStatus.AUTH_FAILED, map(ApiError.AuthFailed))
+    }
+
+    @Test
     fun `RateLimited maps to RATE_LIMITED`() {
-        assertEquals(OpenSkyStatus.RATE_LIMITED, map(ApiError.RateLimited))
+        assertEquals(OpenSkyStatus.RATE_LIMITED, map(ApiError.RateLimited()))
     }
 
     @Test
@@ -35,41 +40,41 @@ class OpenSkyStatusMapperTest {
     }
 
     @Test
-    fun `Network maps to BACKEND_UNREACHABLE`() {
+    fun `Network maps to UNREACHABLE`() {
         assertEquals(
-            OpenSkyStatus.BACKEND_UNREACHABLE,
+            OpenSkyStatus.UNREACHABLE,
             map(ApiError.Network("boom"))
         )
     }
 
     @Test
-    fun `Tls maps to BACKEND_UNREACHABLE`() {
+    fun `Tls maps to UNREACHABLE`() {
         assertEquals(
-            OpenSkyStatus.BACKEND_UNREACHABLE,
+            OpenSkyStatus.UNREACHABLE,
             map(ApiError.Tls("cert"))
         )
     }
 
     @Test
-    fun `LocalNetworkPermissionRequired maps to BACKEND_UNREACHABLE`() {
+    fun `LocalNetworkPermissionRequired maps to UNREACHABLE`() {
         assertEquals(
-            OpenSkyStatus.BACKEND_UNREACHABLE,
+            OpenSkyStatus.UNREACHABLE,
             map(ApiError.LocalNetworkPermissionRequired)
         )
     }
 
     @Test
-    fun `Http 4xx maps to BACKEND_UNREACHABLE`() {
+    fun `Http 4xx maps to UNREACHABLE`() {
         assertEquals(
-            OpenSkyStatus.BACKEND_UNREACHABLE,
+            OpenSkyStatus.UNREACHABLE,
             map(ApiError.Http(404, "not found"))
         )
     }
 
     @Test
-    fun `Malformed maps to BACKEND_UNREACHABLE`() {
+    fun `Malformed maps to UNREACHABLE`() {
         assertEquals(
-            OpenSkyStatus.BACKEND_UNREACHABLE,
+            OpenSkyStatus.UNREACHABLE,
             map(ApiError.Malformed("bad json"))
         )
     }

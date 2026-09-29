@@ -1,37 +1,26 @@
 package com.flightradius.app.ui.radar
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -42,29 +31,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flightradius.app.R
-import com.flightradius.app.data.prefs.LocationMode
 import com.flightradius.app.domain.AircraftObservation
-import com.flightradius.app.domain.DistanceUnit
-import com.flightradius.app.domain.TrackedAircraft
-import com.flightradius.app.domain.OpenSkyStatus
-import com.flightradius.app.location.LocationStatus
 import com.flightradius.app.service.MonitoringStatus
-import com.flightradius.app.ui.components.BearingArrow
-import com.flightradius.app.ui.components.IssueCard
-import com.flightradius.app.ui.components.MiniRingGauge
-import com.flightradius.app.ui.components.RadialGauge
-import com.flightradius.app.ui.components.ShimmerBox
 import com.flightradius.app.ui.components.StatusChip
 import com.flightradius.app.ui.components.rememberNow
-import com.flightradius.app.ui.components.zoneColor
-import com.flightradius.app.ui.format.Format
 import com.flightradius.app.ui.theme.extended
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +54,7 @@ fun RadarScreen(
 ) {
     val state by viewModel.monitoringState.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val credits by viewModel.credits.collectAsStateWithLifecycle()
     val aircraft by viewModel.aircraft.collectAsStateWithLifecycle()
     val fleets by viewModel.fleets.collectAsStateWithLifecycle()
     val locationStatus by viewModel.locationStatus.collectAsStateWithLifecycle()
@@ -151,7 +128,7 @@ fun RadarScreen(
                         onClick = { chipInfo = "location" }
                     )
                     StatusChip(
-                        label = backendLabel(state.openSkyStatus, online),
+                        label = backendLabel(state.openSkyStatus, online, settings.dataSource),
                         color = backendColor(state.openSkyStatus, online),
                         onClick = { chipInfo = "backend" }
                     )
@@ -160,6 +137,13 @@ fun RadarScreen(
                         color = monitoringColor(state.status),
                         onClick = { chipInfo = "monitoring" }
                     )
+                    creditsLabel(credits)?.let { label ->
+                        StatusChip(
+                            label = label,
+                            color = creditsColor(credits),
+                            onClick = { chipInfo = "credits" }
+                        )
+                    }
                 }
             }
 
@@ -288,7 +272,7 @@ fun RadarScreen(
     chipInfo?.let { which ->
         ModalBottomSheet(onDismissRequest = { chipInfo = null }) {
             ChipDetail(which, state, locationStatus, fix, online, settings,
-                now, onOpenSettings, onStartMonitoring)
+                credits, now, onOpenSettings, onStartMonitoring)
         }
     }
 

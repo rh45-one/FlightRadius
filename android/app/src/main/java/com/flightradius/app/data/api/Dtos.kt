@@ -61,20 +61,6 @@ data class ComputeResponseDto(
     val groups: List<GroupProximityDto> = emptyList()
 )
 
-// ---------- /api/distance/fleets ----------
-
-@Serializable
-data class FleetsRequestDto(
-    val lat: Double,
-    val lon: Double,
-    val fleets: List<FleetGroupRequestDto>
-)
-
-@Serializable
-data class FleetsResponseDto(
-    val fleets: List<GroupProximityDto> = emptyList()
-)
-
 // ---------- /api/aircraft/validate-callsigns ----------
 
 @Serializable
@@ -167,9 +153,7 @@ data class ApiSettingsStatusDto(
 @Serializable
 data class BackendSettingsDto(
     val apiClientId: String? = null,
-    val apiClientSecret: String? = null,
-    val apiUsername: String? = null,
-    val apiPassword: String? = null
+    val apiClientSecret: String? = null
 )
 
 @Serializable

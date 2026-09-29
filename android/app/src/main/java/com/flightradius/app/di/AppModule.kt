@@ -4,13 +4,14 @@ import android.content.Context
 import androidx.room.Room
 import com.flightradius.app.data.api.BackendUrl
 import com.flightradius.app.data.api.BaseUrlInterceptor
-import com.flightradius.app.data.api.ApiError
 import com.flightradius.app.data.api.FlightRadiusApi
 import com.flightradius.app.data.api.IoErrorMapper
 import com.flightradius.app.data.api.LocalNetworkGuard
 import com.flightradius.app.data.db.AircraftDao
 import com.flightradius.app.data.db.FlightRadiusDatabase
 import com.flightradius.app.data.db.FleetDao
+import com.flightradius.app.data.opensky.BackendCreditsInterceptor
+import com.flightradius.app.data.opensky.CreditTracker
 import com.flightradius.app.data.prefs.RuntimeSettings
 import com.flightradius.app.domain.SystemTimeSource
 import com.flightradius.app.domain.TimeSource
@@ -65,6 +66,16 @@ object AppModule {
     }
 }
 
+/** Plain client for OpenSky (timeouts + gated BASIC logging). */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class OpenSkyHttp
+
+/** Client for the self-hosted backend (base-URL rewriting + credit header). */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class BackendHttp
+
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
@@ -73,7 +84,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(runtimeSettings: RuntimeSettings): OkHttpClient {
+    @OpenSkyHttp
+    fun provideOpenSkyOkHttpClient(runtimeSettings: RuntimeSettings): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.NONE
             redactHeader("Authorization")
@@ -85,8 +97,6 @@ object NetworkModule {
             .writeTimeout(10, TimeUnit.SECONDS)
             .callTimeout(30, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
-            // Rewrites scheme/host/port/path-prefix from the live setting.
-            .addInterceptor(BaseUrlInterceptor { runtimeSettings.baseUrl })
             // Sets the logging level per request, then delegates to the
             // real logging interceptor (BASIC only, never BODY).
             .addInterceptor { chain ->
@@ -103,7 +113,22 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(client: OkHttpClient, json: Json): Retrofit =
+    @BackendHttp
+    fun provideBackendOkHttpClient(
+        @OpenSkyHttp base: OkHttpClient,
+        runtimeSettings: RuntimeSettings,
+        credits: CreditTracker
+    ): OkHttpClient = base.newBuilder()
+        .apply {
+            // Rewrite first so logging shows the real backend URL.
+            interceptors().add(0, BaseUrlInterceptor { runtimeSettings.baseUrl })
+            interceptors().add(1, BackendCreditsInterceptor(credits))
+        }
+        .build()
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(@BackendHttp client: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
             // Requests are rewritten by BaseUrlInterceptor; this is only a
             // structural base so relative path segments resolve.

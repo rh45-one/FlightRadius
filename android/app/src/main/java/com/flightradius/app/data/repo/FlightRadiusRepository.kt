@@ -9,7 +9,6 @@ import com.flightradius.app.data.api.ComputeRequestDto
 import com.flightradius.app.data.api.ComputeResponseDto
 import com.flightradius.app.data.api.DistanceResultDto
 import com.flightradius.app.data.api.FleetGroupRequestDto
-import com.flightradius.app.data.api.FleetsRequestDto
 import com.flightradius.app.data.api.FlightRadiusApi
 import com.flightradius.app.data.api.GroupProximityDto
 import com.flightradius.app.data.api.HealthResponseDto
@@ -144,32 +143,6 @@ class FlightRadiusRepository @Inject constructor(
     suspend fun lookupIcao24(icao24: String): ApiResult<AircraftTelemetryDto> =
         safeApiCall(json, ioErrorMapper::map) { api.aircraftTelemetry(icao24.lowercase()) }
 
-    /** POST /api/distance/fleets (callsign members only). */
-    suspend fun fleetsSummary(
-        fix: UserFix,
-        fleets: List<Fleet>,
-        aircraft: List<TrackedAircraft>
-    ): ApiResult<List<GroupOutcome>> {
-        val aircraftById = aircraft.associateBy { it.id }
-        val request = FleetsRequestDto(
-            lat = fix.lat,
-            lon = fix.lon,
-            fleets = fleets.map { fleet ->
-                FleetGroupRequestDto(
-                    name = fleet.name,
-                    callsigns = fleet.memberIds
-                        .mapNotNull { aircraftById[it] }
-                        .filter { it.type == IdentifierType.CALLSIGN }
-                        .map { it.identifier }
-                )
-            }
-        )
-        return when (val r = safeApiCall(json, ioErrorMapper::map) { api.fleets(request) }) {
-            is ApiResult.Success -> ApiResult.Success(r.data.fleets.map { it.toOutcome() })
-            is ApiResult.Failure -> ApiResult.Failure(r.error)
-        }
-    }
-
     /** POST /api/user/location. No retry — a missed fix is harmless. */
     suspend fun postLocation(fix: UserFix): ApiResult<Unit> =
         when (val r = safeApiCall(json, ioErrorMapper::map) {
@@ -200,28 +173,17 @@ class FlightRadiusRepository @Inject constructor(
         safeApiCall(json, ioErrorMapper::map) { api.apiSettingsStatus() }
 
     /**
-     * Forwards OpenSky credentials to the backend via POST /api/app/state.
-     * Only non-null, non-masked fields are included; values are never logged.
-     * Empty string clears a credential on the backend.
+     * Forwards the OpenSky API client to the backend via POST /api/app/state
+     * (the backend shallow-merges `settings`). Only non-null, non-masked
+     * fields are sent; empty string clears. Values are never logged.
      */
     suspend fun updateCredentials(
         clientId: String? = null,
-        clientSecret: String? = null,
-        username: String? = null,
-        password: String? = null
+        clientSecret: String? = null
     ): ApiResult<Unit> {
         fun keep(v: String?): String? = v?.takeIf { it != SECRET_MASK }
-        val patch = BackendSettingsDto(
-            apiClientId = keep(clientId),
-            apiClientSecret = keep(clientSecret),
-            apiUsername = keep(username),
-            apiPassword = keep(password)
-        )
-        if (listOf(patch.apiClientId, patch.apiClientSecret, patch.apiUsername, patch.apiPassword)
-                .all { it == null }
-        ) {
-            return ApiResult.Success(Unit)
-        }
+        val patch = BackendSettingsDto(apiClientId = keep(clientId), apiClientSecret = keep(clientSecret))
+        if (patch.apiClientId == null && patch.apiClientSecret == null) return ApiResult.Success(Unit)
         return when (val r = safeApiCall(json, ioErrorMapper::map) {
             api.updateAppState(AppStateUpdateRequestDto(settings = patch))
         }) {

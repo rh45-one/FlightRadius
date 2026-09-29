@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,10 +25,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -54,7 +51,6 @@ import com.flightradius.app.data.repo.FLEET_COLOR_PALETTE
 import com.flightradius.app.domain.Fleet
 import com.flightradius.app.ui.format.Format
 import com.flightradius.app.ui.theme.extended
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,8 +63,6 @@ fun FleetsScreen(
     val state by viewModel.snapshot.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val refreshError by viewModel.refreshError.collectAsStateWithLifecycle()
-    val manual by viewModel.manualOutcomes.collectAsStateWithLifecycle()
-    val manualAt by viewModel.manualRefreshAtMs.collectAsStateWithLifecycle()
     val now by com.flightradius.app.ui.components.rememberNow()
 
     var editFleet by remember { mutableStateOf<Fleet?>(null) }
@@ -77,8 +71,8 @@ fun FleetsScreen(
     var expanded by remember { mutableStateOf(setOf<Long>()) }
 
     val snapshot = state.lastSnapshot
-    val snapshotStale = snapshot == null ||
-        now - snapshot.timeMs > 2 * settings.monitoringIntervalSec * 1000L
+    val intervalSec = state.plannedIntervalSec ?: settings.monitoringIntervalSec
+    val snapshotStale = snapshot == null || now - snapshot.timeMs > 2 * intervalSec * 1000L
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -113,25 +107,11 @@ fun FleetsScreen(
                         style = MaterialTheme.typography.bodySmall)
                 }
             }
-            manualAt?.let {
-                item {
-                    Text(
-                        stringResource(R.string.fleets_manual_refresh,
-                            Format.age(now, it)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-
             items(fleets, key = { it.id }) { fleet ->
                 val status = snapshot?.fleets?.find { it.fleet.id == fleet.id }
-                val manualOutcome = if (snapshotStale) {
-                    manual?.find { it.groupName.equals(fleet.name, true) }
-                } else null
                 FleetCard(
                     fleet = fleet,
                     status = status,
-                    manualOutcome = manualOutcome,
                     aircraft = aircraft,
                     unit = settings.distanceUnit,
                     globalRadiusKm = settings.globalAlertRadiusKm,
@@ -229,7 +209,6 @@ fun FleetsScreen(
 private fun FleetCard(
     fleet: Fleet,
     status: com.flightradius.app.domain.FleetStatus?,
-    manualOutcome: com.flightradius.app.domain.GroupOutcome?,
     aircraft: List<com.flightradius.app.domain.TrackedAircraft>,
     unit: com.flightradius.app.domain.DistanceUnit,
     globalRadiusKm: Double,
@@ -283,10 +262,6 @@ private fun FleetCard(
                 stringResource(R.string.fleets_closest,
                     Format.callsign(c), Format.distance(c.distanceKm, unit)) +
                     staleSuffix
-            } ?: manualOutcome?.closest?.let { c ->
-                stringResource(R.string.fleets_closest,
-                    c.callsign ?: c.icao24 ?: "?",
-                    Format.distance(c.distanceKm ?: 0.0, unit))
             }
             Text(
                 buildList {

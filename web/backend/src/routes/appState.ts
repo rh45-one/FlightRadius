@@ -1,14 +1,9 @@
-import { NextFunction, Request, Response, Router } from "express";
+import { Router } from "express";
+import { asyncHandler } from "../middleware/http";
 import { getAppState, maskSecrets, saveAppState } from "../services/appStateStore";
 import { setApiSettings } from "../services/settings";
 
 const router = Router();
-
-const asyncHandler =
-  (handler: (req: Request, res: Response) => Promise<void>) =>
-  (req: Request, res: Response, next: NextFunction) => {
-    handler(req, res).catch(next);
-  };
 
 router.get("/app/state", asyncHandler(async (_req, res) => {
   const state = await getAppState();

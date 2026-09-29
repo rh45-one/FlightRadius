@@ -7,7 +7,9 @@ router.get("/api", (_req, res) => {
   const current = getApiSettings();
   const hasClient = Boolean(current.clientId && current.clientSecret);
   const hasBasic = Boolean(current.username && current.password);
-  const authMode = hasClient ? "oauth2" : hasBasic ? "basic" : "anonymous";
+  // OpenSky only accepts OAuth2 client credentials; stored basic credentials
+  // are reported (basicConfigured) but no longer used.
+  const authMode = hasClient ? "oauth2" : "anonymous";
 
   res.json({
     status: "ok",

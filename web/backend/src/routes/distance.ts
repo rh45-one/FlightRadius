@@ -1,14 +1,9 @@
-import { NextFunction, Request, Response, Router } from "express";
+import { Router } from "express";
+import { asyncHandler, setCreditsHeader } from "../middleware/http";
 import { OpenSkyProvider } from "../providers/openSkyProvider";
 import { buildDistanceResults, buildGroupProximity } from "../services/distanceEngine";
 
 const router = Router();
-
-const asyncHandler =
-  (handler: (req: Request, res: Response) => Promise<void>) =>
-  (req: Request, res: Response, next: NextFunction) => {
-    handler(req, res).catch(next);
-  };
 
 const isNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -80,7 +75,7 @@ router.post("/aircraft", asyncHandler(async (req, res) => {
   const identifiers = [...normalizedCallsigns, ...normalizedIcao24s];
   const summary = buildDistanceResults({ lat, lon }, positions, identifiers);
 
-  console.log("[API RESPONSE]", summary.results);
+  setCreditsHeader(res);
   res.json({
     results: summary.results
   });
@@ -121,6 +116,7 @@ router.post("/fleets", asyncHandler(async (req, res) => {
 
   const results = buildGroupProximity({ lat, lon }, positions, normalizedFleets);
 
+  setCreditsHeader(res);
   res.json({ fleets: results });
 }));
 
@@ -182,6 +178,7 @@ router.post("/compute", asyncHandler(async (req, res) => {
       )
     : [];
 
+  setCreditsHeader(res);
   res.json({
     results: overall.results,
     closest: overall.closest,

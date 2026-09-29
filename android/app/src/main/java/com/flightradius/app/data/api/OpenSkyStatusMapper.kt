@@ -11,6 +11,7 @@ fun openSkyStatusFor(error: ApiError): OpenSkyStatus = when (error) {
     is ApiError.OpenSkyUnavailable -> OpenSkyStatus.UNAVAILABLE
     is ApiError.OpenSkyTimeout -> OpenSkyStatus.TIMEOUT
     is ApiError.RateLimited -> OpenSkyStatus.RATE_LIMITED
+    is ApiError.AuthFailed -> OpenSkyStatus.AUTH_FAILED
     // Client-side timeout — can't distinguish where it died.
     is ApiError.Timeout -> OpenSkyStatus.TIMEOUT
     is ApiError.Server -> OpenSkyStatus.UNAVAILABLE
@@ -20,7 +21,7 @@ fun openSkyStatusFor(error: ApiError): OpenSkyStatus = when (error) {
     is ApiError.Tls,
     is ApiError.LocalNetworkPermissionRequired,
     is ApiError.Http,
-    is ApiError.Malformed -> OpenSkyStatus.BACKEND_UNREACHABLE
+    is ApiError.Malformed -> OpenSkyStatus.UNREACHABLE
     is ApiError.BadRequest,
     is ApiError.Unknown -> OpenSkyStatus.UNKNOWN
 }
