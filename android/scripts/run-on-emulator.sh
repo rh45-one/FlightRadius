@@ -6,6 +6,9 @@
 #   --avd NAME        AVD to boot (default: flightradius_api37)
 #   --headless        Boot without a window (CI-style; default shows a window)
 #   --cold            Cold boot (ignore the saved quick-boot snapshot)
+#   --gpu MODE        Emulator renderer (default: host = real GPU; use
+#                     swiftshader_indirect for software rendering). Changing it
+#                     invalidates the quick-boot snapshot (next boot is cold)
 #   --dark | --light  Set the emulator's system appearance before launching
 #   --font-scale N    System font scale, e.g. 1.3 or 2.0 (1.0 resets)
 #   --location LAT,LON  Fake GPS fix, e.g. --location 40.4168,-3.7038
@@ -23,13 +26,14 @@ ANDROID_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
 
-avd=flightradius_api37 headless=0 cold=0 night="" font="" location="" backend=""
+avd=flightradius_api37 headless=0 cold=0 gpu=host night="" font="" location="" backend=""
 grant=0 reinstall=0 build=1 logs=0 stop=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --avd) avd="$2"; shift ;;
     --headless) headless=1 ;;
     --cold) cold=1 ;;
+    --gpu) gpu="$2"; shift ;;
     --dark) night=yes ;;
     --light) night=no ;;
     --font-scale) font="$2"; shift ;;
@@ -70,8 +74,10 @@ if [[ -z "$serial" ]]; then
     die "AVD '$avd' not found. Available: $(emulator -list-avds | tr '\n' ' ')"
   [[ -r /dev/kvm && -w /dev/kvm ]] ||
     echo "warning: no access to /dev/kvm — the emulator will be very slow (add yourself to the 'kvm' group)."
-  args=(-avd "$avd" -no-audio -no-boot-anim)
-  [[ $headless -eq 1 ]] && args+=(-no-window -gpu swiftshader_indirect)
+  # Same renderer for windowed and headless boots so the quick-boot snapshot
+  # stays valid (a renderer change forces a full cold boot).
+  args=(-avd "$avd" -no-audio -gpu "$gpu")
+  [[ $headless -eq 1 ]] && args+=(-no-window -no-boot-anim)
   [[ $cold -eq 1 ]] && args+=(-no-snapshot-load)
   log="${TMPDIR:-/tmp}/flightradius-emulator.log"
   echo "Starting emulator '$avd' (log: $log)..."
@@ -85,11 +91,11 @@ ADB=(adb -s "$serial")
 
 echo -n "Waiting for $serial to finish booting"
 for _ in $(seq 1 120); do
-  [[ "$("${ADB[@]}" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]] && break
+  [[ "$(timeout 10 "${ADB[@]}" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]] && break
   echo -n "."; sleep 2
 done
 echo
-[[ "$("${ADB[@]}" shell getprop sys.boot_completed | tr -d '\r')" == 1 ]] || die "boot timed out"
+[[ "$(timeout 10 "${ADB[@]}" shell getprop sys.boot_completed | tr -d '\r')" == 1 ]] || die "boot timed out"
 sdk="$("${ADB[@]}" shell getprop ro.build.version.sdk | tr -d '\r')"
 echo "Emulator: $serial, API $sdk"
 
