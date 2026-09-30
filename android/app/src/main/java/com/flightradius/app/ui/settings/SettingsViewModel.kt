@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.settings
 
+import com.flightradius.app.ui.format.localized
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -120,7 +121,7 @@ class SettingsViewModel @Inject constructor(
             is ApiResult.Success ->
                 if (r.data) CredentialCheck.Verified else CredentialCheck.Idle
             is ApiResult.Failure -> CredentialCheck.Failed(
-                r.error.message, rejected = r.error is ApiError.AuthFailed)
+                r.error.localized(), rejected = r.error is ApiError.AuthFailed)
         }
     }
 
@@ -191,7 +192,7 @@ class SettingsViewModel @Inject constructor(
         apiStatusError.value = null
         when (val r = repository.getApiSettingsStatus()) {
             is ApiResult.Success -> apiStatus.value = r.data
-            is ApiResult.Failure -> apiStatusError.value = r.error.message
+            is ApiResult.Failure -> apiStatusError.value = r.error.localized()
         }
     }
 
@@ -199,7 +200,7 @@ class SettingsViewModel @Inject constructor(
         health.value = HealthState.Checking
         health.value = when (val r = repository.health()) {
             is ApiResult.Success -> HealthState.Ok(r.data)
-            is ApiResult.Failure -> HealthState.Failed(r.error.message)
+            is ApiResult.Failure -> HealthState.Failed(r.error.localized())
         }
     }
 
@@ -218,7 +219,7 @@ class SettingsViewModel @Inject constructor(
                 onDone(true, null)
                 refreshApiStatus()
             }
-            is ApiResult.Failure -> onDone(false, r.error.message)
+            is ApiResult.Failure -> onDone(false, r.error.localized())
         }
     }
 
@@ -229,7 +230,7 @@ class SettingsViewModel @Inject constructor(
                     onDone(true, null)
                     refreshApiStatus()
                 }
-                is ApiResult.Failure -> onDone(false, r.error.message)
+                is ApiResult.Failure -> onDone(false, r.error.localized())
             }
         }
 
@@ -238,7 +239,7 @@ class SettingsViewModel @Inject constructor(
         importError.value = null
         when (val r = repository.importFromBackend()) {
             is ApiResult.Success -> importResult.value = r.data
-            is ApiResult.Failure -> importError.value = r.error.message
+            is ApiResult.Failure -> importError.value = r.error.localized()
         }
         importing.value = false
     }

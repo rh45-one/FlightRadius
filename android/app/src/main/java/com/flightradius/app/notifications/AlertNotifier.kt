@@ -1,5 +1,6 @@
 package com.flightradius.app.notifications
 
+import com.flightradius.app.ui.format.displayName
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
@@ -10,17 +11,27 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Paint
 import android.os.Build
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.PathParser
+import androidx.core.graphics.drawable.IconCompat
 import com.flightradius.app.MainActivity
 import com.flightradius.app.domain.AlertEvent
 import com.flightradius.app.domain.AlertText
 import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.domain.NearbyAircraft
 import com.flightradius.app.domain.NearbyAlertEvent
+import com.flightradius.app.ui.format.AlertFormat
+import com.flightradius.app.ui.format.PLANE_PATH_DATA
+import com.flightradius.app.ui.format.W
+import com.flightradius.app.ui.format.Words
 import com.flightradius.app.ui.format.labelRes
 import com.flightradius.app.R
 import com.flightradius.app.service.AlertActionReceiver
@@ -72,7 +83,7 @@ class AlertNotifier @Inject constructor(
 
     fun ensureStatusChannel() {
         val ch = NotificationChannel(
-            CHANNEL_STATUS, "Monitoring status", NotificationManager.IMPORTANCE_LOW
+            CHANNEL_STATUS, Words.get(W.CH_STATUS), NotificationManager.IMPORTANCE_LOW
         ).apply {
             setSound(null, null)
             enableVibration(false)
@@ -84,13 +95,13 @@ class AlertNotifier @Inject constructor(
     /** Create the channel variant matching current settings; delete the rest. */
     fun ensureAlertChannel(sound: Boolean, vibration: Boolean) {
         alertChannelId = alertChannelId(sound, vibration)
-        syncChannelVariants({ s, v -> alertChannelId(s, v) }, "Proximity alerts", sound, vibration)
+        syncChannelVariants({ s, v -> alertChannelId(s, v) }, Words.get(W.CH_ALERTS), sound, vibration)
     }
 
     /** Same as [ensureAlertChannel] for the nearby-airspace channel family. */
     fun ensureNearbyChannel(sound: Boolean, vibration: Boolean) {
         nearbyChannelId = nearbyChannelId(sound, vibration)
-        syncChannelVariants({ s, v -> nearbyChannelId(s, v) }, "Nearby aircraft", sound, vibration)
+        syncChannelVariants({ s, v -> nearbyChannelId(s, v) }, Words.get(W.CH_NEARBY), sound, vibration)
     }
 
     private fun syncChannelVariants(
@@ -150,8 +161,8 @@ class AlertNotifier @Inject constructor(
 
     fun postProximityAlert(event: AlertEvent, unit: DistanceUnit) {
         val obs = event.observation
-        val title = AlertText.alertTitle(obs, unit)
-        val body = AlertText.alertBody(obs, unit)
+        val title = AlertFormat.alertTitle(obs, unit)
+        val body = AlertFormat.alertBody(obs, unit)
         val notifId = ALERT_ID_BASE + (obs.aircraftId % 100_000).toInt()
 
         val content = PendingIntent.getActivity(
@@ -186,8 +197,8 @@ class AlertNotifier @Inject constructor(
             setAutoCancel(true)
             setTimeoutAfter(10 * 60_000L)
             setContentIntent(content)
-            addAction(0, "Snooze 30 min", snooze)
-            addAction(0, "Dismiss", dismiss)
+            addAction(0, Words.get(W.ACT_SNOOZE), snooze)
+            addAction(0, Words.get(W.ACT_DISMISS), dismiss)
         }.build()
 
         if (!canPost()) {
@@ -207,7 +218,7 @@ class AlertNotifier @Inject constructor(
 
     private fun nearbyLine(a: NearbyAircraft, unit: DistanceUnit): String = buildList {
         add(context.getString(a.cls.labelRes()))
-        add(AlertText.formatDistance(a.distanceKm, unit) + " " + AlertText.cardinal(a.bearingDeg))
+        add(AlertText.formatDistance(a.distanceKm, unit) + " " + Words.compass(a.bearingDeg))
         AlertText.formatAltitude(a.altitudeM, unit)?.let { add(it) }
     }.joinToString(" · ")
 
@@ -246,7 +257,7 @@ class AlertNotifier @Inject constructor(
                     .setSmallIcon(R.drawable.ic_stat_radar)
                     .setContentTitle(a.displayName)
                     .setContentText(line)
-                    .setSubText(e.rule.name)
+                    .setSubText(e.rule.displayName())
                     .setStyle(NotificationCompat.BigTextStyle().bigText(line))
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setCategory(NotificationCompat.CATEGORY_STATUS)
@@ -328,8 +339,8 @@ class AlertNotifier @Inject constructor(
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        postAux(RESUME_NOTIFICATION_ID, "Resume monitoring",
-            "Tap to restart FlightRadius monitoring.", content)
+        postAux(RESUME_NOTIFICATION_ID, Words.get(W.AUX_RESUME_TITLE),
+            Words.get(W.AUX_RESUME_TEXT), content)
     }
 
     /** Clear failure reason when a user-requested start can't monitor. */
@@ -340,7 +351,7 @@ class AlertNotifier @Inject constructor(
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        postAux(FAILURE_NOTIFICATION_ID, "Monitoring not started", reason, content)
+        postAux(FAILURE_NOTIFICATION_ID, Words.get(W.AUX_FAIL_TITLE), reason, content)
     }
 
     /** Android 15+ dataSync FGS hit its daily budget in manual mode. */
@@ -351,9 +362,8 @@ class AlertNotifier @Inject constructor(
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        postAux(TIMEOUT_NOTIFICATION_ID, "Monitoring stopped",
-            "Android limits background sync in manual-location mode to 6 h/day; " +
-                "open the app to restart.",
+        postAux(TIMEOUT_NOTIFICATION_ID, Words.get(W.AUX_TIMEOUT_TITLE),
+            Words.get(W.AUX_TIMEOUT_TEXT),
             content)
     }
 
@@ -402,12 +412,79 @@ class AlertNotifier @Inject constructor(
                 NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(content)
         if (paused) {
-            b.addAction(0, "Resume", serviceAction(MonitoringService.ACTION_RESUME, 11))
+            b.addAction(0, Words.get(W.ACT_RESUME), serviceAction(MonitoringService.ACTION_RESUME, 11))
         } else {
-            b.addAction(0, "Pause", serviceAction(MonitoringService.ACTION_PAUSE, 12))
+            b.addAction(0, Words.get(W.ACT_PAUSE), serviceAction(MonitoringService.ACTION_PAUSE, 12))
         }
-        b.addAction(0, "Stop", serviceAction(MonitoringService.ACTION_STOP, 13))
+        b.addAction(0, Words.get(W.ACT_STOP), serviceAction(MonitoringService.ACTION_STOP, 13))
         return b.build()
+    }
+
+    /**
+     * The status notification while a tracked aircraft is inside its radius.
+     * On Android 16+ it asks to be promoted to a Live Update (status-bar chip,
+     * progress = how deep inside the radius the aircraft is); earlier versions
+     * get the same content as a plain ongoing notification.
+     */
+    fun liveStatusNotification(content: LiveUpdateContent, paused: Boolean): Notification {
+        ensureStatusChannel()
+        val contentIntent = PendingIntent.getActivity(
+            context, 0,
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val text = liveText(content)
+        val b = NotificationCompat.Builder(context, CHANNEL_STATUS)
+            .setSmallIcon(R.drawable.ic_stat_radar)
+            .setContentTitle(content.title)
+            .setContentText(text)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .setContentIntent(contentIntent)
+        if (Build.VERSION.SDK_INT >= 36) {
+            val danger = ContextCompat.getColor(context, R.color.live_update_danger)
+            b.setStyle(
+                NotificationCompat.ProgressStyle()
+                    .setProgressSegments(
+                        listOf(NotificationCompat.ProgressStyle.Segment(100).setColor(danger)))
+                    .setProgress(content.progress)
+                    .setProgressTrackerIcon(IconCompat.createWithBitmap(planeTracker(danger)))
+            )
+            b.setShortCriticalText(content.shortText)
+            b.setRequestPromotedOngoing(true)
+        }
+        if (paused) {
+            b.addAction(0, Words.get(W.ACT_RESUME), serviceAction(MonitoringService.ACTION_RESUME, 11))
+        } else {
+            b.addAction(0, Words.get(W.ACT_PAUSE), serviceAction(MonitoringService.ACTION_PAUSE, 12))
+        }
+        b.addAction(0, Words.get(W.ACT_STOP), serviceAction(MonitoringService.ACTION_STOP, 13))
+        return b.build()
+    }
+
+    private fun liveText(c: LiveUpdateContent): String = buildString {
+        append(context.getString(R.string.live_inside_radius, c.radiusText))
+        when (c.trend) {
+            com.flightradius.app.ui.format.Format.ClosingTrend.APPROACHING ->
+                append(" · ").append(context.getString(R.string.radar_closing_lower))
+            com.flightradius.app.ui.format.Format.ClosingTrend.RECEDING ->
+                append(" · ").append(context.getString(R.string.radar_moving_away_lower))
+            else -> Unit
+        }
+        if (c.moreInside > 0) {
+            append(" · ").append(context.getString(R.string.live_more_inside, c.moreInside))
+        }
+    }
+
+    private fun planeTracker(color: Int): Bitmap {
+        val size = 64
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val path = PathParser.createPathFromPathData(PLANE_PATH_DATA)
+        path.transform(Matrix().apply { setScale(size / 24f, size / 24f) })
+        Canvas(bmp).drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+        return bmp
     }
 
     private fun serviceAction(action: String, req: Int): PendingIntent =

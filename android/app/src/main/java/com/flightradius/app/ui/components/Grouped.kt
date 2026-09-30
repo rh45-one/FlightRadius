@@ -117,7 +117,8 @@ fun GroupedRow(
     onClick: (() -> Unit)? = null,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
     titleStyle: TextStyle = MaterialTheme.typography.bodyLarge,
-    subtitleStyle: TextStyle = MaterialTheme.typography.bodySmall
+    subtitleStyle: TextStyle = MaterialTheme.typography.bodySmall,
+    titleModifier: Modifier = Modifier
 ) {
     Row(
         modifier
@@ -130,7 +131,7 @@ fun GroupedRow(
     ) {
         leading?.invoke()
         Column(Modifier.weight(1f)) {
-            Text(title, style = titleStyle, color = titleColor)
+            Text(title, style = titleStyle, color = titleColor, modifier = titleModifier)
             if (subtitle != null) {
                 Text(
                     subtitle,

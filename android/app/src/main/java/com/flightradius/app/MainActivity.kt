@@ -6,6 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -20,6 +23,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
@@ -43,6 +47,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,6 +69,9 @@ import com.flightradius.app.ui.alerts.ProximityAlertSheet
 import com.flightradius.app.ui.aircraft.AircraftScreen
 import com.flightradius.app.ui.debug.DebugScreen
 import com.flightradius.app.ui.fleets.FleetsScreen
+import com.flightradius.app.ui.detail.AircraftDetailScreen
+import com.flightradius.app.ui.detail.LocalNavAnimatedScope
+import com.flightradius.app.ui.detail.LocalSharedTransitionScope
 import com.flightradius.app.ui.map.MapScreen
 import com.flightradius.app.ui.onboarding.WelcomeScreen
 import com.flightradius.app.ui.radar.RadarScreen
@@ -214,20 +222,51 @@ class MainActivity : ComponentActivity() {
                 Row(Modifier.fillMaxSize().padding(padding)) {
                 if (landscape) SideRail(route, onSelect)
                 Box(Modifier.weight(1f).fillMaxHeight()) {
+                    SharedTransitionLayout {
+                    CompositionLocalProvider(LocalSharedTransitionScope provides this) {
                     NavHost(nav, startDestination = NavItem.Radar.route) {
                         composable(NavItem.Radar.route) {
+                            CompositionLocalProvider(LocalNavAnimatedScope provides this@composable) {
                             RadarScreen(
                                 onStartMonitoring = { starter.begin() },
                                 onOpenSettings = { nav.navigateToTab(NavItem.Settings.route) },
                                 onOpenAircraft = { add ->
                                     nav.navigateToTab("aircraft?add=$add", restore = false)
                                 },
-                                onEditAircraft = { id ->
-                                    nav.navigateToTab("aircraft?edit=$id", restore = false)
+                                onOpenDetail = { kind, id ->
+                                    nav.navigate("aircraft_detail/${kind.route}/$id") {
+                                        launchSingleTop = true
+                                    }
                                 }
                             )
+                            }
                         }
-                        composable(NavItem.Map.route) { MapScreen() }
+                        composable(
+                            "aircraft_detail/{kind}/{id}",
+                            arguments = listOf(
+                                navArgument("kind") { type = NavType.StringType },
+                                navArgument("id") { type = NavType.StringType }
+                            )
+                        ) {
+                            CompositionLocalProvider(LocalNavAnimatedScope provides this@composable) {
+                                AircraftDetailScreen(
+                                    onBack = { nav.popBackStack() },
+                                    onShowOnMap = {
+                                        nav.navigateToTab(NavItem.Map.route, restore = false)
+                                    },
+                                    onEdit = { id ->
+                                        nav.navigateToTab("aircraft?edit=$id", restore = false)
+                                    }
+                                )
+                            }
+                        }
+                        composable(NavItem.Map.route) {
+                            MapScreen(onOpenDetail = { kind, id ->
+                                nav.navigate("aircraft_detail/${kind.route}/$id") {
+                                    launchSingleTop = true
+                                }
+                            })
+                        }
                         composable(
                             "aircraft?add={add}&edit={edit}",
                             arguments = listOf(
@@ -259,6 +298,8 @@ class MainActivity : ComponentActivity() {
                             AirspaceRulesScreen(onBack = { nav.popBackStack() })
                         }
                         composable("debug") { DebugScreen(onBack = { nav.popBackStack() }) }
+                    }
+                    }
                     }
 
                     LaunchedEffect(pendingRoute) {
@@ -329,7 +370,15 @@ class MainActivity : ComponentActivity() {
                                 Icon(item.icon, contentDescription =
                                     stringResource(item.labelRes))
                             },
-                            label = { Text(stringResource(item.labelRes)) },
+                            label = {
+                                Text(
+                                    stringResource(item.labelRes),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    autoSize = TextAutoSize.StepBased(
+                                        minFontSize = 9.sp, maxFontSize = 12.sp)
+                                )
+                            },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -383,7 +432,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun isSelected(route: String?, item: NavItem) =
-        route?.startsWith(item.route) == true ||
+        (route?.startsWith("aircraft_detail") == true && item == NavItem.Radar) ||
+            (route?.startsWith("aircraft_detail") != true && route?.startsWith(item.route) == true) ||
             ((route == "debug" || route == "airspace_rules") && item == NavItem.Settings)
 
     /**

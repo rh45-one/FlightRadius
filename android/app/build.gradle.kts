@@ -121,6 +121,10 @@ android {
         }
     }
 
+    androidResources {
+        generateLocaleConfig = true
+    }
+
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
@@ -165,6 +169,8 @@ dependencies {
 
     implementation(libs.play.services.location)
     implementation(libs.maplibre.android)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
 
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)

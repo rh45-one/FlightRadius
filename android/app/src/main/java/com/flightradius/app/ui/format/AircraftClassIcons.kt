@@ -12,10 +12,11 @@ private fun glyph(name: String, path: String): ImageVector =
         .addPath(pathData = addPathNodes(path), fill = SolidColor(Color.Black))
         .build()
 
-private val Airliner = glyph(
-    "Airliner",
+/** 24x24 plane silhouette (also used for the map symbol and the Live Update tracker). */
+const val PLANE_PATH_DATA =
     "M21.5 15.5v-2l-8.5-5V3.5a1.5 1.5 0 0 0-3 0v5l-8.5 5v2l8.5-2.5v5.5L7.5 20v1.5l4.5-1.25 4.5 1.25V20l-2.5-1.5v-5.5l8.5 2.5z"
-)
+
+private val Airliner = glyph("Airliner", PLANE_PATH_DATA)
 private val Light = glyph(
     "LightAircraft",
     "M10.8 2h2.4v6h8.3v2.6h-8.3V16l3 1.6V20H7.8v-2.4l3-1.6v-5.4H2.5V8h8.3z"

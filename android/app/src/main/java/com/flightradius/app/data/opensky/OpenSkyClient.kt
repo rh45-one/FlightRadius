@@ -102,9 +102,9 @@ class OpenSkyClient(
                         AppLog.w(TAG, "credits exhausted", "retryAfterSec" to retryAfter)
                         ApiResult.Failure(ApiError.RateLimited(retryAfter))
                     }
-                    response.code == 400 -> ApiResult.Failure(ApiError.BadRequest("OpenSky rejected the query"))
-                    response.code >= 500 -> ApiResult.Failure(ApiError.OpenSkyUnavailable("OpenSky unavailable (${response.code})"))
-                    else -> ApiResult.Failure(ApiError.Http(response.code, "OpenSky HTTP ${response.code}"))
+                    response.code == 400 -> ApiResult.Failure(ApiError.BadRequest())
+                    response.code >= 500 -> ApiResult.Failure(ApiError.OpenSkyUnavailable())
+                    else -> ApiResult.Failure(ApiError.Http(response.code))
                 }
             } ?: fetch(url, allowReauth = false)
         } catch (ce: CancellationException) {

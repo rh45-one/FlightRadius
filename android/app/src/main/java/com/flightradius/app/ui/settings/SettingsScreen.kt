@@ -1,6 +1,7 @@
 package com.flightradius.app.ui.settings
 
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +46,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flightradius.app.BuildConfig
 import com.flightradius.app.R
@@ -157,6 +160,10 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_test_alert),
                 onClick = { viewModel.testAlert() }
             )
+            if (Build.VERSION.SDK_INT >= 36) {
+                GroupedDivider()
+                LiveUpdatesRow()
+            }
             GroupedDivider()
             GroupedRow(
                 title = stringResource(R.string.settings_notif_settings),
@@ -598,6 +605,35 @@ internal fun AppearanceRow(selected: ThemeMode, onSelect: (ThemeMode) -> Unit) {
             }
         }
     }
+}
+
+/** API 36+: whether Live Updates may be promoted; opens the system toggle. */
+@Composable
+private fun LiveUpdatesRow() {
+    val context = LocalContext.current
+    fun allowed() = Build.VERSION.SDK_INT >= 36 &&
+        (context.getSystemService(android.app.NotificationManager::class.java)
+            ?.canPostPromotedNotifications() == true)
+    var on by remember { mutableStateOf(allowed()) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { on = allowed() }
+    GroupedRow(
+        title = stringResource(R.string.settings_live_updates),
+        subtitle = stringResource(R.string.settings_live_updates_body),
+        trailing = {
+            Text(
+                stringResource(if (on) R.string.settings_on else R.string.settings_off),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            NavigationChevron()
+        },
+        onClick = {
+            if (Build.VERSION.SDK_INT >= 36) {
+                context.startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+            }
+        }
+    )
 }
 
 @Composable

@@ -54,11 +54,11 @@ object Format {
 
     /** "045° NE" */
     fun bearing(deg: Double): String =
-        "%03d° %s".format(deg.roundToInt() % 360, AlertText.cardinal(deg))
+        "%03d° %s".format(deg.roundToInt() % 360, Words.compass(deg))
 
     /** "NE 045°" (cardinal first) for compact glance labels. */
     fun bearingShort(deg: Double): String =
-        "%s %03d°".format(AlertText.cardinal(deg), deg.roundToInt() % 360)
+        "%s %03d°".format(Words.compass(deg), deg.roundToInt() % 360)
 
     fun heading(deg: Double?): String? =
         deg?.let { "%03d°".format(it.roundToInt() % 360) }
@@ -69,10 +69,10 @@ object Format {
     fun age(nowMs: Long, thenMs: Long): String {
         val sec = ((nowMs - thenMs) / 1000).coerceAtLeast(0)
         return when {
-            sec < 2 -> "now"
-            sec < 60 -> "$sec s ago"
-            sec < 3600 -> "${sec / 60} min ago"
-            else -> "${sec / 3600} h ago"
+            sec < 2 -> Words.get(W.AGE_NOW)
+            sec < 60 -> Words.get(W.AGE_S, sec.toInt())
+            sec < 3600 -> Words.get(W.AGE_MIN, (sec / 60).toInt())
+            else -> Words.get(W.AGE_H, (sec / 3600).toInt())
         }
     }
 
@@ -98,18 +98,19 @@ object Format {
 
     /** Coverage estimate: "< 1 h", "7.5 h", "1 day+". */
     fun hours(h: Double): String = when {
-        h < 1.0 -> "< 1 h"
-        h >= 24.0 -> "1 day+"
-        else -> String.format(Locale.ROOT, "%.1f h", h).replace(".0 h", " h")
+        h < 1.0 -> Words.get(W.COVERAGE_LT1)
+        h >= 24.0 -> Words.get(W.COVERAGE_DAY)
+        else -> String.format(Locale.getDefault(), "%.1f h", h)
+            .replace(Regex("[.,]0 h$"), " h")
     }
 
     /** "▲ approaching · 380 km/h" / "▼ receding · …" / "steady" (<5 km/h). */
     fun closing(o: AircraftObservation, unit: DistanceUnit): String? =
         o.closingSpeedKmh?.let { k ->
             when {
-                kotlin.math.abs(k) < AlertText.STEADY_KMH -> "steady"
+                kotlin.math.abs(k) < AlertText.STEADY_KMH -> Words.get(W.TREND_STEADY)
                 else -> {
-                    val dir = if (k >= 0) "▲ approaching" else "▼ receding"
+                    val dir = if (k >= 0) Words.get(W.ARROW_APPROACHING) else Words.get(W.ARROW_RECEDING)
                     "$dir · ${AlertText.formatSpeed(kotlin.math.abs(k), unit)}"
                 }
             }
@@ -133,9 +134,9 @@ object Format {
         o.closingSpeedKmh?.let { k ->
             val a = kotlin.math.abs(k)
             val (dir, trend) = when {
-                a < AlertText.STEADY_KMH -> "steady" to ClosingTrend.STEADY
-                k >= 0 -> "approaching" to ClosingTrend.APPROACHING
-                else -> "receding" to ClosingTrend.RECEDING
+                a < AlertText.STEADY_KMH -> Words.get(W.TREND_STEADY) to ClosingTrend.STEADY
+                k >= 0 -> Words.get(W.TREND_APPROACHING) to ClosingTrend.APPROACHING
+                else -> Words.get(W.TREND_RECEDING) to ClosingTrend.RECEDING
             }
             ClosingParts(dir, AlertText.formatSpeed(a, unit), trend)
         }

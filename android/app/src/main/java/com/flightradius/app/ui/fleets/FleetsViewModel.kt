@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.fleets
 
+import com.flightradius.app.ui.format.localized
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightradius.app.data.api.ApiError
@@ -86,8 +87,8 @@ class FleetsViewModel @Inject constructor(
             try {
                 refreshError.value = when (val r = cycleRunner.runCycle("fleets-refresh")) {
                     is CycleResult.Success, is CycleResult.Idle -> null
-                    CycleResult.Offline -> ApiError.Offline.message
-                    is CycleResult.Failure -> r.error.message
+                    CycleResult.Offline -> ApiError.Offline.localized()
+                    is CycleResult.Failure -> r.error.localized()
                 }
             } finally {
                 refreshing.value = false

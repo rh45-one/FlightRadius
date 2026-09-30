@@ -1,0 +1,544 @@
+<resources>
+    <string name="app_name">FlightRadius</string>
+
+    <!-- Navigation -->
+    <string name="nav_radar">Radar</string>
+    <string name="nav_aircraft">Aeronaves</string>
+    <string name="nav_fleets">Flotas</string>
+    <string name="nav_settings">Ajustes</string>
+
+    <!-- Common actions -->
+    <string name="action_add">Añadir</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_edit">Editar</string>
+    <string name="action_edit_aircraft">Editar aeronave</string>
+    <string name="action_dismiss">Descartar</string>
+    <string name="action_undo">Deshacer</string>
+    <string name="action_retry">Reintentar</string>
+    <string name="action_refresh">Actualizar</string>
+    <string name="action_open_settings">Abrir ajustes</string>
+    <string name="action_snooze_15">Posponer 15 min</string>
+    <string name="action_snooze_30">Posponer 30 min</string>
+    <string name="action_snooze_60">Posponer 1 h</string>
+    <string name="action_disable_battery_opt">Desactivar la optimización de batería</string>
+    <string name="action_location_settings">Ajustes de ubicación</string>
+    <string name="checking">Comprobando…</string>
+
+    <!-- Radar -->
+    <string name="radar_start">Iniciar vigilancia</string>
+    <string name="radar_stop">Detener</string>
+    <string name="radar_pause">Pausar</string>
+    <string name="radar_resume">Reanudar</string>
+    <string name="radar_not_reporting">Sin señal</string>
+    <string name="radar_no_live_data">Sin datos en directo — puede estar en tierra</string>
+    <string name="radar_empty_title">Aún no hay nada que vigilar</string>
+    <string name="radar_empty_body">Añade las aeronaves que quieras seguir.</string>
+    <string name="radar_add_aircraft">Añadir aeronave</string>
+    <string name="alert_inside">Dentro del radio</string>
+    <string name="alert_snoozed">pospuesto</string>
+
+    <!-- Radar chips / issues -->
+    <string name="chip_location">Ubicación</string>
+    <string name="chip_monitoring">Vigilancia</string>
+    <string name="issue_background_location_body">Para reanudar la vigilancia al arrancar con GPS hace falta el acceso a la ubicación «Permitir siempre»; concédelo en los ajustes de la app.</string>
+
+    <!-- Detail sheet -->
+    <string name="detail_distance">Distancia</string>
+    <string name="detail_radius">Radio de alerta</string>
+    <string name="detail_bearing">Dirección</string>
+    <string name="detail_altitude">Altitud</string>
+    <string name="detail_speed">Velocidad</string>
+    <string name="detail_heading">Rumbo</string>
+    <string name="detail_closing">Aproximación</string>
+    <string name="detail_last_contact">Último contacto</string>
+    <string name="detail_fleets">Flotas</string>
+
+    <!-- Aircraft -->
+    <string name="aircraft_search">Buscar indicativo o ICAO24</string>
+    <string name="aircraft_bulk_add">Añadir varias</string>
+    <string name="aircraft_empty_title">Aún no hay aeronaves</string>
+    <string name="aircraft_empty_body">Sigue indicativos (p. ej. IBE3174) o direcciones hexadecimales ICAO24 (p. ej. 4ca123).</string>
+    <string name="aircraft_add">Añadir aeronave</string>
+    <string name="aircraft_add_title">Añadir aeronave</string>
+    <string name="aircraft_callsign">Indicativo</string>
+    <string name="aircraft_icao24">Dirección ICAO24</string>
+    <string name="aircraft_suggest_icao24">Parece una dirección ICAO24 — ¿cambiar el tipo?</string>
+    <string name="aircraft_invalid_format">Formato no válido (indicativo: 2–8 A–Z/0–9; icao24: 6 hex)</string>
+    <string name="aircraft_duplicate">Ya la sigues</string>
+    <string name="aircraft_check">Comprobar</string>
+    <string name="aircraft_live_now">En directo</string>
+    <string name="aircraft_no_data">Sin datos ahora — se seguirá cuando esté en vuelo</string>
+    <string name="aircraft_notes">Notas</string>
+    <string name="aircraft_radius_override">Radio personalizado (%1$s)</string>
+    <string name="aircraft_use_default_radius">Usar el predeterminado (%1$s)</string>
+    <string name="aircraft_radius_label">radio %1$s %2$s</string>
+    <string name="override_label">(personalizado)</string>
+    <string name="default_label">(predeterminado)</string>
+    <string name="aircraft_fleets">Pertenencia a flotas</string>
+    <string name="aircraft_removed">Aeronave eliminada</string>
+    <string name="aircraft_bulk_title">Añadir varias</string>
+    <string name="aircraft_bulk_hint">Indicativos o ICAO24, separados por comas o saltos de línea</string>
+    <string name="aircraft_parse">Analizar</string>
+    <string name="aircraft_bulk_none">No se ha podido interpretar nada.</string>
+    <string name="bulk_invalid">no válido</string>
+    <string name="bulk_tracked">ya seguida</string>
+    <string name="bulk_not_validated">sin validar</string>
+    <string name="bulk_add_n">Añadir %1$d</string>
+    <string name="error_not_a_number">No es un número</string>
+
+    <!-- Fleets -->
+    <string name="aircraft_title">Aeronaves</string>
+    <string name="fleets_title">Flotas</string>
+    <string name="fleets_add">Nueva flota</string>
+    <string name="fleets_add_title">Nueva flota</string>
+    <string name="fleets_edit_title">Editar flota</string>
+    <string name="fleets_name">Nombre</string>
+    <string name="fleets_color">Color</string>
+    <string name="fleets_radius_override">Radio de la flota</string>
+    <string name="fleets_members">Miembros</string>
+    <string name="fleets_member_count">%1$d miembros</string>
+    <string name="fleets_radius">radio %1$s</string>
+    <string name="fleets_closest">más cercana %1$s · %2$s</string>
+    <string name="fleets_no_members">Sin miembros</string>
+    <string name="fleets_missing">sin datos</string>
+    <string name="fleets_expand">Mostrar miembros</string>
+    <string name="fleets_collapse">Ocultar miembros</string>
+    <string name="fleets_empty_title">Aún no hay flotas</string>
+    <string name="fleets_empty_body">Agrupa aeronaves en flotas para compartir radios de alerta y resúmenes.</string>
+    <string name="fleets_stale_title">Distancias de la flota desactualizadas</string>
+    <string name="fleets_stale_body">No hay datos recientes. Actualizar ejecuta un ciclo de vigilancia para refrescar las distancias.</string>
+    <string name="fleets_delete_title">¿Eliminar la flota?</string>
+    <string name="fleets_delete_body">Se eliminará la flota «%1$s»; sus aeronaves se seguirán siguiendo.</string>
+
+    <!-- Settings -->
+    <string name="settings_backend">Servidor</string>
+    <string name="settings_backend_url">URL del servidor</string>
+    <string name="error_invalid_url">Introduce una URL http(s) válida</string>
+    <string name="settings_test_connection">Probar conexión</string>
+    <string name="settings_creds_hint">Se envían a tu servidor, que las guarda y las usa. No se guarda nada en este dispositivo.</string>
+    <string name="creds_client_id">ID de cliente</string>
+    <string name="creds_client_secret">Secreto de cliente</string>
+    <string name="creds_send">Enviar al servidor</string>
+    <string name="creds_clear">Borrar las credenciales del servidor</string>
+    <string name="creds_clear_title">¿Borrar las credenciales?</string>
+    <string name="creds_clear_body">Esto elimina las credenciales de OpenSky guardadas en el servidor.</string>
+    <string name="settings_import">Importar</string>
+    <string name="settings_import_button">Importar aeronaves y flotas desde el servidor</string>
+    <string name="import_result">%1$d aeronaves añadidas (%2$d omitidas), %3$d flotas, %4$d pertenencias</string>
+    <string name="settings_monitoring">Vigilancia</string>
+    <string name="settings_interval">Intervalo de consulta</string>
+    <string name="settings_high_priority">Modo de alta prioridad</string>
+    <string name="settings_high_priority_body">Mantiene la CPU activa entre ciclos: fiable en reposo profundo, pero gasta mucha más batería.</string>
+    <string name="settings_resume_boot">Reanudar la vigilancia al arrancar</string>
+    <string name="settings_resume_boot_body">Reinicia la vigilancia tras reiniciar el teléfono. Con GPS hace falta el acceso a la ubicación «Permitir siempre».</string>
+    <string name="settings_radar_chirp">Pitido de radar</string>
+    <string name="settings_radar_chirp_body">Pitidos con un ritmo que depende de la distancia. No suenan tras reanudar al arrancar en Android 17.</string>
+    <string name="settings_location">Ubicación</string>
+    <string name="settings_lat">Latitud</string>
+    <string name="settings_lon">Longitud</string>
+    <string name="settings_use_gps_fix">Usar la posición GPS actual</string>
+    <string name="settings_alerts">Avisos</string>
+    <string name="settings_alert_sound">Sonido de aviso</string>
+    <string name="settings_alert_vibration">Vibración de aviso</string>
+    <string name="settings_alert_sheet">Aviso a pantalla completa en la app</string>
+    <string name="settings_notif_settings">Ajustes de notificaciones del sistema</string>
+    <string name="settings_test_alert">Probar aviso</string>
+    <string name="settings_units">Unidades</string>
+    <string name="settings_debug">Depuración</string>
+    <string name="settings_debug_logging">Registro de depuración</string>
+    <string name="settings_open_debug">Abrir la consola de depuración</string>
+    <string name="settings_about">Acerca de</string>
+
+    <!-- Debug console -->
+    <string name="debug_state_title">Estado de la vigilancia</string>
+    <string name="debug_filter_all">Todo</string>
+    <string name="debug_copy_all">Copiar todo</string>
+    <string name="debug_clear">Borrar</string>
+    <string name="debug_search">Buscar en el registro</string>
+
+    <!-- Proximity alert -->
+    <string name="alert_title">Aviso de proximidad</string>
+    <string name="alert_more">+%1$d más</string>
+    <string name="alert_within">dentro del radio de %1$s</string>
+    <string name="alert_stat_distance">Distancia</string>
+    <string name="alert_stat_bearing">Dirección</string>
+    <string name="alert_stat_closing">Aproximación</string>
+    <string name="alert_stat_altitude">Altitud</string>
+    <string name="alert_stat_speed">Velocidad</string>
+    <string name="alert_stat_heading">Rumbo</string>
+    <string name="aircraft_bulk_explainer">Se aceptan indicativos y códigos ICAO24. Añade el prefijo icao: (p. ej. icao:4ca12f) para forzar la interpretación como ICAO24.</string>
+    <string name="debug_title">Consola de depuración</string>
+    <string name="action_back">Atrás</string>
+    <string name="fleets_radius_default">radio %1$s · predeterminado global</string>
+    <string name="fleets_stale_ago">%1$s · desactualizado</string>
+    <string name="settings_build_default">Valor de fábrica</string>
+    <string name="creds_auth_mode">Modo de autenticación: %1$s</string>
+    <string name="creds_auth_anonymous">Anónimo</string>
+    <string name="alert_stat_radius">Radio</string>
+
+    <!-- Data source & OpenSky account -->
+    <string name="settings_data_source">Datos de vuelo</string>
+    <string name="data_source_direct">OpenSky (directo)</string>
+    <string name="data_source_backend">Servidor propio</string>
+    <string name="data_source_direct_body">La app consulta OpenSky directamente y funciona en cualquier sitio con internet. No necesitas servidor.</string>
+    <string name="data_source_backend_body">Tu servidor FlightRadius propio hace de intermediario con OpenSky. Solo es accesible donde esté el servidor.</string>
+    <string name="settings_opensky_account">Cuenta de OpenSky</string>
+    <string name="settings_opensky_backend">Credenciales de OpenSky (servidor)</string>
+    <string name="creds_direct_hint">Crea un cliente de API en la página de tu cuenta de OpenSky y pega su ID y su secreto. Se cifran con una clave que nunca sale de este dispositivo.</string>
+    <string name="creds_status_anonymous">Sin configurar: acceso anónimo (400 créditos al día)</string>
+    <string name="creds_status_stored">Cliente de API guardado en este dispositivo (cifrado)</string>
+    <string name="creds_status_verified">Cliente de API verificado con OpenSky</string>
+    <string name="creds_status_rejected">OpenSky ha rechazado este cliente de API. Revisa el ID y el secreto.</string>
+    <string name="creds_status_unreadable">No se pueden descifrar las credenciales guardadas. Vuelve a introducirlas.</string>
+    <string name="creds_save_verify">Guardar y verificar</string>
+    <string name="creds_verify">Verificar</string>
+    <string name="creds_remove">Quitar</string>
+    <string name="creds_removed">Cliente de API eliminado. Se usa el acceso anónimo.</string>
+    <string name="creds_remove_title">¿Quitar el cliente de API?</string>
+    <string name="creds_remove_body">El ID y el secreto se borran de este dispositivo. La app vuelve al acceso anónimo.</string>
+    <string name="creds_sent">Enviado al servidor</string>
+    <string name="creds_cleared">Borrado en el servidor</string>
+    <string name="settings_backend_optional">Opcional en modo directo: solo sirve para importar aeronaves y flotas de la app web.</string>
+
+    <!-- Credits -->
+    <string name="settings_credits">Créditos de OpenSky</string>
+    <string name="credits_unknown">El saldo aparece tras la primera consulta.</string>
+    <string name="credits_remaining">%1$,d de %2$,d restantes hoy</string>
+    <string name="credits_interval">Actualiza cada %1$s</string>
+    <string name="credits_per_cycle">%1$d por actualización</string>
+    <string name="credits_coverage">duran %1$s</string>
+    <string name="credits_blocked">Sin créditos. Reintentando en %1$s.</string>
+    <string name="credits_adaptive">Repartir los créditos a lo largo del día</string>
+    <string name="credits_adaptive_body">Reduce el ritmo de las actualizaciones cuando hace falta para que la vigilancia siga hasta que se recarguen los créditos.</string>
+
+    <!-- Radar glance -->
+    <string name="radar_loading">Buscando tus aeronaves…</string>
+    <string name="radar_none_airborne">Ninguna en vuelo</string>
+    <plurals name="radar_not_reporting_count">
+        <item quantity="one">%1$d aeronave seguida no da señal</item>
+        <item quantity="other">%1$d aeronaves seguidas no dan señal</item>
+    </plurals>
+    <string name="radar_last_update">Última actualización %1$s</string>
+    <string name="radar_state_nearby">Cerca</string>
+    <string name="radar_state_nearest">Más cercana</string>
+    <string name="radar_closing">Se acerca</string>
+    <string name="radar_moving_away">Se aleja</string>
+    <string name="radar_steady">Estable</string>
+    <string name="radar_also_tracking">También sigues</string>
+    <string name="radar_preview_footnote">Vista previa · los avisos solo funcionan con la vigilancia activada</string>
+    <string name="radar_dial_description">%1$s, %2$s %3$s, %4$s</string>
+    <string name="detail_direction">Dirección</string>
+    <string name="unit_km_spoken">kilómetros</string>
+    <string name="unit_mi_spoken">millas</string>
+    <string-array name="compass_points">
+        <item>norte</item>
+        <item>nornoreste</item>
+        <item>noreste</item>
+        <item>estenoreste</item>
+        <item>este</item>
+        <item>estesureste</item>
+        <item>sureste</item>
+        <item>sursureste</item>
+        <item>sur</item>
+        <item>sursuroeste</item>
+        <item>suroeste</item>
+        <item>oestesuroeste</item>
+        <item>oeste</item>
+        <item>oestenoroeste</item>
+        <item>noroeste</item>
+        <item>nornoroeste</item>
+    </string-array>
+
+    <!-- Status line -->
+    <string name="status_location_off">La ubicación está desactivada</string>
+    <string name="status_location_permission">Falta el permiso de ubicación</string>
+    <string name="status_play_services">Faltan los servicios de Google Play</string>
+    <string name="status_lan">Se necesita acceso a la red local</string>
+    <string name="status_offline_resume">Sin conexión — se reanudará automáticamente</string>
+    <string name="status_auth_failed">Ha fallado el acceso a OpenSky</string>
+    <string name="status_out_of_credits">Sin créditos de OpenSky</string>
+    <string name="status_unreachable_opensky">No se puede acceder a OpenSky</string>
+    <string name="status_unreachable_backend">No se puede acceder a tu servidor</string>
+    <string name="status_error">Algo ha salido mal</string>
+    <string name="status_live">En directo</string>
+    <string name="status_live_updated">En directo · actualizado %1$s</string>
+    <string name="status_credits_left_suffix">" · %1$,d créditos restantes"</string>
+    <string name="status_paused">En pausa</string>
+    <string name="status_starting">Iniciando…</string>
+    <string name="status_finding_location">Buscando tu ubicación…</string>
+    <string name="status_waiting_battery">Esperando al ahorro de batería</string>
+    <string name="status_offline">Sin conexión</string>
+    <string name="status_stopped">Vigilancia desactivada</string>
+    <string name="status_sheet_title">Estado</string>
+    <string name="status_row_flight_data">Datos de vuelo</string>
+    <string name="status_credits_unknown">Aún no se sabe</string>
+    <string name="status_action_allow">Permitir acceso</string>
+
+    <!-- Welcome -->
+    <string name="welcome_tagline">Entérate en cuanto estén cerca.</string>
+    <string name="welcome_follow_title">Sigue los vuelos que te importan</string>
+    <string name="welcome_follow_body">Añade un indicativo o una dirección ICAO24 y FlightRadius se encarga de vigilar.</string>
+    <string name="welcome_glance_title">Léelo de un vistazo</string>
+    <string name="welcome_glance_body">Distancia, dirección y lo cerca que es demasiado cerca, con claridad de día y de noche.</string>
+    <string name="welcome_alerts_title">Avisos cuando importa</string>
+    <string name="welcome_alerts_body">Una notificación en cuanto una aeronave entra en tu radio, incluso con el teléfono bloqueado.</string>
+    <string name="welcome_add_first">Añade tu primera aeronave</string>
+    <string name="welcome_not_now">Ahora no</string>
+    <string name="welcome_footnote">Datos de vuelo de The OpenSky Network.</string>
+
+    <!-- Misc new -->
+    <string name="aircraft_clear_search">Borrar búsqueda</string>
+    <string name="aircraft_type_icao24">ICAO24</string>
+    <string name="fleets_delete">Eliminar flota</string>
+    <string name="settings_keep_screen_on">Mantener la pantalla encendida</string>
+    <string name="settings_keep_screen_on_body">Mientras el radar está abierto y la vigilancia activada.</string>
+    <string name="settings_gps_accuracy">Precisión del GPS</string>
+    <string name="gps_accuracy_high">Alta</string>
+    <string name="gps_accuracy_balanced">Equilibrada</string>
+    <string name="gps_accuracy_low_power">Bajo consumo</string>
+    <string name="location_mode_gps">GPS</string>
+    <string name="location_mode_manual">Manual</string>
+    <string name="settings_location_status">Estado</string>
+    <string name="settings_default_backend">Servidor predeterminado: %1$s</string>
+    <string name="settings_show_welcome">Mostrar la pantalla de bienvenida</string>
+    <string name="status_value_on">Activada</string>
+    <string name="status_value_off">Desactivada</string>
+    <string name="status_value_connected">Conectado</string>
+    <plurals name="radar_also_inside">
+        <item quantity="one">+%1$d más dentro</item>
+        <item quantity="other">+%1$d más dentro</item>
+    </plurals>
+    <string name="settings_alert_radius">Radio de alerta</string>
+    <string name="settings_refresh_every">Actualizar cada</string>
+    <string name="settings_appearance">Apariencia</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+
+    <!-- Nearby airspace -->
+    <string name="aircraft_class_airliner">Avión comercial y reactor</string>
+    <string name="aircraft_class_light">Avioneta</string>
+    <string name="aircraft_class_helicopter">Helicóptero</string>
+    <string name="aircraft_class_glider">Planeador</string>
+    <string name="aircraft_class_balloon">Globo/dirigible</string>
+    <string name="aircraft_class_drone">Dron</string>
+    <string name="aircraft_class_military">Alto rendimiento</string>
+    <string name="aircraft_class_unknown">Desconocido</string>
+    <string name="nearby_mute_action">Silenciar cercanas 1 h</string>
+    <plurals name="nearby_summary_title">
+        <item quantity="one">%1$d aeronave cercana</item>
+        <item quantity="other">%1$d aeronaves cercanas</item>
+    </plurals>
+    <string name="settings_nearby_header">Espacio aéreo cercano</string>
+    <string name="settings_nearby_watch">Vigilar el espacio aéreo a mi alrededor</string>
+    <string name="settings_nearby_watch_body">Muestra todas las aeronaves cercanas. Usa aproximadamente 1 crédito extra por actualización.</string>
+    <string name="settings_nearby_area">Zona</string>
+    <string name="settings_nearby_alerts">Avisos cercanos</string>
+    <string name="settings_nearby_alerts_off">Desactivados</string>
+    <plurals name="settings_nearby_alerts_on">
+        <item quantity="one">%1$d regla activada</item>
+        <item quantity="other">%1$d reglas activadas</item>
+    </plurals>
+    <string name="settings_aircraft_db">Base de datos de aeronaves</string>
+    <string name="db_state_not_downloaded">No descargada</string>
+    <string name="db_state_percent">%1$d %%</string>
+    <string name="db_state_failed">Error</string>
+    <string name="db_sheet_title">Base de datos de aeronaves</string>
+    <string name="db_sheet_body">Identifica helicópteros, avionetas y aviones comerciales que no emiten su tipo. Unos 110 MB, de The OpenSky Network.</string>
+    <string name="db_action_download">Descargar</string>
+    <string name="db_action_cancel">Cancelar</string>
+    <string name="db_action_check">Buscar actualización</string>
+    <string name="db_action_update">Descargar actualización</string>
+    <string name="db_action_delete">Eliminar</string>
+    <string name="db_ready_summary">%1$s · %2$s aeronaves</string>
+    <string name="db_update_available">Hay una base de datos más reciente.</string>
+    <string name="db_up_to_date">Tienes la última base de datos.</string>
+    <string name="db_failed_summary">La descarga ha fallado: %1$s</string>
+    <string name="db_metered_title">¿Usar datos móviles?</string>
+    <string name="db_metered_body">Unos 110 MB. Estás usando datos móviles.</string>
+    <string name="db_metered_confirm">Descargar igualmente</string>
+    <string name="rules_title">Avisos cercanos</string>
+    <string name="rules_back">Atrás</string>
+    <string name="rules_footer">Los avisos cercanos están desactivados hasta que actives una regla. Las aeronaves seguidas siempre avisan en su propio radio, a cualquier altitud.</string>
+    <string name="rules_add">Añadir regla</string>
+    <string name="rules_any_aircraft">Cualquier aeronave</string>
+    <string name="rules_below">por debajo de %1$s</string>
+    <string name="rules_new_name">Nueva regla</string>
+    <string name="rules_edit_title">Editar regla</string>
+    <string name="rules_name">Nombre</string>
+    <string name="rules_distance">Distancia: %1$s</string>
+    <string name="rules_altitude_any">Cualquier altitud</string>
+    <string name="rules_altitude_below">Por debajo de %1$s</string>
+    <string name="rules_altitude_limit">Limitar la altitud</string>
+    <string name="rules_classes">Tipos de aeronave</string>
+    <string name="rules_classes_hint">Si no eliges ninguno, vale cualquier aeronave.</string>
+    <string name="rules_delete">Eliminar regla</string>
+    <string name="radar_nearby">Alrededor</string>
+    <string name="radar_nearby_stale">Alrededor · sin actualizar</string>
+    <string name="radar_nearby_more">%1$d más</string>
+    <string name="radar_nearest_nearby">La más cercana</string>
+    <string name="radar_nothing_nearby">Nada cerca</string>
+    <string name="radar_nothing_nearby_body">Ninguna aeronave a menos de %1$s.</string>
+    <string name="aircraft_track_by_icao24">Seguir por ICAO24 (%1$s)</string>
+    <string name="debug_demo_inject">Inyectar tráfico aéreo de demostración</string>
+    <string name="debug_demo_clear">Borrar tráfico de demostración</string>
+    <string name="debug_demo_hint">Publica una instantánea sintética alrededor de la posición actual; los ciclos dejan de consultar OpenSky hasta que la borres.</string>
+    <string name="nav_map">Mapa</string>
+    <string name="map_unavailable">Mapa no disponible sin conexión</string>
+    <string name="map_waiting">Esperando tu ubicación</string>
+    <string name="map_recenter">Centrar el mapa</string>
+    <string name="detail_class">Tipo</string>
+    <string name="detail_registration">Matrícula</string>
+    <string name="detail_model">Modelo</string>
+    <string name="debug_demo_inject_stale">Demo (sin actualizar)</string>
+    <plurals name="radar_others_nearby">
+        <item quantity="one">%1$d otra aeronave cerca</item>
+        <item quantity="other">%1$d otras aeronaves cerca</item>
+    </plurals>
+    <plurals name="radar_matching_alerts">
+        <item quantity="one">%1$d aviso coincidente</item>
+        <item quantity="other">%1$d avisos coincidentes</item>
+    </plurals>
+    <string name="map_attribution">© OpenFreeMap © OpenMapTiles © colaboradores de OpenStreetMap</string>
+    <string name="live_inside_radius">Dentro de tu radio de %1$s</string>
+    <string name="live_more_inside">+%1$d más dentro</string>
+    <string name="radar_closing_lower">se acerca</string>
+    <string name="radar_moving_away_lower">se aleja</string>
+    <string name="settings_live_updates">Actualizaciones en directo</string>
+    <string name="settings_live_updates_body">Muestra la aeronave seguida más cercana en la barra de estado mientras esté dentro de tu radio.</string>
+    <string name="settings_on">Activadas</string>
+    <string name="settings_off">Desactivadas</string>
+    <string name="widget_description">La distancia a tu aeronave seguida más cercana, de un vistazo.</string>
+    <string name="widget_monitoring_off">Vigilancia desactivada</string>
+    <string name="widget_no_aircraft">Ninguna aeronave</string>
+    <string name="widget_nothing_inside">Nada dentro</string>
+    <string name="widget_updated">Actualizado %1$s</string>
+    <string name="detail_vertical_rate">Velocidad vertical</string>
+    <string name="detail_closing_speed">Velocidad de aproximación</string>
+    <string name="detail_operator">Operador</string>
+    <string name="detail_icao24">ICAO24</string>
+    <string name="detail_track_this">Seguir esta aeronave</string>
+    <string name="detail_show_on_map">Ver en el mapa</string>
+    <string name="detail_not_reporting">Sin señal · visto por última vez a las %1$s</string>
+    <string name="map_details">Detalles</string>
+
+    <!-- Words used by non-Compose formatting code -->
+    <string name="words_age_now">ahora</string>
+    <string name="words_age_s">hace %1$d s</string>
+    <string name="words_age_min">hace %1$d min</string>
+    <string name="words_age_h">hace %1$d h</string>
+    <string name="words_coverage_lt1">&lt; 1 h</string>
+    <string name="words_coverage_day">1 día+</string>
+    <string name="words_trend_steady">estable</string>
+    <string name="words_trend_approaching">se acerca</string>
+    <string name="words_trend_receding">se aleja</string>
+    <string name="words_arrow_approaching">▲ se acerca</string>
+    <string name="words_arrow_receding">▼ se aleja</string>
+    <string name="words_alert_title">✈ %1$s a menos de %2$s</string>
+    <string name="words_alert_bearing">dirección %1$s %2$s</string>
+    <string name="words_alert_closing">se acerca a %1$s</string>
+    <string name="words_loc_fix">GPS%1$s · %2$s</string>
+    <string name="words_loc_searching">Buscando…</string>
+    <string name="words_loc_manual">Manual</string>
+    <string name="words_loc_permission">Falta el permiso</string>
+    <string name="words_loc_provider_off">Ubicación desactivada</string>
+    <string name="words_loc_play">Faltan los servicios de Google Play</string>
+    <string name="words_backend_offline">Sin conexión</string>
+    <string name="words_backend_ok">OpenSky OK</string>
+    <string name="words_backend_no_credits">Sin créditos</string>
+    <string name="words_backend_login_failed">Error de acceso a OpenSky</string>
+    <string name="words_backend_down">OpenSky no disponible</string>
+    <string name="words_backend_timeout">OpenSky no responde</string>
+    <string name="words_backend_unreachable_opensky">OpenSky inaccesible</string>
+    <string name="words_backend_unreachable_backend">Servidor inaccesible</string>
+    <string name="words_backend_opensky">OpenSky</string>
+    <string name="words_backend_backend">Servidor</string>
+    <string name="words_credits_k">%1$sk créditos</string>
+    <string name="words_credits_n">%1$d créditos</string>
+    <string name="words_mon_on">Vigilancia activada</string>
+    <string name="words_mon_paused">En pausa</string>
+    <string name="words_mon_off">Vigilancia desactivada</string>
+    <string name="words_mon_starting">Iniciando…</string>
+    <string name="words_mon_doze">Aplazada por ahorro de energía</string>
+    <string name="words_mon_waiting_location">Esperando la ubicación</string>
+    <string name="words_mon_error">Error</string>
+    <string name="words_notif_paused">Vigilancia en pausa</string>
+    <string name="words_notif_offline">Sin conexión — reintentando en %1$d s</string>
+    <string name="words_notif_deferred">Aplazada (ahorro de batería)</string>
+    <string name="words_notif_error">Error de vigilancia</string>
+    <string name="words_notif_running">Vigilando %1$d aeronaves</string>
+    <string name="words_notif_stopped">Vigilancia detenida</string>
+    <string name="words_notif_unknown_error">Error desconocido</string>
+    <string name="words_notif_closest">Más cercana: %1$s</string>
+    <string name="words_notif_no_tracked">Ninguna aeronave seguida</string>
+    <string name="words_notif_no_aircraft">Ninguna aeronave en el radio</string>
+    <string name="words_start_refused">Android no ha permitido iniciar la vigilancia en segundo plano: %1$s</string>
+    <string name="words_need_manual">Primero define una ubicación manual</string>
+    <string name="words_need_location">Concede acceso a la ubicación para vigilar aeronaves</string>
+    <string name="words_need_play">Los servicios de Google Play no están disponibles — cambia a ubicación manual</string>
+    <string name="words_ch_status">Estado de la vigilancia</string>
+    <string name="words_ch_alerts">Avisos de proximidad</string>
+    <string name="words_ch_nearby">Aeronaves cercanas</string>
+    <string name="words_act_snooze">Posponer 30 min</string>
+    <string name="words_act_dismiss">Descartar</string>
+    <string name="words_act_resume">Reanudar</string>
+    <string name="words_act_pause">Pausar</string>
+    <string name="words_act_stop">Detener</string>
+    <string name="words_aux_resume_title">Reanudar la vigilancia</string>
+    <string name="words_aux_resume_text">Toca para reiniciar la vigilancia de FlightRadius.</string>
+    <string name="words_aux_fail_title">La vigilancia no se ha iniciado</string>
+    <string name="words_aux_timeout_title">Vigilancia detenida</string>
+    <string name="words_aux_timeout_text">Android limita la sincronización en segundo plano con ubicación manual a 6 h al día; abre la app para reiniciar.</string>
+    <string name="words_dlg_notif_title">Notificaciones de avisos de proximidad</string>
+    <string name="words_dlg_notif_body">Los avisos de proximidad llegan como notificaciones. Permite las notificaciones para no perderte ninguna aeronave que entre en tu radio de alerta.</string>
+    <string name="words_dlg_continue">Continuar</string>
+    <string name="words_dlg_loc_title">Falta el permiso de ubicación</string>
+    <string name="words_dlg_loc_body">La vigilancia por GPS necesita acceso a la ubicación. Concédelo en los ajustes del sistema o usa una ubicación manual.</string>
+    <string name="words_dlg_open_settings">Abrir ajustes</string>
+    <string name="words_dlg_use_manual">Usar ubicación manual</string>
+    <string name="words_dlg_lan_title">Acceso a dispositivos cercanos</string>
+    <string name="words_dlg_lan_body">Tu servidor está en tu red local. En Android 17 o posterior las apps necesitan el permiso «Dispositivos cercanos» para acceder a él.</string>
+    <string name="words_dlg_backend_title">Servidor inaccesible</string>
+    <string name="words_dlg_backend_body">Sin acceso a «Dispositivos cercanos», la app no puede llegar a tu servidor en la red local.</string>
+    <string name="words_err_add">No se ha podido añadir la aeronave</string>
+    <string name="words_err_network">Error de red</string>
+    <string name="words_err_offline">Sin conexión a internet</string>
+    <string name="words_err_timeout">La solicitud ha tardado demasiado</string>
+    <string name="words_err_tls">Error de conexión segura (¿certificado no confiable?)</string>
+    <string name="words_err_bad_request">Solicitud no válida</string>
+    <string name="words_err_rate_limited">Créditos de OpenSky agotados — esperando la recarga</string>
+    <string name="words_err_auth_failed">OpenSky ha rechazado las credenciales del cliente de API</string>
+    <string name="words_err_opensky_unavailable">OpenSky no disponible</string>
+    <string name="words_err_opensky_timeout">OpenSky no ha respondido a tiempo</string>
+    <string name="words_err_server">Error del servidor (%1$d)</string>
+    <string name="words_err_http">HTTP %1$d</string>
+    <string name="words_err_malformed">Respuesta no válida</string>
+    <string name="words_err_lan_permission">Permite el acceso a «Dispositivos cercanos» para llegar a tu servidor en la red local</string>
+    <string name="words_err_unknown">Error inesperado</string>
+    <string name="words_rule_default_name">Bajo y cerca</string>
+    <string name="words_db_err_http">La descarga ha fallado (HTTP %1$d)</string>
+    <string name="words_db_err_list">No se ha podido obtener la lista (HTTP %1$d)</string>
+    <string name="words_db_err_none">No se ha encontrado ninguna base de datos de aeronaves</string>
+    <string name="words_db_err_empty">El archivo de la base de datos no tenía filas utilizables</string>
+    <string-array name="compass_short">
+        <item>N</item>
+        <item>NNE</item>
+        <item>NE</item>
+        <item>ENE</item>
+        <item>E</item>
+        <item>ESE</item>
+        <item>SE</item>
+        <item>SSE</item>
+        <item>S</item>
+        <item>SSO</item>
+        <item>SO</item>
+        <item>OSO</item>
+        <item>O</item>
+        <item>ONO</item>
+        <item>NO</item>
+        <item>NNO</item>
+    </string-array>
+    <string name="radar_loading_idle">Inicia la vigilancia para ver dónde están</string>
+</resources>

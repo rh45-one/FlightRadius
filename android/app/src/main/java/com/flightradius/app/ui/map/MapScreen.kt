@@ -53,9 +53,11 @@ import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.domain.MonitoringSnapshot
 import com.flightradius.app.domain.NearbyAircraft
 import com.flightradius.app.ui.components.GroupedDivider
+import com.flightradius.app.ui.detail.DetailKind
 import com.flightradius.app.ui.components.GroupedRow
 import com.flightradius.app.ui.components.GroupedSection
 import com.flightradius.app.ui.format.Format
+import com.flightradius.app.ui.format.PLANE_PATH_DATA
 import com.flightradius.app.ui.format.labelRes
 import com.flightradius.app.ui.theme.CodeFeatures
 import com.flightradius.app.ui.theme.NumericFeatures
@@ -112,15 +114,13 @@ private const val SRC_AIRSPACE = "fr-airspace"
 private const val LAYER_AIRCRAFT = "fr-aircraft-layer"
 private const val PLANE_IMAGE = "fr-plane"
 
-private const val PLANE_PATH =
-    "M21.5 15.5v-2l-8.5-5V3.5a1.5 1.5 0 0 0-3 0v5l-8.5 5v2l8.5-2.5v5.5L7.5 20v1.5l4.5-1.25 4.5 1.25V20l-2.5-1.5v-5.5l8.5 2.5z"
 
 private fun Color.hex(): String = String.format("#%06X", toArgb() and 0xFFFFFF)
 
 private fun planeBitmap(): Bitmap {
     val size = 72
     val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val path = PathParser.createPathFromPathData(PLANE_PATH)
+    val path = PathParser.createPathFromPathData(PLANE_PATH_DATA)
     path.transform(Matrix().apply { setScale(size / 24f, size / 24f) })
     Canvas(bmp).drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE })
     return bmp
@@ -195,15 +195,25 @@ private fun installStyle(style: Style, c: MapColors) {
 }
 
 @Composable
-fun MapScreen(viewModel: MapViewModel = hiltViewModel()) {
+fun MapScreen(
+    onOpenDetail: (DetailKind, String) -> Unit = { _, _ -> },
+    viewModel: MapViewModel = hiltViewModel()
+) {
     val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
-    MapScreenContent(snapshot, settings)
+    val focus by viewModel.focusRequest.collectAsStateWithLifecycle()
+    MapScreenContent(snapshot, settings, focus, viewModel::consumeFocus, onOpenDetail)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun MapScreenContent(snapshot: MonitoringSnapshot?, settings: AppSettings) {
+internal fun MapScreenContent(
+    snapshot: MonitoringSnapshot?,
+    settings: AppSettings,
+    focusRequest: String? = null,
+    onFocusConsumed: () -> Unit = {},
+    onOpenDetail: (DetailKind, String) -> Unit = { _, _ -> }
+) {
     val scheme = MaterialTheme.colorScheme
     val dark = scheme.surface.luminance() < 0.5f
     val context = LocalContext.current
@@ -308,6 +318,20 @@ internal fun MapScreenContent(snapshot: MonitoringSnapshot?, settings: AppSettin
         }
     }
 
+    LaunchedEffect(focusRequest, snapshot, styleReady) {
+        val key = focusRequest ?: return@LaunchedEffect
+        val m = map ?: return@LaunchedEffect
+        if (!styleReady) return@LaunchedEffect
+        val target = snapshot?.let { MapGeo.aircraft(it) }?.firstOrNull { it.id == key }
+        if (target != null) {
+            m.animateCamera(
+                CameraUpdateFactory.newLatLngZoom(LatLng(target.lat, target.lon), 11.0), 600)
+            selected = null
+            fitted = true
+        }
+        onFocusConsumed()
+    }
+
     Box(Modifier.fillMaxSize()) {
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
 
@@ -383,7 +407,11 @@ internal fun MapScreenContent(snapshot: MonitoringSnapshot?, settings: AppSettin
                 containerColor = scheme.background,
                 dragHandle = { BottomSheetDefaults.DragHandle() }
             ) {
-                MapAircraftSheet(tracked, nearby, settings.distanceUnit)
+                MapAircraftSheet(tracked, nearby, settings.distanceUnit, onDetails = {
+                    selected = null
+                    if (tracked != null) onOpenDetail(DetailKind.TRACKED, tracked.aircraftId.toString())
+                    else if (nearby != null) onOpenDetail(DetailKind.NEARBY, nearby.icao24)
+                })
             }
         }
     }
@@ -405,7 +433,8 @@ private fun fitUpdate(snap: MonitoringSnapshot) =
 private fun MapAircraftSheet(
     tracked: AircraftObservation?,
     nearby: NearbyAircraft?,
-    unit: DistanceUnit
+    unit: DistanceUnit,
+    onDetails: () -> Unit
 ) {
     val title = tracked?.let { Format.callsign(it) } ?: nearby!!.displayName
     val rows = buildList {
@@ -445,6 +474,9 @@ private fun MapAircraftSheet(
                     }
                 )
             }
+        }
+        androidx.compose.material3.TextButton(onClick = onDetails) {
+            Text(stringResource(R.string.map_details))
         }
         Spacer(Modifier.height(24.dp))
     }

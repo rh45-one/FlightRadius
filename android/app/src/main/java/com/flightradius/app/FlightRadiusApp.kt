@@ -1,5 +1,6 @@
 package com.flightradius.app
 
+import com.flightradius.app.ui.format.Words
 import android.app.Application
 import com.flightradius.app.data.aircraftdb.AircraftDatabaseManager
 import com.flightradius.app.data.opensky.CreditBucketWatcher
@@ -23,6 +24,9 @@ class FlightRadiusApp : Application() {
     lateinit var aircraftDatabase: AircraftDatabaseManager
 
     @Inject
+    lateinit var widgetUpdater: com.flightradius.app.widget.WidgetUpdater
+
+    @Inject
     @ApplicationScope
     lateinit var appScope: CoroutineScope
 
@@ -31,8 +35,10 @@ class FlightRadiusApp : Application() {
         // Wire AppLog's debug gate to the live settings value (debug builds
         // always log; release builds honor the debugLogging switch).
         AppLog.debugEnabled = { BuildConfig.DEBUG || runtimeSettings.debugLogging }
+        Words.resources = resources
         org.maplibre.android.MapLibre.getInstance(this)
         creditBucketWatcher.start(appScope)
         aircraftDatabase.maybeAutoUpdate()
+        widgetUpdater.start(appScope)
     }
 }

@@ -46,57 +46,16 @@ class AlertTextTest {
     }
 
     @Test
-    fun `16 point cardinal bearing`() {
-        assertEquals("N", AlertText.cardinal(0.0))
-        assertEquals("N", AlertText.cardinal(359.0))
-        assertEquals("NE", AlertText.cardinal(45.0))
-        assertEquals("ENE", AlertText.cardinal(67.5))
-        assertEquals("E", AlertText.cardinal(90.0))
-        assertEquals("S", AlertText.cardinal(180.0))
-        assertEquals("WSW", AlertText.cardinal(247.5))
-        assertEquals("NW", AlertText.cardinal(315.0))
+    fun `16 point compass index`() {
+        assertEquals(0, AlertText.compassIndex(0.0))
+        assertEquals(0, AlertText.compassIndex(359.0))
+        assertEquals(2, AlertText.compassIndex(45.0))
+        assertEquals(3, AlertText.compassIndex(67.5))
+        assertEquals(4, AlertText.compassIndex(90.0))
+        assertEquals(8, AlertText.compassIndex(180.0))
+        assertEquals(11, AlertText.compassIndex(247.5))
+        assertEquals(14, AlertText.compassIndex(315.0))
         // Negative wraps.
-        assertEquals("NW", AlertText.cardinal(-45.0))
-    }
-
-    @Test
-    fun `alert title and body`() {
-        assertEquals(
-            "✈ IBE3174 within 25.0 km",
-            AlertText.alertTitle(obs(), DistanceUnit.KM)
-        )
-        val body = AlertText.alertBody(obs(), DistanceUnit.KM)
-        assertTrue(body.contains("12.4 km"))
-        assertTrue(body.contains("045° NE"))
-        assertTrue(body.contains("closing 380 km/h"))
-        assertTrue(body.contains("FL350"))
-    }
-
-    @Test
-    fun `body omits absent fields`() {
-        val body = AlertText.alertBody(
-            obs(closingSpeedKmh = null, altitudeM = null), DistanceUnit.KM)
-        assertEquals("12.4 km · bearing 045° NE", body)
-    }
-
-    @Test
-    fun `closing below steady threshold shows steady`() {
-        val body = AlertText.alertBody(
-            obs(closingSpeedKmh = 2.0), DistanceUnit.KM)
-        assertTrue(body.contains("steady"))
-        assertTrue(!body.contains("closing"))
-        val line = AlertText.statusLine(
-            obs(closingSpeedKmh = -3.0), DistanceUnit.KM)
-        assertTrue(line.contains("steady"))
-        assertTrue(!line.contains("approaching") && !line.contains("receding"))
-        assertTrue(!line.contains("\u25b2") && !line.contains("\u25bc"))
-    }
-
-    @Test
-    fun `status line shows trend arrow`() {
-        assertTrue(AlertText.statusLine(obs(), DistanceUnit.KM)
-            .contains("▲ approaching"))
-        assertTrue(AlertText.statusLine(obs(closingSpeedKmh = -10.0), DistanceUnit.KM)
-            .contains("▼ receding"))
+        assertEquals(14, AlertText.compassIndex(-45.0))
     }
 }

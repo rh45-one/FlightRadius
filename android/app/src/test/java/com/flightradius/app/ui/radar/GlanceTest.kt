@@ -306,4 +306,14 @@ class GlanceTest {
         assertEquals(StatusKind.LIVE, summary(location = LocationStatus.Manual).kind)
         assertEquals(StatusKind.LIVE, summary(location = LocationStatus.Searching).kind)
     }
+
+    @Test
+    fun `loading message only while cycles can run`() {
+        val st = com.flightradius.app.service.MonitoringStatus.entries
+        for (s in st) {
+            val idle = s == com.flightradius.app.service.MonitoringStatus.STOPPED ||
+                s == com.flightradius.app.service.MonitoringStatus.PAUSED
+            assertEquals("$s", idle, isMonitoringIdle(s))
+        }
+    }
 }

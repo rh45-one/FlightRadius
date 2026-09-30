@@ -40,6 +40,7 @@ import com.flightradius.app.data.prefs.DataSource
 import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.service.MonitoringStatus
 import com.flightradius.app.ui.components.DialScope
+import com.flightradius.app.ui.detail.DetailKind
 import com.flightradius.app.ui.components.ScreenTitle
 import com.flightradius.app.ui.components.rememberNow
 
@@ -49,7 +50,7 @@ fun RadarScreen(
     onStartMonitoring: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAircraft: (openAdd: Boolean) -> Unit,
-    onEditAircraft: (Long) -> Unit,
+    onOpenDetail: (DetailKind, String) -> Unit,
     viewModel: RadarViewModel = hiltViewModel()
 ) {
     val state by viewModel.monitoringState.collectAsStateWithLifecycle()
@@ -77,7 +78,6 @@ fun RadarScreen(
     }
 
     var showStatus by remember { mutableStateOf(false) }
-    var detail by remember { mutableStateOf<AircraftObservation?>(null) }
 
     val unit = settings.distanceUnit
     val snapshot = state.lastSnapshot
@@ -100,6 +100,11 @@ fun RadarScreen(
     val hero = (glance as? Glance.Nearest)?.obs
     val nearbyHero = (glance as? Glance.NearbyNearest)?.aircraft
     val showBar = glance != Glance.NoAircraft
+    val heroClick: (() -> Unit)? = when {
+        hero != null -> { { onOpenDetail(DetailKind.TRACKED, hero.aircraftId.toString()) } }
+        nearbyHero != null -> { { onOpenDetail(DetailKind.NEARBY, nearbyHero.icao24) } }
+        else -> null
+    }
 
     val lists: @Composable ColumnScope.() -> Unit = {
         if (glance == Glance.NoAircraft) {
@@ -117,13 +122,14 @@ fun RadarScreen(
                 unit = unit,
                 snoozes = snoozes,
                 nowMs = now,
-                onClick = { detail = it }
+                onClick = { onOpenDetail(DetailKind.TRACKED, it.aircraftId.toString()) }
             )
             if (settings.airspaceWatch) {
                 NearbySection(
                     nearby = snapshot.nearby.filter { it.icao24 != nearbyHero?.icao24 },
                     unit = unit,
-                    stale = snapshot.nearbyStale
+                    stale = snapshot.nearbyStale,
+                    onClick = { onOpenDetail(DetailKind.NEARBY, it.icao24) }
                 )
             }
             NotReportingSection(snapshot.noData)
@@ -164,7 +170,7 @@ fun RadarScreen(
                             .padding(start = 16.dp, top = 16.dp, bottom = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        GlanceDial(glance, unit, now, dialSize, scope = dialScope)
+                        GlanceDial(glance, unit, now, dialSize, scope = dialScope, onHeroClick = heroClick, monitoringIdle = isMonitoringIdle(state.status))
                     }
                     Column(Modifier.weight(1f)) {
                         Column(
@@ -203,7 +209,7 @@ fun RadarScreen(
                                 .padding(top = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            GlanceDial(glance, unit, now, dialSize, scope = dialScope)
+                            GlanceDial(glance, unit, now, dialSize, scope = dialScope, onHeroClick = heroClick, monitoringIdle = isMonitoringIdle(state.status))
                         }
                         if (hero != null) {
                             DetailRow(hero, unit, Modifier.padding(top = 16.dp))
@@ -246,27 +252,6 @@ fun RadarScreen(
                         StatusAction.RETRY -> viewModel.retryNow()
                         StatusAction.NONE -> Unit
                     }
-                }
-            )
-        }
-    }
-
-    detail?.let { obs ->
-        ModalBottomSheet(
-            onDismissRequest = { detail = null },
-            containerColor = MaterialTheme.colorScheme.background,
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
-            AircraftDetail(
-                obs, unit, now,
-                fleets.filter { obs.aircraftId in it.memberIds },
-                onEdit = {
-                    detail = null
-                    onEditAircraft(obs.aircraftId)
-                },
-                onSnooze = {
-                    viewModel.snooze(obs.aircraftId, 30)
-                    detail = null
                 }
             )
         }

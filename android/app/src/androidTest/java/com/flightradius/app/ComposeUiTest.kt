@@ -19,7 +19,21 @@ import com.flightradius.app.data.prefs.ThemeMode
 import com.flightradius.app.domain.AirspaceRule
 import com.flightradius.app.domain.LocationSource
 import com.flightradius.app.domain.UserFix
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.flightradius.app.domain.MonitoringSnapshot
 import com.flightradius.app.ui.debug.DemoTraffic
+import com.flightradius.app.ui.detail.AircraftDetailContent
+import com.flightradius.app.ui.detail.DetailKind
+import com.flightradius.app.ui.detail.DetailLookup
+import com.flightradius.app.ui.detail.DetailUi
+import com.flightradius.app.ui.detail.LocalNavAnimatedScope
+import com.flightradius.app.ui.detail.LocalSharedTransitionScope
 import com.flightradius.app.ui.radar.NearbySection
 import com.flightradius.app.ui.settings.AirspaceRulesContent
 import com.flightradius.app.ui.settings.NearbyAirspaceSection
@@ -219,5 +233,54 @@ class ComposeUiTest {
         compose.onNodeWithText("Helicopter", substring = true).assertIsDisplayed()
         compose.onNodeWithText("RYR4412").assertExists()
         assertTrue(demo.first().matchesRule)
+    }
+
+    @Test
+    fun tappingANearbyRowOpensDetailsAndBackReturns() {
+        val fix = UserFix(40.4168, -3.7038, null, 0L, LocationSource.MANUAL)
+        val demo = DemoTraffic.build(fix, 25.0, AirspaceRule.DEFAULTS)
+        val snapshot = MonitoringSnapshot(
+            timeMs = 0L, fix = fix, ranked = emptyList(), noData = emptyList(),
+            fleets = emptyList(), closest = null, nearby = demo, airspaceRadiusKm = 25.0
+        )
+        compose.setContent {
+            FlightRadiusTheme {
+                val nav = rememberNavController()
+                SharedTransitionLayout {
+                    CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+                        NavHost(nav, startDestination = "radar") {
+                            composable("radar") {
+                                CompositionLocalProvider(LocalNavAnimatedScope provides this@composable) {
+                                    NearbySection(nearby = demo, unit = DistanceUnit.KM,
+                                        onClick = { nav.navigate("detail/${it.icao24}") })
+                                }
+                            }
+                            composable("detail/{id}") { entry ->
+                                CompositionLocalProvider(LocalNavAnimatedScope provides this@composable) {
+                                    val id = entry.arguments?.getString("id")!!
+                                    AircraftDetailContent(
+                                        ui = DetailUi(DetailLookup.find(DetailKind.NEARBY, id, snapshot), true),
+                                        unit = DistanceUnit.KM, nowMs = 0L,
+                                        onBack = { nav.popBackStack() },
+                                        onTrack = {}, onShowOnMap = {}, onEdit = {}, onSnooze = {}
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("PEGASO1").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Track this aircraft").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("PEGASO1").assertIsDisplayed()
+        compose.onNodeWithText("Track this aircraft").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Track this aircraft").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithText("Nearby").assertIsDisplayed()
     }
 }

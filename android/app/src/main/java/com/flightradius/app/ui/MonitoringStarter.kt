@@ -1,5 +1,7 @@
 package com.flightradius.app.ui
 
+import com.flightradius.app.ui.format.W
+import com.flightradius.app.ui.format.Words
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
@@ -211,36 +213,31 @@ fun rememberMonitoringStarter(
 
     when (val d = fresh.dialog) {
         MonitoringStarter.DialogSpec.NotificationsRationale -> StarterDialog(
-            title = "Proximity alert notifications",
-            body = "Proximity alerts are delivered as notifications. " +
-                "Allow notifications so you don't miss an aircraft entering " +
-                "your alert radius.",
-            confirm = "Continue",
+            title = Words.get(W.DLG_NOTIF_TITLE),
+            body = Words.get(W.DLG_NOTIF_BODY),
+            confirm = Words.get(W.DLG_CONTINUE),
             onConfirm = { fresh.onDialogContinue() },
             onDismiss = { fresh.onDialogDismiss() }
         )
         MonitoringStarter.DialogSpec.LocationDenied -> StarterDialog(
-            title = "Location permission needed",
-            body = "GPS monitoring needs location access. Grant it in system " +
-                "settings, or switch to a manual location instead.",
-            confirm = "Open settings",
-            dismiss = "Use manual location",
+            title = Words.get(W.DLG_LOC_TITLE),
+            body = Words.get(W.DLG_LOC_BODY),
+            confirm = Words.get(W.DLG_OPEN_SETTINGS),
+            dismiss = Words.get(W.DLG_USE_MANUAL),
             onConfirm = { fresh.openAppSettings() },
             onDismiss = { fresh.useManualLocation() }
         )
         MonitoringStarter.DialogSpec.LanRationale -> StarterDialog(
-            title = "Nearby devices access",
-            body = "Your backend is on your local network. On Android 17+ " +
-                "reaching it requires the 'Nearby devices' permission.",
-            confirm = "Continue",
+            title = Words.get(W.DLG_LAN_TITLE),
+            body = Words.get(W.DLG_LAN_BODY),
+            confirm = Words.get(W.DLG_CONTINUE),
             onConfirm = { fresh.onDialogContinue() },
             onDismiss = { fresh.onDialogDismiss() }
         )
         MonitoringStarter.DialogSpec.LanDenied -> StarterDialog(
-            title = "Backend unreachable",
-            body = "Without 'Nearby devices' access the app can't reach your " +
-                "local-network backend. Grant it in app settings to monitor.",
-            confirm = "Open settings",
+            title = Words.get(W.DLG_BACKEND_TITLE),
+            body = Words.get(W.DLG_BACKEND_BODY),
+            confirm = Words.get(W.DLG_OPEN_SETTINGS),
             onConfirm = { fresh.openAppSettings() },
             onDismiss = { fresh.onDialogDismiss() }
         )

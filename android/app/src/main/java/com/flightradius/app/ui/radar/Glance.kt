@@ -161,3 +161,8 @@ fun statusSummary(
         MonitoringStatus.STOPPED -> s(Tone.NEUTRAL, StatusKind.STOPPED)
     }
 }
+
+/** True when no cycles will run (stopped or paused), so "Loading" would never resolve. */
+fun isMonitoringIdle(status: com.flightradius.app.service.MonitoringStatus): Boolean =
+    status == com.flightradius.app.service.MonitoringStatus.STOPPED ||
+        status == com.flightradius.app.service.MonitoringStatus.PAUSED

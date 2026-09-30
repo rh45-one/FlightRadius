@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.radar
 
+import com.flightradius.app.ui.format.localized
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -61,8 +62,12 @@ import com.flightradius.app.ui.components.GroupedRow
 import com.flightradius.app.ui.components.GroupedSection
 import com.flightradius.app.ui.components.NavigationChevron
 import com.flightradius.app.ui.components.DialScope
+import com.flightradius.app.ui.detail.SharedPart
+import com.flightradius.app.ui.detail.aircraftShared
 import com.flightradius.app.ui.components.ProximityDial
 import com.flightradius.app.ui.format.Format
+import com.flightradius.app.ui.format.W
+import com.flightradius.app.ui.format.Words
 import com.flightradius.app.ui.format.icon
 import com.flightradius.app.ui.format.labelRes
 import com.flightradius.app.ui.theme.CodeFeatures
@@ -77,41 +82,43 @@ internal fun locationLabel(s: LocationStatus, fix: UserFix?, now: Long): String 
     when (s) {
         is LocationStatus.Fix -> {
             val acc = s.accuracyM?.let { " ±${it.toInt()} m" } ?: ""
-            "GPS$acc · ${Format.age(now, fix?.timeMs ?: now - s.ageMs)}"
+            Words.get(W.LOC_FIX, acc, Format.age(now, fix?.timeMs ?: now - s.ageMs))
         }
-        LocationStatus.Searching -> "Searching…"
-        LocationStatus.Manual -> "Manual"
-        LocationStatus.PermissionDenied -> "Permission needed"
-        LocationStatus.ProviderDisabled -> "Location off"
-        LocationStatus.PlayServicesUnavailable -> "Play services missing"
+        LocationStatus.Searching -> Words.get(W.LOC_SEARCHING)
+        LocationStatus.Manual -> Words.get(W.LOC_MANUAL)
+        LocationStatus.PermissionDenied -> Words.get(W.LOC_PERMISSION)
+        LocationStatus.ProviderDisabled -> Words.get(W.LOC_PROVIDER_OFF)
+        LocationStatus.PlayServicesUnavailable -> Words.get(W.LOC_PLAY)
     }
 
 internal fun backendLabel(s: OpenSkyStatus, online: Boolean, source: DataSource): String = when {
-    !online -> "Offline"
-    s == OpenSkyStatus.OK -> "OpenSky OK"
-    s == OpenSkyStatus.RATE_LIMITED -> "Out of credits"
-    s == OpenSkyStatus.AUTH_FAILED -> "OpenSky login failed"
-    s == OpenSkyStatus.UNAVAILABLE -> "OpenSky down"
-    s == OpenSkyStatus.TIMEOUT -> "OpenSky timeout"
+    !online -> Words.get(W.BACKEND_OFFLINE)
+    s == OpenSkyStatus.OK -> Words.get(W.BACKEND_OK)
+    s == OpenSkyStatus.RATE_LIMITED -> Words.get(W.BACKEND_NO_CREDITS)
+    s == OpenSkyStatus.AUTH_FAILED -> Words.get(W.BACKEND_LOGIN_FAILED)
+    s == OpenSkyStatus.UNAVAILABLE -> Words.get(W.BACKEND_DOWN)
+    s == OpenSkyStatus.TIMEOUT -> Words.get(W.BACKEND_TIMEOUT)
     s == OpenSkyStatus.UNREACHABLE ->
-        if (source == DataSource.DIRECT) "OpenSky unreachable" else "Backend unreachable"
-    else -> if (source == DataSource.DIRECT) "OpenSky" else "Backend"
+        if (source == DataSource.DIRECT) Words.get(W.BACKEND_UNREACHABLE_OPENSKY)
+        else Words.get(W.BACKEND_UNREACHABLE_BACKEND)
+    else -> if (source == DataSource.DIRECT) Words.get(W.BACKEND_OPENSKY) else Words.get(W.BACKEND_BACKEND)
 }
 
 /** "3.4k credits" label; null until a balance has been observed. */
 internal fun creditsLabel(c: CreditState): String? = c.remaining?.let {
-    if (it >= 1000) String.format(Locale.ROOT, "%.1fk credits", it / 1000.0) else "$it credits"
+    if (it >= 1000) Words.get(W.CREDITS_K, String.format(Locale.getDefault(), "%.1f", it / 1000.0))
+    else Words.get(W.CREDITS_N, it)
 }
 
 internal fun monitoringLabel(s: MonitoringStatus): String = when (s) {
-    MonitoringStatus.RUNNING -> "Monitoring on"
-    MonitoringStatus.PAUSED -> "Paused"
-    MonitoringStatus.STOPPED -> "Monitoring off"
-    MonitoringStatus.STARTING -> "Starting…"
-    MonitoringStatus.DEFERRED_DOZE -> "Doze-deferred"
-    MonitoringStatus.OFFLINE -> "Offline"
-    MonitoringStatus.WAITING_FOR_LOCATION -> "Waiting for location"
-    MonitoringStatus.ERROR -> "Error"
+    MonitoringStatus.RUNNING -> Words.get(W.MON_ON)
+    MonitoringStatus.PAUSED -> Words.get(W.MON_PAUSED)
+    MonitoringStatus.STOPPED -> Words.get(W.MON_OFF)
+    MonitoringStatus.STARTING -> Words.get(W.MON_STARTING)
+    MonitoringStatus.DEFERRED_DOZE -> Words.get(W.MON_DOZE)
+    MonitoringStatus.OFFLINE -> Words.get(W.BACKEND_OFFLINE)
+    MonitoringStatus.WAITING_FOR_LOCATION -> Words.get(W.MON_WAITING_LOCATION)
+    MonitoringStatus.ERROR -> Words.get(W.MON_ERROR)
 }
 
 @Composable
@@ -211,7 +218,7 @@ internal fun StatusSheetContent(
         )
         GroupedSection(
             header = null,
-            footer = state.lastError?.message
+            footer = state.lastError?.localized()
         ) {
             StatusValueRow(
                 stringResource(R.string.chip_location),
@@ -308,15 +315,18 @@ internal fun GlanceDial(
     nowMs: Long,
     dialSize: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
-    scope: DialScope? = null
+    scope: DialScope? = null,
+    onHeroClick: (() -> Unit)? = null,
+    monitoringIdle: Boolean = false
 ) {
+    val heroModifier = if (onHeroClick != null) modifier.clickable(onClick = onHeroClick) else modifier
     when (glance) {
         is Glance.Nearest -> {
             val obs = glance.obs
             val color = if (glance.stale) MaterialTheme.colorScheme.onSurfaceVariant
             else zoneColor(glance.zone)
             ProximityDial(
-                modifier = modifier,
+                modifier = heroModifier,
                 size = dialSize,
                 markerBearingDeg = obs.bearingDeg,
                 markerHeadingDeg = obs.headingDeg,
@@ -333,7 +343,7 @@ internal fun GlanceDial(
             else if (a.matchesRule) MaterialTheme.colorScheme.extended.danger
             else MaterialTheme.colorScheme.onSurface
             ProximityDial(
-                modifier = modifier,
+                modifier = heroModifier,
                 size = dialSize,
                 markerBearingDeg = a.bearingDeg,
                 markerHeadingDeg = a.trackDeg,
@@ -361,7 +371,7 @@ internal fun GlanceDial(
         }
         Glance.Loading -> ProximityDial(modifier, dialSize) {
             Text(
-                stringResource(R.string.radar_loading),
+                stringResource(if (monitoringIdle) R.string.radar_loading_idle else R.string.radar_loading),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -450,6 +460,7 @@ private fun NearestCenter(
             modifier = Modifier
                 .weight(1f, fill = false)
                 .alignByBaseline()
+                .aircraftShared("t:${obs.aircraftId}", SharedPart.DISTANCE)
         )
         Spacer(Modifier.width(4.dp))
         Text(
@@ -463,7 +474,8 @@ private fun NearestCenter(
         Format.callsign(obs),
         style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = CodeFeatures),
         maxLines = 1,
-        textAlign = TextAlign.Center
+        textAlign = TextAlign.Center,
+        modifier = Modifier.aircraftShared("t:${obs.aircraftId}", SharedPart.CALLSIGN)
     )
     if (glance.alsoInside > 0) {
         Text(
@@ -509,6 +521,7 @@ private fun NearbyCenter(glance: Glance.NearbyNearest, unit: DistanceUnit, nowMs
             modifier = Modifier
                 .weight(1f, fill = false)
                 .alignByBaseline()
+                .aircraftShared("n:${a.icao24}", SharedPart.DISTANCE)
         )
         Spacer(Modifier.width(4.dp))
         Text(
@@ -522,7 +535,8 @@ private fun NearbyCenter(glance: Glance.NearbyNearest, unit: DistanceUnit, nowMs
         a.displayName,
         style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = CodeFeatures),
         maxLines = 1,
-        textAlign = TextAlign.Center
+        textAlign = TextAlign.Center,
+        modifier = Modifier.aircraftShared("n:${a.icao24}", SharedPart.CALLSIGN)
     )
     Text(
         stringResource(a.cls.labelRes()),
@@ -736,6 +750,8 @@ private fun TrackingRow(
     }.joinToString(" · ").ifEmpty { null }
     GroupedRow(
         title = Format.callsign(obs),
+        modifier = Modifier.aircraftShared("t:${obs.aircraftId}", SharedPart.CONTAINER),
+        titleModifier = Modifier.aircraftShared("t:${obs.aircraftId}", SharedPart.CALLSIGN),
         titleStyle = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = CodeFeatures),
         subtitle = subtitle,
         subtitleStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = NumericFeatures),
@@ -747,7 +763,8 @@ private fun TrackingRow(
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.SemiBold,
                         fontFeatureSettings = NumericFeatures),
-                    color = color
+                    color = color,
+                    modifier = Modifier.aircraftShared("t:${obs.aircraftId}", SharedPart.DISTANCE)
                 )
                 when {
                     snoozed -> Text(
@@ -775,7 +792,8 @@ private const val NEARBY_MAX_ROWS = 8
 internal fun NearbySection(
     nearby: List<NearbyAircraft>,
     unit: DistanceUnit,
-    stale: Boolean = false
+    stale: Boolean = false,
+    onClick: (NearbyAircraft) -> Unit = {}
 ) {
     if (nearby.isEmpty()) return
     val shown = nearby.take(NEARBY_MAX_ROWS)
@@ -786,7 +804,7 @@ internal fun NearbySection(
     ) {
         shown.forEachIndexed { i, a ->
             if (i > 0) GroupedDivider()
-            NearbyRow(a, unit)
+            NearbyRow(a, unit, onClick = { onClick(a) })
         }
         if (extra > 0) {
             GroupedDivider()
@@ -800,7 +818,7 @@ internal fun NearbySection(
 }
 
 @Composable
-private fun NearbyRow(a: NearbyAircraft, unit: DistanceUnit) {
+private fun NearbyRow(a: NearbyAircraft, unit: DistanceUnit, onClick: () -> Unit) {
     val tint = if (a.matchesRule) MaterialTheme.colorScheme.extended.danger
     else MaterialTheme.colorScheme.onSurface
     val subtitle = buildList {
@@ -810,6 +828,9 @@ private fun NearbyRow(a: NearbyAircraft, unit: DistanceUnit) {
     }.joinToString(" · ")
     GroupedRow(
         title = a.displayName,
+        modifier = Modifier.aircraftShared("n:${a.icao24}", SharedPart.CONTAINER),
+        titleModifier = Modifier.aircraftShared("n:${a.icao24}", SharedPart.CALLSIGN),
+        onClick = onClick,
         titleColor = tint,
         titleStyle = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = CodeFeatures),
         subtitle = subtitle,
@@ -829,7 +850,8 @@ private fun NearbyRow(a: NearbyAircraft, unit: DistanceUnit) {
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.SemiBold,
                         fontFeatureSettings = NumericFeatures),
-                    color = tint
+                    color = tint,
+                    modifier = Modifier.aircraftShared("n:${a.icao24}", SharedPart.DISTANCE)
                 )
                 Spacer(Modifier.width(8.dp))
                 BearingArrow(a.bearingDeg, tint, size = 20.dp)

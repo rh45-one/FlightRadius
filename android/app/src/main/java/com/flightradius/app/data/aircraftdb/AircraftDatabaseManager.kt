@@ -1,5 +1,7 @@
 package com.flightradius.app.data.aircraftdb
 
+import com.flightradius.app.ui.format.W
+import com.flightradius.app.ui.format.Words
 import com.flightradius.app.data.net.await
 import com.flightradius.app.data.prefs.AircraftDbMeta
 import com.flightradius.app.data.prefs.SettingsRepository
@@ -176,7 +178,7 @@ class AircraftDatabaseManager @Inject constructor(
 
     private suspend fun latestKey(): String? {
         http.newCall(Request.Builder().url(LIST_URL).get().build()).await().use { r ->
-            if (!r.isSuccessful) error("Listing failed (HTTP ${r.code})")
+            if (!r.isSuccessful) error(Words.get(W.DB_ERR_LIST, r.code))
             return KEY_REGEX.findAll(r.body.string()).map { it.groupValues[1] }.maxOrNull()
         }
     }
@@ -188,7 +190,7 @@ class AircraftDatabaseManager @Inject constructor(
     }
 
     private suspend fun runImport() {
-        val key = latestKey() ?: error("No aircraft database found")
+        val key = latestKey() ?: error(Words.get(W.DB_ERR_NONE))
         val doc = http.newCall(Request.Builder().url(BASE_URL + DOC8643_KEY).get().build())
             .await().use { r ->
                 if (!r.isSuccessful) emptyMap()
@@ -199,7 +201,7 @@ class AircraftDatabaseManager @Inject constructor(
         dao.clearStaging()
         val request = Request.Builder().url(BASE_URL + key).get().build()
         http.newCall(request).await().use { r ->
-            if (!r.isSuccessful) error("Download failed (HTTP ${r.code})")
+            if (!r.isSuccessful) error(Words.get(W.DB_ERR_HTTP, r.code))
             val total = r.body.contentLength().takeIf { it > 0 }
             val etag = r.header("ETag")
             val counting = CountingInputStream(r.body.byteStream())
@@ -217,7 +219,7 @@ class AircraftDatabaseManager @Inject constructor(
                     )
                 }
             }
-            if (stats.keptRows == 0L) error("The database file had no usable rows")
+            if (stats.keptRows == 0L) error(Words.get(W.DB_ERR_EMPTY))
             dao.swap()
             // Reclaim the staging pages and fold the WAL back into the main file.
             runCatching {

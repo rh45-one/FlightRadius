@@ -1,3 +1,4 @@
 <resources>
     <color name="ic_launcher_background">#020617</color>
+    <color name="live_update_danger">#E11D48</color>
 </resources>

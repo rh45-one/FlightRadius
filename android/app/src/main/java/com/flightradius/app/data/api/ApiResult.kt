@@ -149,7 +149,7 @@ suspend fun <T> safeApiCall(
     val error: ApiError = when (response.code()) {
         400 -> ApiError.BadRequest(detail)
         429 -> ApiError.RateLimited(response.headers()["Retry-After"]?.toLongOrNull())
-        502 -> ApiError.OpenSkyUnavailable(detail ?: "OpenSky unavailable")
+        502 -> ApiError.OpenSkyUnavailable(detail)
         504 -> ApiError.OpenSkyTimeout
         in 500..599 -> ApiError.Server(response.code(), detail)
         else -> ApiError.Http(response.code(), detail)

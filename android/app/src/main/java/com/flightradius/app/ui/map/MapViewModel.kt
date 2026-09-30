@@ -18,8 +18,12 @@ import kotlinx.coroutines.flow.stateIn
 @HiltViewModel
 class MapViewModel @Inject constructor(
     stateRepository: MonitoringStateRepository,
-    settingsRepository: SettingsRepository
+    settingsRepository: SettingsRepository,
+    private val focus: MapFocusRepository
 ) : ViewModel() {
+    val focusRequest: StateFlow<String?> = focus.request
+    fun consumeFocus() = focus.consume()
+
 
     val snapshot: StateFlow<MonitoringSnapshot?> = stateRepository.state
         .map { it.lastSnapshot }

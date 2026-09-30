@@ -1,5 +1,7 @@
 package com.flightradius.app.ui.aircraft
 
+import com.flightradius.app.ui.format.W
+import com.flightradius.app.ui.format.Words
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -93,7 +95,7 @@ internal fun AddAircraftSheet(
                     shape = SegmentedButtonDefaults.itemShape(
                         index = i, count = IdentifierType.entries.size),
                     colors = groupedSegmentedColors()
-                ) { Text(t.name) }
+                ) { Text(t.label()) }
             }
         }
 
@@ -238,7 +240,7 @@ internal fun AddAircraftSheet(
                     }
                     viewModel.add(identifier, type, notes, radiusKm) { ok ->
                         if (ok) onDone()
-                        else error = "Could not add aircraft"
+                        else error = Words.get(W.ERR_ADD)
                     }
                 }
             ) { Text(stringResource(R.string.action_add)) }
@@ -369,7 +371,8 @@ internal fun BulkAddSheet(
                                     label = {
                                         Text(
                                             if (e.type == IdentifierType.ICAO24)
-                                                "ICAO24" else "Callsign",
+                                                stringResource(R.string.aircraft_type_icao24)
+                                            else stringResource(R.string.aircraft_callsign),
                                             style = MaterialTheme.typography
                                                 .labelSmall)
                                     },
@@ -390,7 +393,7 @@ internal fun BulkAddSheet(
                                         if (e.identifier in liveCallsigns!!)
                                             stringResource(R.string.aircraft_live_now)
                                         else stringResource(R.string.aircraft_no_data)
-                                    else -> e.type?.name ?: ""
+                                    else -> e.type?.label() ?: ""
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.weight(1f),
@@ -456,7 +459,7 @@ internal fun EditAircraftSheet(
             aircraft.identifier,
             style = MaterialTheme.typography.titleLarge.copy(
                 fontFeatureSettings = CodeFeatures))
-        Text(aircraft.type.name,
+        Text(aircraft.type.label(),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
 
@@ -532,3 +535,8 @@ internal fun EditAircraftSheet(
         Spacer(Modifier.height(24.dp))
     }
 }
+
+/** Localised name of an identifier type ("Indicativo" / "ICAO24"). */
+@Composable
+private fun IdentifierType.label(): String = stringResource(
+    if (this == IdentifierType.CALLSIGN) R.string.aircraft_callsign else R.string.aircraft_type_icao24)

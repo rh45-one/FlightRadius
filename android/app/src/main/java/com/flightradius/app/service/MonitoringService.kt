@@ -22,7 +22,6 @@ import com.flightradius.app.data.prefs.SettingsRepository
 import com.flightradius.app.domain.AircraftAlertState
 import com.flightradius.app.domain.AirspaceAlertEngine
 import com.flightradius.app.domain.NearbyAlertState
-import com.flightradius.app.domain.AlertText
 import com.flightradius.app.domain.MonitoringSnapshot
 import com.flightradius.app.domain.NextDelayPolicy
 import com.flightradius.app.domain.ProximityAlertEngine
@@ -30,6 +29,11 @@ import com.flightradius.app.location.LocationRepository
 import com.flightradius.app.location.LocationStatus
 import com.flightradius.app.location.LocationUploader
 import com.flightradius.app.notifications.AlertNotifier
+import com.flightradius.app.notifications.LiveUpdateContent
+import com.flightradius.app.ui.format.AlertFormat
+import com.flightradius.app.ui.format.W
+import com.flightradius.app.ui.format.Words
+import com.flightradius.app.ui.format.localized
 import com.flightradius.app.util.log.AppLog
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -261,7 +265,7 @@ class MonitoringService : Service() {
             ServiceCompat.startForeground(
                 this,
                 AlertNotifier.STATUS_NOTIFICATION_ID,
-                notifier.statusNotification("Starting…", "FlightRadius", paused = false),
+                notifier.statusNotification(Words.get(W.MON_STARTING), "FlightRadius", paused = false),
                 type
             )
             true
@@ -274,7 +278,7 @@ class MonitoringService : Service() {
             }
             if (fromUser) {
                 notifier.notifyStartFailure(
-                    "Android refused to start background monitoring: ${e.message}")
+                    Words.get(W.START_REFUSED, e.message ?: ""))
             } else {
                 notifier.notifyResumeRequired()
             }
@@ -294,12 +298,12 @@ class MonitoringService : Service() {
         val problem: String? = when (settings.locationMode) {
             LocationMode.MANUAL ->
                 if (settings.manualLat == null || settings.manualLon == null)
-                    "Set a manual location first" else null
+                    Words.get(W.NEED_MANUAL) else null
             LocationMode.GPS -> when {
                 !locationRepository.hasPermission() ->
-                    "Grant location access to monitor aircraft"
+                    Words.get(W.NEED_LOCATION)
                 !locationRepository.playServicesAvailable() ->
-                    "Google Play services unavailable — switch to manual location"
+                    Words.get(W.NEED_PLAY)
                 else -> null
             }
         }
@@ -544,36 +548,45 @@ class MonitoringService : Service() {
         val tracked = (snap?.ranked?.size ?: 0) + (snap?.noData?.size ?: 0)
 
         val title = when (st.status) {
-            MonitoringStatus.PAUSED -> "Monitoring paused"
-            MonitoringStatus.WAITING_FOR_LOCATION -> "Waiting for location"
+            MonitoringStatus.PAUSED -> Words.get(W.NOTIF_PAUSED)
+            MonitoringStatus.WAITING_FOR_LOCATION -> Words.get(W.MON_WAITING_LOCATION)
             MonitoringStatus.OFFLINE ->
-                "Offline — retrying in ${((retryInMs ?: 0) / 1000).coerceAtLeast(1)}s"
-            MonitoringStatus.DEFERRED_DOZE -> "Deferred (battery saver)"
-            MonitoringStatus.ERROR -> "Monitoring error"
-            MonitoringStatus.STARTING -> "Starting…"
-            MonitoringStatus.RUNNING -> "Monitoring $tracked aircraft"
-            MonitoringStatus.STOPPED -> "Monitoring stopped"
+                Words.get(W.NOTIF_OFFLINE, ((retryInMs ?: 0) / 1000).coerceAtLeast(1).toInt())
+            MonitoringStatus.DEFERRED_DOZE -> Words.get(W.NOTIF_DEFERRED)
+            MonitoringStatus.ERROR -> Words.get(W.NOTIF_ERROR)
+            MonitoringStatus.STARTING -> Words.get(W.MON_STARTING)
+            MonitoringStatus.RUNNING -> Words.get(W.NOTIF_RUNNING, tracked)
+            MonitoringStatus.STOPPED -> Words.get(W.NOTIF_STOPPED)
         }
         val text = buildString {
             val closest = snap?.closest
             when {
                 st.status == MonitoringStatus.ERROR ->
-                    append(st.lastError?.message ?: "Unknown error")
+                    append(st.lastError?.localized() ?: Words.get(W.NOTIF_UNKNOWN_ERROR))
                 closest != null ->
-                    append("Closest: ")
-                        .append(AlertText.statusLine(closest, currentSettings.distanceUnit))
-                tracked == 0 -> append("No tracked aircraft")
-                else -> append("No aircraft in range")
+                    append(
+                        Words.get(
+                            W.NOTIF_CLOSEST,
+                            AlertFormat.statusLine(closest, currentSettings.distanceUnit)))
+                tracked == 0 -> append(Words.get(W.NOTIF_NO_TRACKED))
+                else -> append(Words.get(W.NOTIF_NO_AIRCRAFT))
             }
         }
-        val rendered = "$title|$text"
+        val live = if (st.status == MonitoringStatus.RUNNING) {
+            LiveUpdateContent.from(snap, alertStates, currentSettings.distanceUnit)
+        } else null
+        // Only the visible text (rounded distance, bearing word, count) re-posts.
+        val rendered = if (live != null) {
+            "live|${live.title}|${live.radiusText}|${live.trend}|${live.moreInside}|${live.shortText}"
+        } else "$title|$text"
         if (rendered != lastRenderedStatus) {
             lastRenderedStatus = rendered
             runCatching {
                 NotificationManagerCompat.from(this)
                     .notify(
                         AlertNotifier.STATUS_NOTIFICATION_ID,
-                        notifier.statusNotification(
+                        if (live != null) notifier.liveStatusNotification(live, paused = false)
+                        else notifier.statusNotification(
                             title, text, paused = st.status == MonitoringStatus.PAUSED)
                     )
             }.onFailure { AppLog.w(TAG, "status notify failed", throwable = it) }
@@ -619,7 +632,7 @@ class MonitoringService : Service() {
             runCatching {
                 ServiceCompat.startForeground(
                     this, AlertNotifier.STATUS_NOTIFICATION_ID,
-                    notifier.statusNotification("Monitoring", "FlightRadius", false),
+                    notifier.statusNotification(Words.get(W.MON_ON), "FlightRadius", false),
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
                 )
             }.onFailure {

@@ -308,7 +308,7 @@ fun ProximityAlertSheet(
                                     maxLines = 1, softWrap = false)
                             }
                         }
-                        if (columns == 3) {
+                        if (columns == 3 && LocalDensity.current.fontScale < 1.2f) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 snoozeButtons(Modifier.weight(1f))
                             }

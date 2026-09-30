@@ -92,7 +92,7 @@ class OpenSkyTokenProvider(
                             TokenResponse.serializer(), response.body.string()
                         )
                         val token = body.access_token?.takeIf { it.isNotBlank() }
-                            ?: return OpenSkyAuth.Failed(ApiError.Malformed("token response without access_token"))
+                            ?: return OpenSkyAuth.Failed(ApiError.Malformed())
                         val lifetimeSec = (body.expires_in ?: DEFAULT_LIFETIME_SEC)
                             .coerceAtLeast(REFRESH_MARGIN_SEC * 2)
                         cached = CachedToken(
@@ -104,8 +104,8 @@ class OpenSkyTokenProvider(
                     }
                     // invalid_client / unauthorized_client.
                     response.code in 400..401 -> OpenSkyAuth.Failed(ApiError.AuthFailed)
-                    response.code >= 500 -> OpenSkyAuth.Failed(ApiError.OpenSkyUnavailable("OpenSky login unavailable"))
-                    else -> OpenSkyAuth.Failed(ApiError.Http(response.code, "OpenSky login failed"))
+                    response.code >= 500 -> OpenSkyAuth.Failed(ApiError.OpenSkyUnavailable())
+                    else -> OpenSkyAuth.Failed(ApiError.Http(response.code))
                 }
             }
         } catch (ce: CancellationException) {

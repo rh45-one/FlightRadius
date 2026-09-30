@@ -65,7 +65,7 @@ val LightExtended = ExtendedColors(
 
 val LocalExtendedColors = staticCompositionLocalOf { DarkExtended }
 
-private val DarkScheme = darkColorScheme(
+internal val DarkScheme = darkColorScheme(
     primary = Cyan400,
     onPrimary = Neutral950,
     primaryContainer = Color(0xFF0B3B48),
@@ -95,7 +95,7 @@ private val DarkScheme = darkColorScheme(
     onErrorContainer = Color(0xFFFECDD3)
 )
 
-private val LightScheme = lightColorScheme(
+internal val LightScheme = lightColorScheme(
     primary = Cyan700,
     onPrimary = Color.White,
     primaryContainer = Color(0xFFCFFAFE),

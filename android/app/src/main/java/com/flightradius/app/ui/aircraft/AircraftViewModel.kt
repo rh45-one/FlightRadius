@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.aircraft
 
+import com.flightradius.app.ui.format.localized
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightradius.app.data.aircraftdb.AircraftMetaRepository
@@ -121,7 +122,7 @@ class AircraftViewModel @Inject constructor(
             ?: return CheckResult.NoData
         return when (val r = flightData.liveCallsigns(listOf(callsign))) {
             is ApiResult.Success -> if (callsign in r.data) CheckResult.Live else CheckResult.NoData
-            is ApiResult.Failure -> CheckResult.NetworkError(r.error.message)
+            is ApiResult.Failure -> CheckResult.NetworkError(r.error.localized())
         }
     }
 
@@ -131,7 +132,7 @@ class AircraftViewModel @Inject constructor(
             ?: return CheckResult.NoData
         return when (val r = flightData.isIcao24Live(icao24)) {
             is ApiResult.Success -> if (r.data) CheckResult.Live else CheckResult.NoData
-            is ApiResult.Failure -> CheckResult.NetworkError(r.error.message)
+            is ApiResult.Failure -> CheckResult.NetworkError(r.error.localized())
         }
     }
 

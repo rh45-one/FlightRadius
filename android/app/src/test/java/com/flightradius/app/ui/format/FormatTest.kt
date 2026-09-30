@@ -140,4 +140,20 @@ class FormatTest {
     fun `bearing short puts the cardinal first`() {
         assertEquals("NE 045°", Format.bearingShort(45.0))
     }
+
+    @Test
+    fun `numbers follow the locale - Spanish uses a decimal comma`() {
+        val old = java.util.Locale.getDefault()
+        java.util.Locale.setDefault(java.util.Locale.forLanguageTag("es-ES"))
+        try {
+            assertEquals("3,0", Format.glanceNumber(3.0, DistanceUnit.KM))
+            assertEquals("10", Format.glanceNumber(9.96, DistanceUnit.KM))
+            assertEquals("3,0 km", Format.distance(3.0, DistanceUnit.KM))
+            assertEquals("1,9 mi", Format.distance(3.0, DistanceUnit.MI))
+            assertEquals("7,5 h", Format.hours(7.5))
+            assertEquals("7 h", Format.hours(7.04))
+        } finally {
+            java.util.Locale.setDefault(old)
+        }
+    }
 }

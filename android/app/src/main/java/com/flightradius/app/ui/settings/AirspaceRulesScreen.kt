@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.settings
 
+import com.flightradius.app.ui.format.displayName
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -130,7 +131,7 @@ internal fun AirspaceRulesContent(
             rules.forEachIndexed { i, rule ->
                 if (i > 0) GroupedDivider()
                 GroupedRow(
-                    title = rule.name,
+                    title = rule.displayName(),
                     subtitle = ruleSummary(rule, unit),
                     subtitleStyle = MaterialTheme.typography.bodySmall.copy(
                         fontFeatureSettings = NumericFeatures),
@@ -160,7 +161,7 @@ internal fun RuleEditorSheet(
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    var name by remember { mutableStateOf(rule.name) }
+    var name by remember { mutableStateOf(rule.displayName()) }
     var radiusKm by remember { mutableStateOf(rule.radiusKm) }
     var limitAltitude by remember { mutableStateOf(rule.maxAltitudeM != null) }
     var altitudeM by remember { mutableStateOf(rule.maxAltitudeM ?: 1_500.0) }
