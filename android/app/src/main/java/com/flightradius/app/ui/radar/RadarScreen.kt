@@ -39,6 +39,7 @@ import com.flightradius.app.R
 import com.flightradius.app.data.prefs.DataSource
 import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.service.MonitoringStatus
+import com.flightradius.app.ui.components.DialScope
 import com.flightradius.app.ui.components.ScreenTitle
 import com.flightradius.app.ui.components.rememberNow
 
@@ -93,6 +94,9 @@ fun RadarScreen(
         nowMs = now,
         backendMode = settings.dataSource == DataSource.BACKEND
     )
+    val dialScope = snapshot
+        ?.takeIf { settings.airspaceWatch && it.nearby.isNotEmpty() }
+        ?.let { DialScope(nearby = it.nearby) }
     val hero = (glance as? Glance.Nearest)?.obs
     val nearbyHero = (glance as? Glance.NearbyNearest)?.aircraft
     val showBar = glance != Glance.NoAircraft
@@ -118,7 +122,8 @@ fun RadarScreen(
             if (settings.airspaceWatch) {
                 NearbySection(
                     nearby = snapshot.nearby.filter { it.icao24 != nearbyHero?.icao24 },
-                    unit = unit
+                    unit = unit,
+                    stale = snapshot.nearbyStale
                 )
             }
             NotReportingSection(snapshot.noData)
@@ -159,7 +164,7 @@ fun RadarScreen(
                             .padding(start = 16.dp, top = 16.dp, bottom = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        GlanceDial(glance, unit, now, dialSize)
+                        GlanceDial(glance, unit, now, dialSize, scope = dialScope)
                     }
                     Column(Modifier.weight(1f)) {
                         Column(
@@ -198,7 +203,7 @@ fun RadarScreen(
                                 .padding(top = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            GlanceDial(glance, unit, now, dialSize)
+                            GlanceDial(glance, unit, now, dialSize, scope = dialScope)
                         }
                         if (hero != null) {
                             DetailRow(hero, unit, Modifier.padding(top = 16.dp))

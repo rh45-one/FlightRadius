@@ -376,6 +376,7 @@
     <string name="rules_classes_hint">None selected means any aircraft.</string>
     <string name="rules_delete">Delete rule</string>
     <string name="radar_nearby">Nearby</string>
+    <string name="radar_nearby_stale">Nearby · not updated</string>
     <string name="radar_nearby_more">%1$d more</string>
     <string name="radar_nearest_nearby">Nearest nearby</string>
     <string name="radar_nothing_nearby">Nothing nearby</string>
@@ -384,4 +385,21 @@
     <string name="debug_demo_inject">Inject demo airspace traffic</string>
     <string name="debug_demo_clear">Clear demo traffic</string>
     <string name="debug_demo_hint">Publishes a synthetic snapshot around the current fix; cycles stop hitting OpenSky until cleared.</string>
+    <string name="nav_map">Map</string>
+    <string name="map_unavailable">Map unavailable offline</string>
+    <string name="map_waiting">Waiting for your location</string>
+    <string name="map_recenter">Recenter map</string>
+    <string name="detail_class">Type</string>
+    <string name="detail_registration">Registration</string>
+    <string name="detail_model">Model</string>
+    <string name="debug_demo_inject_stale">Demo (not updated)</string>
+    <plurals name="radar_others_nearby">
+        <item quantity="one">%1$d other aircraft nearby</item>
+        <item quantity="other">%1$d other aircraft nearby</item>
+    </plurals>
+    <plurals name="radar_matching_alerts">
+        <item quantity="one">%1$d matching alert</item>
+        <item quantity="other">%1$d matching alerts</item>
+    </plurals>
+    <string name="map_attribution">© OpenFreeMap © OpenMapTiles © OpenStreetMap contributors</string>
 </resources>

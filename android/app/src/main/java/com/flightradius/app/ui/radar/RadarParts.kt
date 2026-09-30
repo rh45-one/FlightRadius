@@ -60,6 +60,7 @@ import com.flightradius.app.ui.components.GroupedDivider
 import com.flightradius.app.ui.components.GroupedRow
 import com.flightradius.app.ui.components.GroupedSection
 import com.flightradius.app.ui.components.NavigationChevron
+import com.flightradius.app.ui.components.DialScope
 import com.flightradius.app.ui.components.ProximityDial
 import com.flightradius.app.ui.format.Format
 import com.flightradius.app.ui.format.icon
@@ -306,7 +307,8 @@ internal fun GlanceDial(
     unit: DistanceUnit,
     nowMs: Long,
     dialSize: androidx.compose.ui.unit.Dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    scope: DialScope? = null
 ) {
     when (glance) {
         is Glance.Nearest -> {
@@ -319,7 +321,8 @@ internal fun GlanceDial(
                 markerBearingDeg = obs.bearingDeg,
                 markerHeadingDeg = obs.headingDeg,
                 markerColor = zoneColor(glance.zone),
-                description = nearestDescription(glance, unit, nowMs)
+                description = nearestDescription(glance, unit, nowMs, scope),
+                scope = scope
             ) {
                 NearestCenter(glance, unit, nowMs, color)
             }
@@ -336,12 +339,13 @@ internal fun GlanceDial(
                 markerHeadingDeg = a.trackDeg,
                 markerColor = if (a.matchesRule) MaterialTheme.colorScheme.extended.danger
                 else MaterialTheme.colorScheme.onSurface,
-                description = nearbyDescription(glance, unit, nowMs)
+                description = nearbyDescription(glance, unit, nowMs, scope),
+                scope = scope?.copy(excludeIcao24 = a.icao24)
             ) {
                 NearbyCenter(glance, unit, nowMs, color)
             }
         }
-        is Glance.NothingNearby -> ProximityDial(modifier, dialSize) {
+        is Glance.NothingNearby -> ProximityDial(modifier, dialSize, scope = scope) {
             CenterMessage(
                 stringResource(R.string.radar_nothing_nearby),
                 glance.radiusKm?.let {
@@ -363,7 +367,7 @@ internal fun GlanceDial(
                 textAlign = TextAlign.Center
             )
         }
-        is Glance.NoneAirborne -> ProximityDial(modifier, dialSize) {
+        is Glance.NoneAirborne -> ProximityDial(modifier, dialSize, scope = scope) {
             Text(
                 stringResource(R.string.radar_none_airborne),
                 style = MaterialTheme.typography.headlineSmall,
@@ -530,7 +534,18 @@ private fun NearbyCenter(glance: Glance.NearbyNearest, unit: DistanceUnit, nowMs
 }
 
 @Composable
-private fun nearbyDescription(glance: Glance.NearbyNearest, unit: DistanceUnit, nowMs: Long): String {
+private fun scopeSummary(scope: DialScope?, excludeIcao24: String?): String? {
+    val others = scope?.nearby?.filter { it.icao24 != excludeIcao24 } ?: return null
+    if (others.isEmpty()) return null
+    val matching = others.count { it.matchesRule }
+    return pluralStringResource(R.plurals.radar_others_nearby, others.size, others.size) + ", " +
+        pluralStringResource(R.plurals.radar_matching_alerts, matching, matching)
+}
+
+@Composable
+private fun nearbyDescription(
+    glance: Glance.NearbyNearest, unit: DistanceUnit, nowMs: Long, scope: DialScope?
+): String {
     val a = glance.aircraft
     val compass = stringArrayResource(R.array.compass_points)
     val idx = Math.round(((a.bearingDeg % 360 + 360) % 360) / 22.5).toInt() % 16
@@ -540,11 +555,14 @@ private fun nearbyDescription(glance: Glance.NearbyNearest, unit: DistanceUnit, 
         stringResource(
             R.string.radar_dial_description,
             a.displayName, Format.glanceNumber(a.distanceKm, unit), unitWord, compass[idx]
-        ) + ". " + stringResource(a.cls.labelRes()) + "."
+        ) + ". " + stringResource(a.cls.labelRes()) + "." +
+        (scopeSummary(scope, a.icao24)?.let { " $it." } ?: "")
 }
 
 @Composable
-private fun nearestDescription(glance: Glance.Nearest, unit: DistanceUnit, nowMs: Long): String {
+private fun nearestDescription(
+    glance: Glance.Nearest, unit: DistanceUnit, nowMs: Long, scope: DialScope?
+): String {
     val obs = glance.obs
     val compass = stringArrayResource(R.array.compass_points)
     val idx = Math.round(((obs.bearingDeg % 360 + 360) % 360) / 22.5).toInt() % 16
@@ -573,6 +591,7 @@ private fun nearestDescription(glance: Glance.Nearest, unit: DistanceUnit, nowMs
         )
         trend?.let { add(it) }
         also?.let { add(it) }
+        scopeSummary(scope, null)?.let { add(it) }
     }.joinToString(". ") + "."
 }
 
@@ -755,12 +774,16 @@ private const val NEARBY_MAX_ROWS = 8
 @Composable
 internal fun NearbySection(
     nearby: List<NearbyAircraft>,
-    unit: DistanceUnit
+    unit: DistanceUnit,
+    stale: Boolean = false
 ) {
     if (nearby.isEmpty()) return
     val shown = nearby.take(NEARBY_MAX_ROWS)
     val extra = nearby.size - shown.size
-    GroupedSection(header = stringResource(R.string.radar_nearby)) {
+    GroupedSection(
+        header = stringResource(
+            if (stale) R.string.radar_nearby_stale else R.string.radar_nearby)
+    ) {
         shown.forEachIndexed { i, a ->
             if (i > 0) GroupedDivider()
             NearbyRow(a, unit)

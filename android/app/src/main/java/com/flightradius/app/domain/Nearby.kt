@@ -104,6 +104,25 @@ object NearbyBuilder {
     }
 }
 
+/** Re-projects a previous nearby list onto a new fix (used when the area query failed). */
+fun NearbyBuilder.refresh(
+    fix: UserFix,
+    previous: List<NearbyAircraft>,
+    radiusKm: Double,
+    rules: List<AirspaceRule>
+): List<NearbyAircraft> {
+    val enabled = rules.filter { it.enabled }
+    return previous.mapNotNull { a ->
+        val distance = Geo.distanceKm(fix.lat, fix.lon, a.lat, a.lon)
+        if (distance > radiusKm) return@mapNotNull null
+        a.copy(
+            distanceKm = distance,
+            bearingDeg = Geo.initialBearingDeg(fix.lat, fix.lon, a.lat, a.lon),
+            matchesRule = enabled.any { it.matches(distance, a.altitudeM, a.cls) }
+        )
+    }.sortedWith(compareBy({ it.distanceKm }, { it.icao24 }))
+}
+
 data class AirspaceAlertConfig(
     val exitMarginFraction: Double = 0.15,
     val minExitMarginKm: Double = 0.5,

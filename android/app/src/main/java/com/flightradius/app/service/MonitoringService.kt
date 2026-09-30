@@ -385,7 +385,10 @@ class MonitoringService : Service() {
             val result: CycleResult = try {
                 runCatching { cycleRunner.runCycle("loop") }
                     .onFailure { if (it is CancellationException) throw it }
-                    .getOrElse { CycleResult.Failure(ApiError.Unknown(it.message)) }
+                    .getOrElse {
+                        AppLog.e(TAG, "cycle crashed", throwable = it)
+                        CycleResult.Failure(ApiError.Unknown(it.message))
+                    }
             } finally {
                 if (cycleWl.isHeld) cycleWl.release()
                 stateRepository.update { it.copy(wakeLockHeld = false) }
@@ -487,6 +490,8 @@ class MonitoringService : Service() {
     }
 
     private fun evaluateNearby(snapshot: MonitoringSnapshot, settings: AppSettings) {
+        // Carried-forward traffic must never raise (or clear) alerts.
+        if (snapshot.nearbyStale) return
         val wasInside = nearbyStates.filterValues { it.inside }.keys
         if (!settings.airspaceWatch || snapshot.airspaceRadiusKm == null) {
             if (nearbyStates.isNotEmpty()) {

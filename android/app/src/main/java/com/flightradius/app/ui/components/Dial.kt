@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.flightradius.app.ui.theme.extended
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
@@ -51,11 +52,14 @@ fun ProximityDial(
     markerHeadingDeg: Double? = null,
     markerColor: Color = MaterialTheme.colorScheme.onSurface,
     description: String? = null,
+    scope: DialScope? = null,
     content: @Composable ColumnScope.() -> Unit = {}
 ) {
     val ring = MaterialTheme.colorScheme.outlineVariant
     val tick = MaterialTheme.colorScheme.outline
     val canvasColor = MaterialTheme.colorScheme.surface
+    val blipColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+    val blipMatchColor = MaterialTheme.colorScheme.extended.danger
 
     val bearing = markerBearingDeg?.toFloat()
     val animated = remember { Animatable(bearing ?: 0f) }
@@ -87,6 +91,18 @@ fun ProximityDial(
                     c.y + (r - TickLength.toPx()) * sin(a).toFloat()
                 )
                 drawLine(tick, inner, outer, strokeWidth = RingStroke.toPx(), cap = StrokeCap.Round)
+            }
+            if (scope != null) {
+                val markers = ScopeProjection.markers(scope, r, markerBearingDeg)
+                // Plain dots first, rule matches on top with a canvas-coloured stroke.
+                for (m in markers.filter { !it.matchesRule }) {
+                    drawCircle(blipColor, 2.5.dp.toPx(), Offset(c.x + m.dx, c.y + m.dy))
+                }
+                for (m in markers.filter { it.matchesRule }) {
+                    val at = Offset(c.x + m.dx, c.y + m.dy)
+                    drawCircle(canvasColor, 6.5.dp.toPx(), at)
+                    drawCircle(blipMatchColor, 4.5.dp.toPx(), at)
+                }
             }
             if (bearing != null) {
                 val a = Math.toRadians(animated.value - 90.0)

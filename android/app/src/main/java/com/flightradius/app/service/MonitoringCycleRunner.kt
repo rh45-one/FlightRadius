@@ -20,6 +20,7 @@ import com.flightradius.app.domain.CreditPlanner
 import com.flightradius.app.domain.Fleet
 import com.flightradius.app.domain.MonitoringSnapshot
 import com.flightradius.app.domain.NearbyBuilder
+import com.flightradius.app.domain.refresh
 import com.flightradius.app.domain.OpenSkyPricing
 import com.flightradius.app.domain.OpenSkyStatus
 import com.flightradius.app.domain.SnapshotBuilder
@@ -139,12 +140,14 @@ class MonitoringCycleRunner @Inject constructor(
         val results = (trackedResult as ApiResult.Success).data
 
         var airspaceStates: List<StateVector>? = null
+        var airspaceFailed = false
         if (watch) {
             val box = BoundingBox.around(fix.lat, fix.lon, settings.airspaceRadiusKm)
             when (val area = openSky.states(StatesQuery.ByArea(box))) {
                 is ApiResult.Success -> airspaceStates = area.data.states
                 is ApiResult.Failure -> {
                     AppLog.w(TAG, "airspace fetch failed", "err" to area.error.message)
+                    airspaceFailed = true
                     if (aircraft.isEmpty()) {
                         return recordFailure(area.error, time.nowMs() - t0)
                     }
@@ -162,7 +165,16 @@ class MonitoringCycleRunner @Inject constructor(
             globalRadiusKm = settings.globalAlertRadiusKm,
             previous = stateRepository.state.value.lastSnapshot
         )
-        val snapshot = if (watch) {
+        val snapshot = if (watch && airspaceFailed) {
+            // Keep showing the last known traffic, marked as not updated.
+            val carried = stateRepository.state.value.lastSnapshot?.nearby.orEmpty()
+            base.copy(
+                nearby = NearbyBuilder.refresh(
+                    fix, carried, settings.airspaceRadiusKm, settings.airspaceRules),
+                airspaceRadiusKm = settings.airspaceRadiusKm,
+                nearbyStale = true
+            )
+        } else if (watch) {
             val states = airspaceStates.orEmpty()
             val trackedIds = base.ranked.mapNotNullTo(HashSet()) { it.icao24 }
             val meta = aircraftMeta.lookup(states.map { it.icao24 })

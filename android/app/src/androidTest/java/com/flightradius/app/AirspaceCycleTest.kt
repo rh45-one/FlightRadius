@@ -58,9 +58,12 @@ class AirspaceCycleTest {
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var stateRepository: MonitoringStateRepository
     @Inject lateinit var controller: MonitoringController
+    @Inject lateinit var runtimeSettings: com.flightradius.app.data.prefs.RuntimeSettings
+    @Inject lateinit var aircraftRepository: com.flightradius.app.data.repo.AircraftRepository
 
     private lateinit var server: MockWebServer
     private val statesRequests = CopyOnWriteArrayList<RecordedRequest>()
+    @Volatile private var failArea = false
 
     // Fix (52.0, 13.0): one airborne aircraft ~3 km north, one on the ground.
     private val body = """
@@ -77,6 +80,9 @@ class AirspaceCycleTest {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 if (request.url.encodedPath.endsWith("/states/all")) {
                     statesRequests += request
+                    if (failArea && request.url.queryParameter("lamin") != null) {
+                        return MockResponse.Builder().code(500).body("boom").build()
+                    }
                     return MockResponse.Builder().code(200)
                         .addHeader("Content-Type", "application/json")
                         .addHeader("X-Rate-Limit-Remaining", "300")
@@ -93,10 +99,15 @@ class AirspaceCycleTest {
             settingsRepository.setLocationMode(LocationMode.MANUAL)
             settingsRepository.setManualLocation(52.0, 13.0)
             settingsRepository.setMonitoringIntervalSec(10)
+            settingsRepository.setAdaptiveCredits(false)
             settingsRepository.setAirspaceWatch(true)
             settingsRepository.setAirspaceRadiusKm(25.0)
             settingsRepository.setAirspaceRules(
                 listOf(AirspaceRule("r", "Low and close", false, 5.0, 1_500.0)))
+            // RuntimeSettings applies DataStore asynchronously; wait for DIRECT to take effect.
+            withTimeout(10_000) {
+                while (runtimeSettings.dataSource != DataSource.DIRECT) delay(50)
+            }
         }
     }
 
@@ -106,6 +117,8 @@ class AirspaceCycleTest {
         // DataStore outlives the test; don't leak airspace watch into other tests.
         runBlocking {
             settingsRepository.setAirspaceWatch(false)
+            settingsRepository.setAdaptiveCredits(true)
+            for (a in aircraftRepository.getAll()) aircraftRepository.remove(a.id)
             settingsRepository.setAirspaceRules(AirspaceRule.DEFAULTS)
         }
         server.close()
@@ -137,11 +150,47 @@ class AirspaceCycleTest {
             // Watch on, nothing tracked: one credit per cycle (the area query).
             assertEquals(1, stateRepository.state.value.creditsPerCycle)
 
+            staleNearbyPhase()
+
             controller.stop()
             withTimeout(15_000) {
                 stateRepository.state.first { it.status == MonitoringStatus.STOPPED }
             }
             assertFalse(statesRequests.isEmpty())
         }
+    }
+
+    /** Phase 2 (same Hilt graph: only one secure DataStore may exist per process). */
+    private suspend fun staleNearbyPhase() {
+        aircraftRepository.add("a9a9a9", com.flightradius.app.domain.IdentifierType.ICAO24)
+        settingsRepository.setAirspaceRules(
+            listOf(AirspaceRule("r", "Low and close", true, 5.0, 1_500.0)))
+        val fresh = try {
+            withTimeout(60_000) {
+                stateRepository.state.first {
+                    val snap = it.lastSnapshot
+                    snap != null && snap.noData.isNotEmpty() &&
+                        snap.nearby.singleOrNull()?.matchesRule == true
+                }.lastSnapshot!!
+            }
+        } catch (e: Exception) {
+            throw AssertionError("no fresh snapshot: ${stateRepository.state.value} " +
+                statesRequests.map { it.url.toString() }, e)
+        }
+        assertFalse(fresh.nearbyStale)
+
+        failArea = true
+        val stale = try {
+            withTimeout(60_000) {
+                stateRepository.state.first { it.lastSnapshot?.nearbyStale == true }.lastSnapshot!!
+            }
+        } catch (e: Exception) {
+            throw AssertionError("no stale snapshot: ${stateRepository.state.value} " +
+                statesRequests.map { it.url.toString() }, e)
+        }
+        // The carried list keeps the helicopter (distance re-projected) but is marked stale.
+        assertEquals(listOf("a1b2c3"), stale.nearby.map { it.icao24 })
+        assertTrue(stale.nearby.single().matchesRule)
+        assertEquals(25.0, stale.airspaceRadiusKm!!, 0.0)
     }
 }

@@ -164,6 +164,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
 
     implementation(libs.play.services.location)
+    implementation(libs.maplibre.android)
 
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)

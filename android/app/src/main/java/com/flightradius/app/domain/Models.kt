@@ -78,5 +78,7 @@ data class MonitoringSnapshot(
     /** Non-tracked aircraft around the user (airspace watch), nearest first. */
     val nearby: List<NearbyAircraft> = emptyList(),
     /** Radius of the airspace query; null when airspace watch is off. */
-    val airspaceRadiusKm: Double? = null
+    val airspaceRadiusKm: Double? = null,
+    /** True when [nearby] was carried over because the area query failed. */
+    val nearbyStale: Boolean = false
 )

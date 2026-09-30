@@ -64,6 +64,7 @@ import com.flightradius.app.ui.alerts.ProximityAlertSheet
 import com.flightradius.app.ui.aircraft.AircraftScreen
 import com.flightradius.app.ui.debug.DebugScreen
 import com.flightradius.app.ui.fleets.FleetsScreen
+import com.flightradius.app.ui.map.MapScreen
 import com.flightradius.app.ui.onboarding.WelcomeScreen
 import com.flightradius.app.ui.radar.RadarScreen
 import com.flightradius.app.ui.rememberMonitoringStarter
@@ -96,6 +97,15 @@ private val PlaneIcon: ImageVector = ImageVector.Builder(
 ).addPath(
     pathData = addPathNodes(
         "M21.5 15.5v-2l-8.5-5V3.5a1.5 1.5 0 0 0-3 0v5l-8.5 5v2l8.5-2.5v5.5L7.5 20v1.5l4.5-1.25 4.5 1.25V20l-2.5-1.5v-5.5l8.5 2.5z"
+    ),
+    fill = androidx.compose.ui.graphics.SolidColor(Color.Black)
+).build()
+
+private val MapIcon: ImageVector = ImageVector.Builder(
+    "Map", 24.dp, 24.dp, 24f, 24f
+).addPath(
+    pathData = addPathNodes(
+        "M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"
     ),
     fill = androidx.compose.ui.graphics.SolidColor(Color.Black)
 ).build()
@@ -217,6 +227,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                        composable(NavItem.Map.route) { MapScreen() }
                         composable(
                             "aircraft?add={add}&edit={edit}",
                             arguments = listOf(
@@ -395,6 +406,7 @@ class MainActivity : ComponentActivity() {
         val labelRes: Int
     ) {
         Radar("radar", RadarIcon, R.string.nav_radar),
+        Map("map", MapIcon, R.string.nav_map),
         Aircraft("aircraft", PlaneIcon, R.string.nav_aircraft),
         Fleets("fleets", FleetsIcon, R.string.nav_fleets),
         Settings("settings", SettingsIcon, R.string.nav_settings)

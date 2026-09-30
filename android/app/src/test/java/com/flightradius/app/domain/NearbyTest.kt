@@ -128,4 +128,25 @@ class NearbyTest {
         assertEquals(1_500.0, d.maxAltitudeM!!, 0.0)
         assertTrue(d.classes.isEmpty())
     }
+
+    // ---- refresh (carried-forward nearby) ----
+
+    @Test
+    fun `refresh recomputes distance bearing and rule match from the new fix`() {
+        val rule = AirspaceRule("r", "r", true, 5.0, 1_500.0)
+        val old = NearbyAircraft(
+            "a00001", "X", AircraftClass.HELICOPTER, 40.03, -3.0, 3.3, 0.0, altitudeM = 400.0,
+            matchesRule = true
+        )
+        val moved = UserFix(40.06, -3.0, null, 0L, LocationSource.MANUAL)
+        val r = NearbyBuilder.refresh(moved, listOf(old), 25.0, listOf(rule)).single()
+        assertEquals(3.3, r.distanceKm, 0.1)
+        assertEquals(180.0, r.bearingDeg, 0.5)
+        assertTrue(r.matchesRule)
+        val far = UserFix(40.5, -3.0, null, 0L, LocationSource.MANUAL)
+        assertTrue(NearbyBuilder.refresh(far, listOf(old), 25.0, listOf(rule)).isEmpty())
+        val mid = UserFix(40.0, -3.0, null, 0L, LocationSource.MANUAL)
+        assertEquals(3.3, NearbyBuilder.refresh(mid, listOf(old), 25.0, emptyList()).single().distanceKm, 0.1)
+        assertFalse(NearbyBuilder.refresh(mid, listOf(old), 25.0, emptyList()).single().matchesRule)
+    }
 }

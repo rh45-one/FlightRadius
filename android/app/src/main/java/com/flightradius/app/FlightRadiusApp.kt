@@ -31,6 +31,7 @@ class FlightRadiusApp : Application() {
         // Wire AppLog's debug gate to the live settings value (debug builds
         // always log; release builds honor the debugLogging switch).
         AppLog.debugEnabled = { BuildConfig.DEBUG || runtimeSettings.debugLogging }
+        org.maplibre.android.MapLibre.getInstance(this)
         creditBucketWatcher.start(appScope)
         aircraftDatabase.maybeAutoUpdate()
     }
