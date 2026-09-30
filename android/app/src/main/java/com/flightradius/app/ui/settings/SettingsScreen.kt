@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,6 +50,7 @@ import com.flightradius.app.R
 import com.flightradius.app.data.prefs.DataSource
 import com.flightradius.app.data.prefs.GpsAccuracy
 import com.flightradius.app.data.prefs.LocationMode
+import com.flightradius.app.data.prefs.ThemeMode
 import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.location.LocationStatus
 import com.flightradius.app.service.BatteryOptimization
@@ -249,6 +252,11 @@ fun SettingsScreen(
                 stringResource(R.string.settings_radar_chirp_body),
                 settings.radarMode
             ) { viewModel.setRadarMode(it) }
+        }
+
+        // ---- Appearance ----
+        GroupedSection(header = stringResource(R.string.settings_appearance)) {
+            AppearanceRow(settings.themeMode) { viewModel.setThemeMode(it) }
         }
 
         // ---- Location ----
@@ -535,6 +543,37 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(32.dp))
+    }
+}
+
+@Composable
+internal fun AppearanceRow(selected: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+    val options = listOf(
+        ThemeMode.SYSTEM to R.string.theme_system,
+        ThemeMode.LIGHT to R.string.theme_light,
+        ThemeMode.DARK to R.string.theme_dark
+    )
+    SingleChoiceSegmentedButtonRow(
+        Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        options.forEachIndexed { i, (mode, label) ->
+            SegmentedButton(
+                selected = selected == mode,
+                onClick = { onSelect(mode) },
+                shape = SegmentedButtonDefaults.itemShape(index = i, count = options.size),
+                modifier = Modifier.heightIn(min = 48.dp),
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    inactiveContainerColor = Color.Transparent,
+                    inactiveContentColor = MaterialTheme.colorScheme.onSurface
+                )
+            ) {
+                Text(stringResource(label), style = MaterialTheme.typography.labelLarge)
+            }
+        }
     }
 }
 

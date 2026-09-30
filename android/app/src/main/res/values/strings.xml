@@ -312,4 +312,8 @@
     </plurals>
     <string name="settings_alert_radius">Alert radius</string>
     <string name="settings_refresh_every">Refresh every</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
 </resources>

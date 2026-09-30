@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import com.flightradius.app.data.prefs.ThemeMode
 
 // -- Palette: Apple-style neutral base + FlightRadius cyan accent ------------
 // Dark: pure-black canvas with elevated grouped surfaces. Light: grouped
@@ -132,8 +133,15 @@ val AppShapes = Shapes(
 )
 
 @Composable
-fun FlightRadiusTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
+fun FlightRadiusTheme(
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    content: @Composable () -> Unit
+) {
+    val dark = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.DARK -> true
+        ThemeMode.LIGHT -> false
+    }
     val context = LocalContext.current
     val highContrast = Build.VERSION.SDK_INT >= 34 &&
         (context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)

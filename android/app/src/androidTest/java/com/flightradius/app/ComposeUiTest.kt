@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.flightradius.app.data.prefs.ThemeMode
 import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.ui.alerts.ProximityAlertSheet
@@ -15,6 +16,7 @@ import com.flightradius.app.ui.radar.AlsoTrackingSection
 import com.flightradius.app.ui.radar.Glance
 import com.flightradius.app.ui.radar.GlanceDial
 import com.flightradius.app.ui.radar.Zone
+import com.flightradius.app.ui.settings.AppearanceRow
 import com.flightradius.app.ui.theme.FlightRadiusTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -125,5 +127,19 @@ class ComposeUiTest {
         compose.onNodeWithText("+1 more").assertIsDisplayed()
         compose.onNodeWithText("Dismiss").performClick()
         assertTrue(dismissed)
+    }
+
+    @Test
+    fun appearanceRowReportsSelectedMode() {
+        var picked: ThemeMode? = null
+        compose.setContent {
+            FlightRadiusTheme {
+                AppearanceRow(selected = ThemeMode.SYSTEM, onSelect = { picked = it })
+            }
+        }
+        compose.onNodeWithText("System").assertIsDisplayed()
+        compose.onNodeWithText("Light").assertIsDisplayed()
+        compose.onNodeWithText("Dark").performClick()
+        assertEquals(ThemeMode.DARK, picked)
     }
 }

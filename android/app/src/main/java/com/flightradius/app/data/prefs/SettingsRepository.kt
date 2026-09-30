@@ -58,7 +58,7 @@ data class AppSettings(
     val radarMode: Boolean = false,
     val highPriorityMode: Boolean = false,
     val resumeOnBoot: Boolean = false,
-    val themeMode: ThemeMode = ThemeMode.DARK,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = false,
     val debugLogging: Boolean = false,
     val inAppAlertBanner: Boolean = true,

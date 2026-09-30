@@ -164,7 +164,7 @@ class MainActivity : ComponentActivity() {
         )
         startMonitoringAction = { starter.begin() }
 
-        FlightRadiusTheme {
+        FlightRadiusTheme(themeMode = settings.themeMode) {
             val activeAlert by stateRepository.activeAlert
                 .collectAsStateWithLifecycle()
             val monitorState by stateRepository.state
