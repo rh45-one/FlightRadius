@@ -71,7 +71,6 @@ fun RadarScreen(
 
     var chipInfo by remember { mutableStateOf<String?>(null) }
     var detail by remember { mutableStateOf<AircraftObservation?>(null) }
-    var menuOpen by remember { mutableStateOf(false) }
 
     val unit = settings.distanceUnit
     val snapshot = state.lastSnapshot
@@ -93,24 +92,10 @@ fun RadarScreen(
                 ) {
                     Text(
                         stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
-                    Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Text("⋮", fontSize = 20.sp)
-                        }
-                        DropdownMenu(
-                            expanded = menuOpen,
-                            onDismissRequest = { menuOpen = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.nav_settings)) },
-                                onClick = { menuOpen = false; onOpenSettings() }
-                            )
-                        }
-                    }
                 }
             }
 

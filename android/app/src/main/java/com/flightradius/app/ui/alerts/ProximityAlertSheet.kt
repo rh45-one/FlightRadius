@@ -284,7 +284,7 @@ fun ProximityAlertSheet(
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = danger,
-                                contentColor = Color(0xFF020617))
+                                contentColor = MaterialTheme.colorScheme.onError)
                         ) {
                             Text(
                                 stringResource(R.string.action_dismiss),

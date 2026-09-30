@@ -104,7 +104,7 @@ fun AircraftScreen(
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             Text(
                 stringResource(R.string.aircraft_title),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(top = 16.dp)
             )
             OutlinedTextField(

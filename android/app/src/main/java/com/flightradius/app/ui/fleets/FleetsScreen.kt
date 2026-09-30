@@ -84,7 +84,7 @@ fun FleetsScreen(
             item {
                 Text(
                     stringResource(R.string.fleets_title),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
