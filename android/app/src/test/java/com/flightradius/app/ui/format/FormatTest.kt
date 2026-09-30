@@ -107,4 +107,37 @@ class FormatTest {
         assertEquals("7 h", Format.hours(7.0))
         assertEquals("1 day+", Format.hours(30.0))
     }
+
+    @Test
+    fun `glance number is one decimal below ten and whole from ten`() {
+        val old = java.util.Locale.getDefault()
+        java.util.Locale.setDefault(java.util.Locale.US)
+        try {
+            assertEquals("10", Format.glanceNumber(9.96, DistanceUnit.KM))
+            assertEquals("9.9", Format.glanceNumber(9.94, DistanceUnit.KM))
+            assertEquals("148", Format.glanceNumber(148.4, DistanceUnit.KM))
+            assertEquals("0.0", Format.glanceNumber(0.0, DistanceUnit.KM))
+            assertEquals("3.4", Format.glanceNumber(3.4, DistanceUnit.KM))
+            assertEquals("9.3", Format.glanceNumber(15.0, DistanceUnit.MI))
+            assertEquals("62", Format.glanceNumber(100.0, DistanceUnit.MI))
+        } finally {
+            java.util.Locale.setDefault(old)
+        }
+    }
+
+    @Test
+    fun `glance number uses the default locale decimal separator`() {
+        val old = java.util.Locale.getDefault()
+        java.util.Locale.setDefault(java.util.Locale.GERMANY)
+        try {
+            assertEquals("3,4", Format.glanceNumber(3.4, DistanceUnit.KM))
+        } finally {
+            java.util.Locale.setDefault(old)
+        }
+    }
+
+    @Test
+    fun `bearing short puts the cardinal first`() {
+        assertEquals("NE 045°", Format.bearingShort(45.0))
+    }
 }

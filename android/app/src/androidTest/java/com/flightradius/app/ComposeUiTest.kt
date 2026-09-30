@@ -3,15 +3,18 @@ package com.flightradius.app
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.ui.alerts.ProximityAlertSheet
-import com.flightradius.app.ui.radar.AircraftCard
-import com.flightradius.app.ui.radar.EmptyState
+import com.flightradius.app.ui.radar.AlsoTrackingSection
+import com.flightradius.app.ui.radar.Glance
+import com.flightradius.app.ui.radar.GlanceDial
+import com.flightradius.app.ui.radar.Zone
 import com.flightradius.app.ui.theme.FlightRadiusTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -36,20 +39,44 @@ class ComposeUiTest {
     )
 
     @Test
-    fun radarEmptyStateShowsCta() {
-        var clicked = false
+    fun radarNoAircraftDialShowsPrompt() {
         compose.setContent {
             FlightRadiusTheme {
-                EmptyState(onAdd = { clicked = true })
+                GlanceDial(
+                    glance = Glance.NoAircraft,
+                    unit = DistanceUnit.KM,
+                    nowMs = System.currentTimeMillis(),
+                    dialSize = 300.dp
+                )
             }
         }
-        compose.onNodeWithText("No aircraft tracked yet").assertIsDisplayed()
-        compose.onNodeWithText("Add aircraft").assertIsDisplayed().performClick()
-        assertTrue(clicked)
+        compose.onNodeWithText("Nothing to watch yet").assertIsDisplayed()
+        compose.onNodeWithText("Add the aircraft you want to follow.").assertIsDisplayed()
     }
 
     @Test
-    fun rankedListRendersCardsInDistanceOrder() {
+    fun radarNearestDialDescribesClosestAircraft() {
+        val nearest = obs(1, "IBE3174", 3.4)
+        compose.setContent {
+            FlightRadiusTheme {
+                GlanceDial(
+                    glance = Glance.Nearest(
+                        obs = nearest, zone = Zone.INSIDE, alsoInside = 0,
+                        stale = false, snapshotAgeMs = 0L),
+                    unit = DistanceUnit.KM,
+                    nowMs = System.currentTimeMillis(),
+                    dialSize = 300.dp
+                )
+            }
+        }
+        compose.onNodeWithContentDescription("Inside radius", substring = true)
+            .assertIsDisplayed()
+        compose.onNodeWithContentDescription("IBE3174", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun alsoTrackingListsRowsInGivenOrder() {
         val ranked = listOf(
             obs(1, "CLOSE1", 3.0),
             obs(2, "MID002", 30.0),
@@ -58,27 +85,22 @@ class ComposeUiTest {
         compose.setContent {
             FlightRadiusTheme {
                 Column {
-                    for (o in ranked) {
-                        AircraftCard(
-                            obs = o, unit = DistanceUnit.KM,
-                            fleetColors = emptyList(), snoozed = false,
-                            nowMs = System.currentTimeMillis(),
-                            onClick = {}, onSnooze = {},
-                            onDismissAlert = {}, onEdit = {}
-                        )
-                    }
+                    AlsoTrackingSection(
+                        ranked = ranked,
+                        unit = DistanceUnit.KM,
+                        snoozes = emptyMap(),
+                        nowMs = System.currentTimeMillis(),
+                        onClick = {}
+                    )
                 }
             }
         }
-        val nodes = listOf("CLOSE1", "MID002", "FAR003").map {
+        val tops = listOf("CLOSE1", "MID002", "FAR003").map {
             compose.onNodeWithText(it, substring = true)
                 .assertIsDisplayed()
                 .fetchSemanticsNode().boundsInRoot.top
         }
-        // Cards appear top-to-bottom in distance order.
-        assertEquals(
-            nodes.sorted(), nodes
-        )
+        assertEquals(tops.sorted(), tops)
         compose.onNodeWithText("3.0 km").assertIsDisplayed()
         compose.onNodeWithText("90.0 km").assertIsDisplayed()
     }
@@ -98,7 +120,7 @@ class ComposeUiTest {
                 )
             }
         }
-        compose.onNodeWithText("PROXIMITY ALERT").assertIsDisplayed()
+        compose.onNodeWithText("Proximity alert").assertIsDisplayed()
         compose.onNodeWithText("IBE3174").assertIsDisplayed()
         compose.onNodeWithText("+1 more").assertIsDisplayed()
         compose.onNodeWithText("Dismiss").performClick()
