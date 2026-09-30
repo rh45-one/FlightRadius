@@ -425,3 +425,6 @@ dist/
 # Runtime state and local certs
 web/backend/data/
 web/nginx/certs/
+
+# Third-party agent skills (local only; contain Apple HIG text)
+.devin/skills/apple-design/
