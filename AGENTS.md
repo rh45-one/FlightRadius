@@ -105,6 +105,8 @@ without asking.
    radius/class/altitude, off by default; grouped notifications; radar rim
    markers + MapLibre/OpenFreeMap map tab). Goal: spot DGT "Pegasus"
    helicopters while driving; tracked aircraft alert at any altitude.
-4. Premium extras (Live Update notification, Glance widget, shared-element
-   transitions, es/en).
+4. [done 2026-09-30] Premium extras (Live Update notification, Glance
+   widget, details screen with shared-element transitions, es/en with
+   per-app language). User-visible text lives in resources only; the
+   `LocalizationTest` keeps values/ and values-es/ in sync.
 5. Field test, battery profiling, Play policy prep, release signing, CI.
