@@ -58,7 +58,8 @@ $ANDROID_HOME/emulator/emulator -avd flightradius_api37     -no-window -no-audio
 adb -s emulator-5554 wait-for-device
 ```
 
-Physical phone: `android/scripts/run-on-device.sh [--usb] [--grant] [--logs]`
+Physical phone: `android/scripts/run-on-device.sh [--usb] [--grant] [--logs]`;
+shareable APK: `android/scripts/build-apk.sh [--install] [--debug] [--universal]` (→ `android/dist/`)
 (builds debug with the host LAN IP or an adb-reverse URL, installs, launches).
 
 - Backend URL: `flightradius.backendBaseUrl` Gradle property /

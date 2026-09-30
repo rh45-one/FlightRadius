@@ -42,6 +42,13 @@ android {
 
         testInstrumentationRunner = "com.flightradius.app.HiltTestRunner"
 
+        // -Pflightradius.abis=arm64-v8a[,...] limits native libs (smaller APK);
+        // absent = universal, which the emulator/x86 tests rely on.
+        (project.findProperty("flightradius.abis") as String?)
+            ?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { abis -> ndk { abiFilters += abis } }
+
         buildConfigField(
             "String",
             "DEFAULT_BACKEND_URL",

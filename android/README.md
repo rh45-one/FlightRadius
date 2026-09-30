@@ -76,6 +76,24 @@ monitoring tests. Other options: `--grant` (pre-grant permissions),
 A backend URL saved in Settings → Backend URL takes precedence over the
 built-in one.
 
+## Build an APK / install on your phone
+
+```bash
+android/scripts/build-apk.sh                     # release, arm64-v8a -> android/dist/
+android/scripts/build-apk.sh --install --launch  # ...and install it on the plugged-in phone
+```
+
+The APK lands in `android/dist/FlightRadius-<version>-<release|debug>-<abi|universal>.apk`
+(git-ignored). By default it contains only `arm64-v8a` (any phone of the last
+~8 years, ~17 MB); `--abi LIST` picks others and `--universal` builds every ABI
+(~52 MB, the map library ships four native builds). `--debug` builds the debug
+variant, `--grant` pre-grants permissions, `--reinstall` uninstalls first (only
+needed after a signature change). Without `keystore.properties` the build is
+signed with the debug key: fine for personal installs, not for the Play Store.
+`--install` is a normal, permanent install (`adb install -r`). You can also copy
+the APK to the phone and open it (allow "install unknown apps" for your file
+manager). No backend URL is baked in: direct OpenSky mode is the default.
+
 ## Backend URL
 
 The backend base URL is resolved in this order:
