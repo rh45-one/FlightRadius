@@ -62,6 +62,8 @@ data class AppSettings(
     val dynamicColor: Boolean = false,
     val debugLogging: Boolean = false,
     val inAppAlertBanner: Boolean = true,
+    val keepScreenOn: Boolean = true,
+    val onboardingDone: Boolean = false,
     /** Internal flag: monitoring should be running (survives reboot). */
     val monitoringDesired: Boolean = false
 )
@@ -90,6 +92,8 @@ class SettingsRepository @Inject constructor(
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val DEBUG_LOGGING = booleanPreferencesKey("debug_logging")
         val IN_APP_ALERT_BANNER = booleanPreferencesKey("in_app_alert_banner")
+        val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
+        val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         val MONITORING_DESIRED = booleanPreferencesKey("monitoring_desired")
     }
 
@@ -126,6 +130,8 @@ class SettingsRepository @Inject constructor(
             dynamicColor = this[Keys.DYNAMIC_COLOR] ?: defaults.dynamicColor,
             debugLogging = this[Keys.DEBUG_LOGGING] ?: defaults.debugLogging,
             inAppAlertBanner = this[Keys.IN_APP_ALERT_BANNER] ?: defaults.inAppAlertBanner,
+            keepScreenOn = this[Keys.KEEP_SCREEN_ON] ?: defaults.keepScreenOn,
+            onboardingDone = this[Keys.ONBOARDING_DONE] ?: defaults.onboardingDone,
             monitoringDesired = this[Keys.MONITORING_DESIRED] ?: defaults.monitoringDesired
         )
     }
@@ -169,6 +175,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setDynamicColor(value: Boolean) = edit { it[Keys.DYNAMIC_COLOR] = value }
     suspend fun setDebugLogging(value: Boolean) = edit { it[Keys.DEBUG_LOGGING] = value }
     suspend fun setInAppAlertBanner(value: Boolean) = edit { it[Keys.IN_APP_ALERT_BANNER] = value }
+    suspend fun setKeepScreenOn(value: Boolean) = edit { it[Keys.KEEP_SCREEN_ON] = value }
+    suspend fun setOnboardingDone(value: Boolean = true) = edit { it[Keys.ONBOARDING_DONE] = value }
     suspend fun setMonitoringDesired(value: Boolean) = edit { it[Keys.MONITORING_DESIRED] = value }
 
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {

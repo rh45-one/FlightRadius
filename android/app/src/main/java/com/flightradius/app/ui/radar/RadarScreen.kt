@@ -1,47 +1,46 @@
 package com.flightradius.app.ui.radar
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flightradius.app.R
+import com.flightradius.app.data.prefs.DataSource
 import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.service.MonitoringStatus
-import com.flightradius.app.ui.components.StatusChip
+import com.flightradius.app.ui.components.ScreenTitle
 import com.flightradius.app.ui.components.rememberNow
-import com.flightradius.app.ui.theme.extended
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,183 +68,136 @@ fun RadarScreen(
         onDispose { viewModel.onScreenVisible(false) }
     }
 
-    var chipInfo by remember { mutableStateOf<String?>(null) }
+    val keepOn = settings.keepScreenOn && state.status != MonitoringStatus.STOPPED
+    val view = LocalView.current
+    DisposableEffect(keepOn) {
+        view.keepScreenOn = keepOn
+        onDispose { view.keepScreenOn = false }
+    }
+
+    var showStatus by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<AircraftObservation?>(null) }
 
     val unit = settings.distanceUnit
     val snapshot = state.lastSnapshot
+    val intervalSec = state.plannedIntervalSec ?: settings.monitoringIntervalSec
+    val glance = glanceOf(aircraft.size, snapshot, now, intervalSec)
+    val summary = statusSummary(
+        status = state.status,
+        openSkyStatus = state.openSkyStatus,
+        locationStatus = locationStatus,
+        online = online,
+        lanBlocked = viewModel.localNetworkGuard.isBlocked(),
+        credits = credits,
+        lastSuccessAtMs = state.lastSuccessAtMs,
+        nowMs = now,
+        backendMode = settings.dataSource == DataSource.BACKEND
+    )
+    val hero = (glance as? Glance.Nearest)?.obs
+    val showBar = glance != Glance.NoAircraft
+
+    val lists: @Composable ColumnScope.() -> Unit = {
+        if (glance == Glance.NoAircraft) {
+            Button(
+                onClick = { onOpenAircraft(true) },
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(top = 16.dp)
+                    .heightIn(min = 48.dp)
+            ) { Text(stringResource(R.string.radar_add_aircraft)) }
+        }
+        if (snapshot != null) {
+            AlsoTrackingSection(
+                ranked = snapshot.ranked.filter { it.aircraftId != hero?.aircraftId },
+                unit = unit,
+                snoozes = snoozes,
+                nowMs = now,
+                onClick = { detail = it }
+            )
+            NotReportingSection(snapshot.noData)
+            if (state.status == MonitoringStatus.STOPPED) {
+                Text(
+                    stringResource(R.string.radar_preview_footnote),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+    }
+
+    val actionBar: @Composable () -> Unit = {
+        if (showBar) {
+            ActionBar(
+                status = state.status,
+                onStart = onStartMonitoring,
+                onPause = { viewModel.pause() },
+                onResume = { viewModel.resume() },
+                onStop = { viewModel.stop() }
+            )
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Header
-            item {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            // Status chips
-            item {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                ) {
-                    StatusChip(
-                        label = locationLabel(locationStatus, fix, now),
-                        color = locationColor(locationStatus),
-                        onClick = { chipInfo = "location" }
-                    )
-                    StatusChip(
-                        label = backendLabel(state.openSkyStatus, online, settings.dataSource),
-                        color = backendColor(state.openSkyStatus, online),
-                        onClick = { chipInfo = "backend" }
-                    )
-                    StatusChip(
-                        label = monitoringLabel(state.status),
-                        color = monitoringColor(state.status),
-                        onClick = { chipInfo = "monitoring" }
-                    )
-                    creditsLabel(credits)?.let { label ->
-                        StatusChip(
-                            label = label,
-                            color = creditsColor(credits),
-                            onClick = { chipInfo = "credits" }
-                        )
-                    }
-                }
-            }
-
-            // Issue cards
-            item { IssueCards(state, settings, locationStatus, online, viewModel,
-                onOpenSettings, onStartMonitoring) }
-
-            // Controls
-            item {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    when {
-                        state.status == MonitoringStatus.STOPPED -> {
-                            Button(
-                                onClick = onStartMonitoring,
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.radar_start)) }
-                        }
-                        state.status == MonitoringStatus.PAUSED -> {
-                            Button(
-                                onClick = { viewModel.resume() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.radar_resume)) }
-                            OutlinedButton(
-                                onClick = { viewModel.stop() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.radar_stop)) }
-                        }
-                        else -> {
-                            OutlinedButton(
-                                onClick = { viewModel.pause() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.radar_pause)) }
-                            OutlinedButton(
-                                onClick = { viewModel.stop() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.radar_stop)) }
-                        }
-                    }
-                }
-            }
-
-            // Preview banner when snapshot exists while service stopped
-            if (state.status == MonitoringStatus.STOPPED && snapshot != null) {
-                item {
-                    Surface(
-                        color = MaterialTheme.colorScheme.extended.info.copy(alpha = 0.10f),
-                        shape = MaterialTheme.shapes.medium
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val landscape = maxWidth > maxHeight
+            if (landscape) {
+                val dialSize: Dp = minOf(maxHeight - 32.dp, 340.dp, maxWidth * 0.5f - 16.dp)
+                    .coerceAtLeast(160.dp)
+                Row(Modifier.fillMaxSize()) {
+                    Box(
+                        Modifier
+                            .fillMaxHeight()
+                            .padding(start = 16.dp, top = 16.dp, bottom = 16.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            stringResource(R.string.radar_preview_banner),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.extended.info,
-                            modifier = Modifier.padding(12.dp)
-                        )
+                        GlanceDial(glance, unit, now, dialSize)
                     }
+                    Column(Modifier.weight(1f)) {
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Spacer(Modifier.height(8.dp))
+                            StatusLine(summary, now, onClick = { showStatus = true })
+                            if (hero != null) {
+                                DetailRow(hero, unit, Modifier.padding(top = 8.dp))
+                            }
+                            lists()
+                        }
+                        actionBar()
+                    }
+                }
+            } else {
+                val dialSize: Dp = minOf(maxWidth - 32.dp, 340.dp)
+                Column(Modifier.fillMaxSize()) {
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        ScreenTitle(stringResource(R.string.app_name))
+                        StatusLine(summary, now, onClick = { showStatus = true })
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            GlanceDial(glance, unit, now, dialSize)
+                        }
+                        if (hero != null) {
+                            DetailRow(hero, unit, Modifier.padding(top = 16.dp))
+                        }
+                        lists()
+                    }
+                    actionBar()
                 }
             }
-
-            when {
-                aircraft.isEmpty() && snapshot == null -> {
-                    item { EmptyState(onAdd = { onOpenAircraft(true) }) }
-                }
-                snapshot == null -> {
-                    item { SkeletonHero() }
-                    items(3) { SkeletonCard() }
-                }
-                else -> {
-                    snapshot.closest?.let { obs ->
-                        item {
-                            HeroCard(
-                                obs = obs,
-                                unit = unit,
-                                sweeping = state.status == MonitoringStatus.RUNNING,
-                                nowMs = now
-                            )
-                        }
-                    }
-                    items(
-                        snapshot.ranked,
-                        key = { it.aircraftId }
-                    ) { obs ->
-                        AircraftCard(
-                            obs = obs,
-                            unit = unit,
-                            fleetColors = fleets
-                                .filter { obs.aircraftId in it.memberIds }
-                                .map { it.colorArgb },
-                            snoozed = snoozes[obs.aircraftId]
-                                ?.let { it > now } == true,
-                            nowMs = now,
-                            onClick = { detail = obs },
-                            onSnooze = { viewModel.snooze(obs.aircraftId, 30) },
-                            onDismissAlert = { viewModel.dismissAlert() },
-                            onEdit = { onEditAircraft(obs.aircraftId) },
-                            modifier = Modifier.animateItem()
-                        )
-                    }
-                    if (snapshot.noData.isNotEmpty()) {
-                        item {
-                            Text(
-                                stringResource(R.string.radar_not_reporting),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 8.dp)
-                            )
-                        }
-                        items(snapshot.noData, key = { "nodata-${it.id}" }) { t ->
-                            NoDataRow(t)
-                        }
-                    }
-                }
-            }
-
-            item { Spacer(Modifier.height(80.dp)) }
         }
 
         if (settings.debugLogging) {
@@ -253,22 +205,52 @@ fun RadarScreen(
         }
     }
 
-    // Status explanation sheet
-    chipInfo?.let { which ->
-        ModalBottomSheet(onDismissRequest = { chipInfo = null }) {
-            ChipDetail(which, state, locationStatus, fix, online, settings,
-                credits, now, onOpenSettings, onStartMonitoring)
+    if (showStatus) {
+        ModalBottomSheet(
+            onDismissRequest = { showStatus = false },
+            containerColor = MaterialTheme.colorScheme.background,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            StatusSheetContent(
+                summary = summary,
+                state = state,
+                locationStatus = locationStatus,
+                fix = fix,
+                online = online,
+                settings = settings,
+                credits = credits,
+                now = now,
+                onAction = {
+                    showStatus = false
+                    when (summary.action) {
+                        StatusAction.OPEN_SETTINGS -> onOpenSettings()
+                        StatusAction.START_MONITORING -> onStartMonitoring()
+                        StatusAction.RETRY -> viewModel.retryNow()
+                        StatusAction.NONE -> Unit
+                    }
+                }
+            )
         }
     }
 
     detail?.let { obs ->
-        ModalBottomSheet(onDismissRequest = { detail = null }) {
-            AircraftDetail(obs, unit, now,
+        ModalBottomSheet(
+            onDismissRequest = { detail = null },
+            containerColor = MaterialTheme.colorScheme.background,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            AircraftDetail(
+                obs, unit, now,
                 fleets.filter { obs.aircraftId in it.memberIds },
                 onEdit = {
                     detail = null
                     onEditAircraft(obs.aircraftId)
-                })
+                },
+                onSnooze = {
+                    viewModel.snooze(obs.aircraftId, 30)
+                    detail = null
+                }
+            )
         }
     }
 }

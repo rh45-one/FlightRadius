@@ -1,6 +1,8 @@
 package com.flightradius.app.ui.theme
 
 import android.app.Activity
+import android.app.UiModeManager
+import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,8 +10,6 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -22,7 +22,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
-import com.flightradius.app.data.prefs.ThemeMode
 
 // -- Palette: Apple-style neutral base + FlightRadius cyan accent ------------
 // Dark: pure-black canvas with elevated grouped surfaces. Light: grouped
@@ -133,23 +132,19 @@ val AppShapes = Shapes(
 )
 
 @Composable
-fun FlightRadiusTheme(
-    themeMode: ThemeMode = ThemeMode.SYSTEM,
-    dynamicColor: Boolean = false,
-    content: @Composable () -> Unit
-) {
-    val dark = when (themeMode) {
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-        ThemeMode.DARK -> true
-        ThemeMode.LIGHT -> false
-    }
+fun FlightRadiusTheme(content: @Composable () -> Unit) {
+    val dark = isSystemInDarkTheme()
     val context = LocalContext.current
-    val scheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= 31 ->
-            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        dark -> DarkScheme
-        else -> LightScheme
-    }
+    val highContrast = Build.VERSION.SDK_INT >= 34 &&
+        (context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)
+            ?.contrast?.let { it >= 0.5f } == true
+    val base = if (dark) DarkScheme else LightScheme
+    val scheme = if (highContrast) {
+        base.copy(
+            onSurfaceVariant = if (dark) Color(0xFFD1D1D6) else Color(0xFF3A3A3C),
+            outlineVariant = base.outline
+        )
+    } else base
     val extended = if (dark) DarkExtended else LightExtended
 
     val view = LocalView.current

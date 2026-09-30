@@ -1,49 +1,38 @@
 package com.flightradius.app.ui.aircraft
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,8 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,10 +54,14 @@ import com.flightradius.app.data.prefs.AppSettings
 import com.flightradius.app.domain.Fleet
 import com.flightradius.app.domain.IdentifierType
 import com.flightradius.app.domain.TrackedAircraft
-import com.flightradius.app.domain.effectiveRadiusKm
+import com.flightradius.app.ui.components.GroupedDivider
+import com.flightradius.app.ui.components.GroupedRow
+import com.flightradius.app.ui.components.NavigationChevron
+import com.flightradius.app.ui.components.ScreenTitle
 import com.flightradius.app.ui.format.Format
+import com.flightradius.app.ui.theme.CodeFeatures
+import com.flightradius.app.ui.theme.NumericFeatures
 import com.flightradius.app.ui.theme.extended
-import kotlinx.coroutines.launch
 
 /**
  * Tracked-aircraft list + add/bulk-add/edit sheets. [openAddOnLaunch] opens
@@ -102,28 +94,47 @@ fun AircraftScreen(
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            Text(
+            ScreenTitle(
                 stringResource(R.string.aircraft_title),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(top = 16.dp)
+                actions = {
+                    TextButton(onClick = { showBulk = true }) {
+                        Text(stringResource(R.string.aircraft_bulk_add))
+                    }
+                    IconButton(onClick = { showAdd = true }) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = stringResource(R.string.aircraft_add))
+                    }
+                }
             )
-            OutlinedTextField(
+            TextField(
                 value = query,
                 onValueChange = { viewModel.search.value = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(bottom = 8.dp),
                 placeholder = { Text(stringResource(R.string.aircraft_search)) },
-                singleLine = true
+                leadingIcon = {
+                    Icon(Icons.Filled.Search, contentDescription = null)
+                },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.search.value = "" }) {
+                            Icon(
+                                Icons.Filled.Clear,
+                                contentDescription = stringResource(R.string.aircraft_clear_search))
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = MaterialTheme.shapes.medium,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
             )
-            Row(
-                Modifier.padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(onClick = { showBulk = true }) {
-                    Text(stringResource(R.string.aircraft_bulk_add))
-                }
-            }
             if (aircraft.isEmpty()) {
                 Column(
                     Modifier
@@ -133,49 +144,71 @@ fun AircraftScreen(
                 ) {
                     Text(
                         stringResource(R.string.aircraft_empty_title),
-                        style = MaterialTheme.typography.titleMedium)
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center)
                     Text(
                         stringResource(R.string.aircraft_empty_body),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { showAdd = true }) {
+                        Text(stringResource(R.string.aircraft_add))
+                    }
                 }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(aircraft, key = { it.id }) { a ->
+                LazyColumn {
+                    itemsIndexed(aircraft, key = { _, a -> a.id }) { index, a ->
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = { v ->
                                 v == SwipeToDismissBoxValue.EndToStart
                             }
                         )
+                        val r = 14.dp
+                        val shape = RoundedCornerShape(
+                            topStart = if (index == 0) r else 0.dp,
+                            topEnd = if (index == 0) r else 0.dp,
+                            bottomStart = if (index == aircraft.lastIndex) r else 0.dp,
+                            bottomEnd = if (index == aircraft.lastIndex) r else 0.dp
+                        )
                         SwipeToDismissBox(
                             state = dismissState,
+                            modifier = Modifier.clip(shape),
                             backgroundContent = {
-                                Box(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .clip(MaterialTheme.shapes.medium)
-                                        .background(
-                                            MaterialTheme.colorScheme.extended.danger
-                                                .copy(alpha = 0.2f)),
-                                    contentAlignment = Alignment.CenterEnd
+                                if (dismissState.dismissDirection !=
+                                    SwipeToDismissBoxValue.Settled
                                 ) {
-                                    Text(
-                                        stringResource(R.string.action_delete),
-                                        color = MaterialTheme.colorScheme.extended.danger,
-                                        modifier = Modifier.padding(16.dp)
-                                    )
+                                    Box(
+                                        Modifier
+                                            .fillMaxSize()
+                                            .background(MaterialTheme.colorScheme.extended.danger),
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        Text(
+                                            stringResource(R.string.action_delete),
+                                            color = MaterialTheme.colorScheme.surface,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            modifier = Modifier.padding(16.dp)
+                                        )
+                                    }
                                 }
                             },
                             enableDismissFromStartToEnd = false
                         ) {
-                            AircraftRow(
-                                a,
-                                settings,
-                                fleets = fleets
-                                    .filter { a.id in it.memberIds },
-                                globalRadius = settings.globalAlertRadiusKm,
-                                onClick = { editing = a }
-                            )
+                            Column(
+                                Modifier.background(
+                                    MaterialTheme.colorScheme.surfaceContainer)
+                            ) {
+                                if (index > 0) GroupedDivider()
+                                AircraftRow(
+                                    a,
+                                    settings,
+                                    fleets = fleets
+                                        .filter { a.id in it.memberIds },
+                                    globalRadius = settings.globalAlertRadiusKm,
+                                    onClick = { editing = a }
+                                )
+                            }
                         }
                         if (dismissState.currentValue ==
                             SwipeToDismissBoxValue.EndToStart
@@ -195,22 +228,10 @@ fun AircraftScreen(
                             }
                         }
                     }
-                    item { Spacer(Modifier.height(80.dp)) }
+                    item { Spacer(Modifier.height(24.dp)) }
                 }
             }
         }
-
-        ExtendedFloatingActionButton(
-            onClick = { showAdd = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-            icon = {
-                Icon(Icons.Filled.Add,
-                    contentDescription = stringResource(R.string.aircraft_add))
-            },
-            text = { Text(stringResource(R.string.aircraft_add)) }
-        )
 
         SnackbarHost(
             snackbar,
@@ -219,7 +240,10 @@ fun AircraftScreen(
     }
 
     if (showAdd) {
-        ModalBottomSheet(onDismissRequest = { showAdd = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showAdd = false },
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
             AddAircraftSheet(
                 viewModel = viewModel,
                 settings = settings,
@@ -228,7 +252,10 @@ fun AircraftScreen(
         }
     }
     if (showBulk) {
-        ModalBottomSheet(onDismissRequest = { showBulk = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showBulk = false },
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
             BulkAddSheet(
                 viewModel = viewModel,
                 onDone = { showBulk = false }
@@ -236,7 +263,10 @@ fun AircraftScreen(
         }
     }
     editing?.let { a ->
-        ModalBottomSheet(onDismissRequest = { editing = null }) {
+        ModalBottomSheet(
+            onDismissRequest = { editing = null },
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
             EditAircraftSheet(
                 aircraft = a,
                 fleets = fleets,
@@ -256,78 +286,35 @@ private fun AircraftRow(
     globalRadius: Double,
     onClick: () -> Unit
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer)
-    ) {
-        Row(
-            Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        a.identifier,
-                        style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.width(8.dp))
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = MaterialTheme.shapes.small
-                    ) {
-                        Text(
-                            a.type.name,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(
-                                horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-                if (fleets.isNotEmpty()) {
-                    Spacer(Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        for (f in fleets.take(3)) {
-                            Surface(
-                                color = Color(f.colorArgb).copy(alpha = 0.20f),
-                                shape = MaterialTheme.shapes.small
-                            ) {
-                                Text(
-                                    f.name,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color(f.colorArgb),
-                                    maxLines = 1,
-                                    modifier = Modifier.padding(
-                                        horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-                val radiusLabel = stringResource(
-                    R.string.aircraft_radius_label,
-                    Format.distance(
-                        a.alertRadiusKm ?: globalRadius,
-                        settings.distanceUnit),
-                    if (a.alertRadiusKm != null)
-                        stringResource(R.string.override_label)
-                    else
-                        stringResource(R.string.default_label))
-                Text(
-                    radiusLabel,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+    val typeLabel = stringResource(
+        if (a.type == IdentifierType.CALLSIGN) R.string.aircraft_callsign
+        else R.string.aircraft_type_icao24)
+    val radiusLabel = stringResource(
+        R.string.aircraft_radius_label,
+        Format.distance(a.alertRadiusKm ?: globalRadius, settings.distanceUnit),
+        if (a.alertRadiusKm != null) stringResource(R.string.override_label)
+        else stringResource(R.string.default_label))
+    val subtitle = buildList {
+        add(typeLabel)
+        add(radiusLabel)
+        if (fleets.isNotEmpty()) add(fleets.joinToString(", ") { it.name })
+    }.joinToString(" · ")
+    GroupedRow(
+        title = a.identifier,
+        titleStyle = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = CodeFeatures),
+        subtitle = subtitle,
+        subtitleStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = NumericFeatures),
+        leading = fleets.firstOrNull()?.let { f ->
+            {
+                Box(
+                    Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(Color(f.colorArgb))
                 )
-                a.notes?.takeIf { it.isNotBlank() }?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                }
             }
-        }
-    }
+        },
+        trailing = { NavigationChevron() },
+        onClick = onClick
+    )
 }

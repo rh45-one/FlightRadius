@@ -45,6 +45,7 @@ import com.flightradius.app.domain.Fleet
 import com.flightradius.app.domain.IdentifierType
 import com.flightradius.app.domain.TrackedAircraft
 import com.flightradius.app.ui.format.Format
+import com.flightradius.app.ui.theme.CodeFeatures
 import com.flightradius.app.ui.theme.extended
 import kotlinx.coroutines.launch
 
@@ -244,6 +245,7 @@ internal fun BulkAddSheet(
             onValueChange = { text = it; parsed = false; liveCallsigns = null },
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(top = 12.dp)
                 .heightIn(min = 120.dp),
             label = { Text(stringResource(R.string.aircraft_bulk_hint)) }
         )
@@ -296,7 +298,13 @@ internal fun BulkAddSheet(
                                     }
                                 }
                             )
-                            Text(e.identifier, Modifier.weight(1f))
+                            Text(
+                                e.identifier,
+                                Modifier.padding(end = 8.dp),
+                                maxLines = 1,
+                                softWrap = false,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontFeatureSettings = CodeFeatures))
                             if (e.ambiguous) {
                                 FilterChip(
                                     selected = e.type == IdentifierType.ICAO24,
@@ -358,6 +366,8 @@ internal fun BulkAddSheet(
                                     else -> e.type?.name ?: ""
                                 },
                                 style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.weight(1f),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.End,
                                 color = when (e.status) {
                                     BulkAddStatus.INVALID -> MaterialTheme.colorScheme.extended.danger
                                     BulkAddStatus.ALREADY_TRACKED ->
@@ -415,7 +425,10 @@ internal fun EditAircraftSheet(
             .padding(24.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Text(aircraft.identifier, style = MaterialTheme.typography.titleLarge)
+        Text(
+            aircraft.identifier,
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontFeatureSettings = CodeFeatures))
         Text(aircraft.type.name,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)

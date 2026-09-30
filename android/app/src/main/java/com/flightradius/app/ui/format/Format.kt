@@ -28,6 +28,14 @@ object Format {
     fun distanceNumber(km: Double, unit: DistanceUnit): String =
         "%.1f".format(kmToUnit(km, unit))
 
+    /** Big glance number: one decimal below 10, whole number from 10 up. */
+    fun glanceNumber(km: Double, unit: DistanceUnit): String {
+        val v = kmToUnit(km, unit)
+        val oneDecimal = Math.round(v * 10) / 10.0
+        return if (oneDecimal < 10.0) String.format(Locale.getDefault(), "%.1f", v)
+        else String.format(Locale.getDefault(), "%.0f", v)
+    }
+
     fun speed(mps: Double?, unit: DistanceUnit): String? =
         mps?.let { AlertText.formatSpeed(it * 3.6, unit) }
 
@@ -40,6 +48,10 @@ object Format {
     /** "045° NE" */
     fun bearing(deg: Double): String =
         "%03d° %s".format(deg.roundToInt() % 360, AlertText.cardinal(deg))
+
+    /** "NE 045°" (cardinal first) for compact glance labels. */
+    fun bearingShort(deg: Double): String =
+        "%s %03d°".format(AlertText.cardinal(deg), deg.roundToInt() % 360)
 
     fun heading(deg: Double?): String? =
         deg?.let { "%03d°".format(it.roundToInt() % 360) }

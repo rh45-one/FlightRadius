@@ -5,21 +5,43 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.addPathNodes
@@ -42,12 +64,14 @@ import com.flightradius.app.ui.alerts.ProximityAlertSheet
 import com.flightradius.app.ui.aircraft.AircraftScreen
 import com.flightradius.app.ui.debug.DebugScreen
 import com.flightradius.app.ui.fleets.FleetsScreen
+import com.flightradius.app.ui.onboarding.WelcomeScreen
 import com.flightradius.app.ui.radar.RadarScreen
 import com.flightradius.app.ui.rememberMonitoringStarter
 import com.flightradius.app.ui.settings.SettingsScreen
 import com.flightradius.app.ui.theme.FlightRadiusTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 // Custom ImageVectors (icons-core has no radar/plane/layers glyphs).
 private val RadarIcon: ImageVector = ImageVector.Builder(
@@ -122,11 +146,14 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun App() {
-        val settings by settingsRepository.settings
-            .collectAsStateWithLifecycle(initialValue = AppSettings())
+        val loaded by settingsRepository.settings
+            .collectAsStateWithLifecycle(initialValue = null)
+        val settings = loaded ?: AppSettings()
         val nav = rememberNavController()
         val backStack by nav.currentBackStackEntryAsState()
         val route = backStack?.destination?.route
+        val scope = rememberCoroutineScope()
+        var pendingRoute by remember { mutableStateOf<String?>(null) }
 
         val starter = rememberMonitoringStarter(
             controller = controller,
@@ -137,34 +164,45 @@ class MainActivity : ComponentActivity() {
         )
         startMonitoringAction = { starter.begin() }
 
-        FlightRadiusTheme(
-            themeMode = settings.themeMode,
-            dynamicColor = settings.dynamicColor
-        ) {
+        FlightRadiusTheme {
             val activeAlert by stateRepository.activeAlert
                 .collectAsStateWithLifecycle()
             val monitorState by stateRepository.state
                 .collectAsStateWithLifecycle()
 
+            if (loaded == null) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface)
+                )
+                return@FlightRadiusTheme
+            }
+            if (!settings.onboardingDone) {
+                WelcomeScreen(
+                    onAddFirstAircraft = {
+                        pendingRoute = "aircraft?add=true"
+                        scope.launch { settingsRepository.setOnboardingDone() }
+                    },
+                    onNotNow = {
+                        pendingRoute = NavItem.Radar.route
+                        scope.launch { settingsRepository.setOnboardingDone() }
+                    }
+                )
+                return@FlightRadiusTheme
+            }
+
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+            val landscape = maxWidth > maxHeight
+            val onSelect: (NavItem) -> Unit = { nav.navigateToTab(it.route) }
             Scaffold(
                 bottomBar = {
-                    NavigationBar {
-                        NavItem.entries.forEach { item ->
-                            NavigationBarItem(
-                                selected = route?.startsWith(item.route) == true ||
-                                    (route == "debug" && item == NavItem.Settings),
-                                onClick = { nav.navigateToTab(item.route) },
-                                icon = {
-                                    Icon(item.icon, contentDescription =
-                                        stringResource(item.labelRes))
-                                },
-                                label = { Text(stringResource(item.labelRes)) }
-                            )
-                        }
-                    }
+                    if (!landscape) BottomNav(route, onSelect)
                 }
             ) { padding ->
-                Box(Modifier.fillMaxSize().padding(padding)) {
+                Row(Modifier.fillMaxSize().padding(padding)) {
+                if (landscape) SideRail(route, onSelect)
+                Box(Modifier.weight(1f).fillMaxHeight()) {
                     NavHost(nav, startDestination = NavItem.Radar.route) {
                         composable(NavItem.Radar.route) {
                             RadarScreen(
@@ -207,6 +245,13 @@ class MainActivity : ComponentActivity() {
                         composable("debug") { DebugScreen(onBack = { nav.popBackStack() }) }
                     }
 
+                    LaunchedEffect(pendingRoute) {
+                        pendingRoute?.let {
+                            nav.navigateToTab(it, restore = false)
+                            pendingRoute = null
+                        }
+                    }
+
                     // Root-level proximity alert overlay.
                     if (settings.inAppAlertBanner) {
                         activeAlert?.let { event ->
@@ -230,9 +275,100 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+                }
+            }
             }
         }
     }
+
+    @Composable
+    private fun CappedFontScale(content: @Composable () -> Unit) {
+        val density = LocalDensity.current
+        CompositionLocalProvider(
+            LocalDensity provides Density(
+                density.density,
+                fontScale = minOf(density.fontScale, 1.3f)
+            ),
+            content = content
+        )
+    }
+
+    @Composable
+    private fun BottomNav(route: String?, onSelect: (NavItem) -> Unit) {
+        Column {
+            HorizontalDivider(
+                thickness = Dp.Hairline,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+            CappedFontScale {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp
+                ) {
+                    NavItem.entries.forEach { item ->
+                        NavigationBarItem(
+                            selected = isSelected(route, item),
+                            onClick = { onSelect(item) },
+                            icon = {
+                                Icon(item.icon, contentDescription =
+                                    stringResource(item.labelRes))
+                            },
+                            label = { Text(stringResource(item.labelRes)) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = Color.Transparent,
+                                unselectedIconColor =
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor =
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun SideRail(route: String?, onSelect: (NavItem) -> Unit) {
+        Row(Modifier.fillMaxHeight()) {
+            CappedFontScale {
+                NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
+                    Spacer(Modifier.weight(1f))
+                    NavItem.entries.forEach { item ->
+                        NavigationRailItem(
+                            selected = isSelected(route, item),
+                            onClick = { onSelect(item) },
+                            icon = {
+                                Icon(item.icon, contentDescription =
+                                    stringResource(item.labelRes))
+                            },
+                            label = { Text(stringResource(item.labelRes)) },
+                            colors = NavigationRailItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = Color.Transparent,
+                                unselectedIconColor =
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor =
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+            VerticalDivider(
+                thickness = Dp.Hairline,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+        }
+    }
+
+    private fun isSelected(route: String?, item: NavItem) =
+        route?.startsWith(item.route) == true ||
+            (route == "debug" && item == NavItem.Settings)
 
     /**
      * Switches to a top-level tab instead of pushing onto the current tab's

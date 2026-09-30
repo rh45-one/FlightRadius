@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,19 +14,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -42,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,7 +53,14 @@ import com.flightradius.app.R
 import com.flightradius.app.data.prefs.AppSettings
 import com.flightradius.app.data.repo.FLEET_COLOR_PALETTE
 import com.flightradius.app.domain.Fleet
+import com.flightradius.app.ui.components.GroupedDivider
+import com.flightradius.app.ui.components.GroupedRow
+import com.flightradius.app.ui.components.GroupedSection
+import com.flightradius.app.ui.components.NavigationChevron
+import com.flightradius.app.ui.components.ScreenTitle
 import com.flightradius.app.ui.format.Format
+import com.flightradius.app.ui.theme.CodeFeatures
+import com.flightradius.app.ui.theme.NumericFeatures
 import com.flightradius.app.ui.theme.extended
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,21 +85,22 @@ fun FleetsScreen(
     val intervalSec = state.plannedIntervalSec ?: settings.monitoringIntervalSec
     val snapshotStale = snapshot == null || now - snapshot.timeMs > 2 * intervalSec * 1000L
 
-    Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            item {
-                Text(
-                    stringResource(R.string.fleets_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+    ) {
+        ScreenTitle(
+            stringResource(R.string.fleets_title),
+            actions = {
+                IconButton(onClick = { showCreate = true }) {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = stringResource(R.string.fleets_add))
+                }
             }
-
+        )
+        LazyColumn(Modifier.fillMaxSize()) {
             if (snapshotStale && fleets.isNotEmpty()) {
                 item {
                     com.flightradius.app.ui.components.IssueCard(
@@ -109,7 +121,7 @@ fun FleetsScreen(
             }
             items(fleets, key = { it.id }) { fleet ->
                 val status = snapshot?.fleets?.find { it.fleet.id == fleet.id }
-                FleetCard(
+                FleetSection(
                     fleet = fleet,
                     status = status,
                     aircraft = aircraft,
@@ -124,7 +136,7 @@ fun FleetsScreen(
                         else expanded + fleet.id
                     },
                     onEdit = { editFleet = fleet },
-                    onDelete = { deleteFleet = fleet }
+                    modifier = Modifier.padding(top = 16.dp)
                 )
             }
 
@@ -138,27 +150,29 @@ fun FleetsScreen(
                     ) {
                         Text(
                             stringResource(R.string.fleets_empty_title),
-                            style = MaterialTheme.typography.titleMedium)
+                            style = MaterialTheme.typography.titleMedium,
+                            textAlign = TextAlign.Center)
                         Text(
                             stringResource(R.string.fleets_empty_body),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = { showCreate = true }) {
+                            Text(stringResource(R.string.fleets_add))
+                        }
                     }
                 }
             }
-            item { Spacer(Modifier.height(80.dp)) }
+            item { Spacer(Modifier.height(24.dp)) }
         }
-
-        ExtendedFloatingActionButton(
-            onClick = { showCreate = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-        ) { Text(stringResource(R.string.fleets_add)) }
     }
 
     if (showCreate) {
-        ModalBottomSheet(onDismissRequest = { showCreate = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showCreate = false },
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
             FleetEditSheet(
                 fleet = null,
                 aircraft = aircraft,
@@ -172,7 +186,10 @@ fun FleetsScreen(
         }
     }
     editFleet?.let { fleet ->
-        ModalBottomSheet(onDismissRequest = { editFleet = null }) {
+        ModalBottomSheet(
+            onDismissRequest = { editFleet = null },
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
             FleetEditSheet(
                 fleet = fleet,
                 aircraft = aircraft,
@@ -182,6 +199,10 @@ fun FleetsScreen(
                         fleet.id, name, color, radius, members) { ok, _ ->
                         if (ok) editFleet = null
                     }
+                },
+                onDelete = {
+                    editFleet = null
+                    deleteFleet = fleet
                 }
             )
         }
@@ -206,7 +227,7 @@ fun FleetsScreen(
 }
 
 @Composable
-private fun FleetCard(
+private fun FleetSection(
     fleet: Fleet,
     status: com.flightradius.app.domain.FleetStatus?,
     aircraft: List<com.flightradius.app.domain.TrackedAircraft>,
@@ -218,103 +239,98 @@ private fun FleetCard(
     expanded: Boolean,
     onToggle: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    modifier: Modifier = Modifier
 ) {
-    Card(
-        Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer)
-    ) {
-        Column(Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+    val lMembers = stringResource(
+        R.string.fleets_member_count, fleet.memberIds.size)
+    // Effective radius: fleet override else the global default.
+    val lRadius = fleet.alertRadiusKm?.let {
+        stringResource(R.string.fleets_radius, Format.distance(it, unit))
+    } ?: stringResource(R.string.fleets_radius_default,
+        Format.distance(globalRadiusKm, unit))
+    // Closest member stays visible when stale, marked with its age.
+    val staleSuffix =
+        if (stale && snapshotMs != null)
+            " · " + stringResource(
+                R.string.fleets_stale_ago, Format.age(nowMs, snapshotMs))
+        else ""
+    val lClosest = status?.closest?.let { c ->
+        stringResource(R.string.fleets_closest,
+            Format.callsign(c), Format.distance(c.distanceKm, unit)) +
+            staleSuffix
+    }
+    GroupedSection(header = null, modifier = modifier) {
+        GroupedRow(
+            title = fleet.name,
+            titleStyle = MaterialTheme.typography.titleMedium,
+            subtitle = buildList {
+                add(lMembers)
+                add(lRadius)
+                lClosest?.let { add(it) }
+            }.joinToString(" · "),
+            subtitleStyle = MaterialTheme.typography.bodySmall.copy(
+                fontFeatureSettings = NumericFeatures),
+            leading = {
                 Box(
                     Modifier
-                        .size(14.dp)
+                        .size(12.dp)
                         .clip(CircleShape)
                         .background(Color(fleet.colorArgb))
                 )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    fleet.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f))
-                TextButton(onClick = onEdit) {
-                    Text(stringResource(R.string.action_edit))
-                }
-                TextButton(onClick = onDelete) {
-                    Text(stringResource(R.string.action_delete))
-                }
+            },
+            trailing = { NavigationChevron() },
+            onClick = onEdit
+        )
+        GroupedDivider()
+        GroupedRow(
+            title = if (expanded) stringResource(R.string.fleets_collapse)
+            else stringResource(R.string.fleets_expand),
+            titleColor = MaterialTheme.colorScheme.primary,
+            onClick = onToggle
+        )
+        if (expanded) {
+            val members = fleet.memberIds.mapNotNull { id ->
+                aircraft.find { it.id == id }
             }
-            val lMembers = stringResource(
-                R.string.fleets_member_count, fleet.memberIds.size)
-            // Effective radius: fleet override else the global default.
-            val lRadius = fleet.alertRadiusKm?.let {
-                stringResource(R.string.fleets_radius, Format.distance(it, unit))
-            } ?: stringResource(R.string.fleets_radius_default,
-                Format.distance(globalRadiusKm, unit))
-            // Closest member stays visible when stale, marked with its age.
-            val staleSuffix =
-                if (stale && snapshotMs != null)
-                    " · " + stringResource(
-                        R.string.fleets_stale_ago, Format.age(nowMs, snapshotMs))
-                else ""
-            val lClosest = status?.closest?.let { c ->
-                stringResource(R.string.fleets_closest,
-                    Format.callsign(c), Format.distance(c.distanceKm, unit)) +
-                    staleSuffix
-            }
-            Text(
-                buildList {
-                    add(lMembers)
-                    lRadius?.let { add(it) }
-                    lClosest?.let { add(it) }
-                }.joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            TextButton(onClick = onToggle) {
-                Text(
-                    if (expanded) stringResource(R.string.fleets_collapse)
-                    else stringResource(R.string.fleets_expand))
-            }
-            if (expanded) {
-                val members = fleet.memberIds.mapNotNull { id ->
-                    aircraft.find { it.id == id }
-                }
-                val ranked = status?.membersRanked.orEmpty()
-                if (members.isEmpty()) {
-                    Text(
-                        stringResource(R.string.fleets_no_members),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else {
-                    for (m in members) {
-                        val obs = ranked.find { it.aircraftId == m.id }
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp)) {
-                            Text(m.identifier, Modifier.weight(1f),
-                                style = MaterialTheme.typography.bodyMedium)
+            val ranked = status?.membersRanked.orEmpty()
+            if (members.isEmpty()) {
+                GroupedDivider()
+                GroupedRow(
+                    title = stringResource(R.string.fleets_no_members),
+                    titleColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    titleStyle = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                for (m in members) {
+                    val obs = ranked.find { it.aircraftId == m.id }
+                    GroupedDivider()
+                    GroupedRow(
+                        title = m.identifier,
+                        titleStyle = MaterialTheme.typography.bodyLarge.copy(
+                            fontFeatureSettings = CodeFeatures),
+                        trailing = {
                             Text(
                                 obs?.let { Format.distance(it.distanceKm, unit) }
                                     ?: stringResource(R.string.fleets_missing),
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFeatureSettings = NumericFeatures),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    }
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FleetEditSheet(
     fleet: Fleet?,
     aircraft: List<com.flightradius.app.domain.TrackedAircraft>,
     settings: AppSettings,
-    onSave: (name: String, color: Int, radiusKm: Double?, members: Set<Long>) -> Unit
+    onSave: (name: String, color: Int, radiusKm: Double?, members: Set<Long>) -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     var name by remember { mutableStateOf(fleet?.name ?: "") }
     var color by remember {
@@ -353,7 +369,7 @@ private fun FleetEditSheet(
             stringResource(R.string.fleets_color),
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(top = 12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (c in FLEET_COLOR_PALETTE) {
                 Box(
                     Modifier
@@ -416,7 +432,10 @@ private fun FleetEditSheet(
                         members = if (checked) members + a.id else members - a.id
                     }
                 )
-                Text(a.identifier)
+                Text(
+                    a.identifier,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontFeatureSettings = CodeFeatures))
             }
         }
 
@@ -428,6 +447,16 @@ private fun FleetEditSheet(
                     onSave(name.trim(), color, if (useRadius) radiusKm else null, members)
                 }
             ) { Text(stringResource(R.string.action_save)) }
+        }
+        if (onDelete != null) {
+            TextButton(
+                onClick = onDelete,
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
+                Text(
+                    stringResource(R.string.fleets_delete),
+                    color = MaterialTheme.colorScheme.extended.danger)
+            }
         }
         Spacer(Modifier.height(24.dp))
     }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,10 +24,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -42,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +62,10 @@ import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.ui.components.BearingArrow
 import com.flightradius.app.ui.format.Format
+import com.flightradius.app.ui.theme.CodeFeatures
+import com.flightradius.app.ui.theme.Inter
+import com.flightradius.app.ui.theme.InterDisplay
+import com.flightradius.app.ui.theme.NumericFeatures
 import com.flightradius.app.ui.theme.extended
 
 /**
@@ -74,6 +85,7 @@ fun ProximityAlertSheet(
 ) {
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
+    val columns = if (LocalDensity.current.fontScale < 1.5f) 3 else 2
 
     LaunchedEffect(obs.aircraftId) {
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -122,10 +134,11 @@ fun ProximityAlertSheet(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "\u26a0",
-                                color = danger,
-                                fontSize = 26.sp)
+                            Icon(
+                                Icons.Filled.Warning,
+                                contentDescription = null,
+                                tint = danger,
+                                modifier = Modifier.size(28.dp))
                             Spacer(Modifier.size(8.dp))
                             Text(
                                 stringResource(R.string.alert_title),
@@ -142,20 +155,27 @@ fun ProximityAlertSheet(
                     }
 
                     // Centered content: callsign -> hero distance -> 2x3 grid.
-                    Column(
+                    Box(
                         Modifier
                             .weight(1f)
                             .fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        contentAlignment = Alignment.Center
+                    ) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             Format.callsign(obs),
                             fontSize = 48.sp,
-                            fontWeight = FontWeight.ExtraBold,
+                            fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"),
+                            style = MaterialTheme.typography.displaySmall.copy(
+                                fontFamily = Inter, fontWeight = FontWeight.Bold,
+                                fontSize = 48.sp, fontFeatureSettings = CodeFeatures),
                             color = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.height(16.dp))
                         val animatedDist by animateFloatAsState(
@@ -167,11 +187,14 @@ fun ProximityAlertSheet(
                             "%.1f %s".format(
                                 animatedDist, Format.distanceUnitLabel(unit)),
                             fontSize = 64.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontFamily = InterDisplay,
+                            fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             softWrap = false,
                             autoSize = TextAutoSize.StepBased(minFontSize = 28.sp),
-                            style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"),
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontFamily = InterDisplay, fontWeight = FontWeight.SemiBold,
+                                fontSize = 64.sp, fontFeatureSettings = NumericFeatures),
                             color = danger)
                         Text(
                             stringResource(
@@ -182,100 +205,76 @@ fun ProximityAlertSheet(
 
                         Spacer(Modifier.height(28.dp))
                         val cp = Format.closingParts(obs, unit)
-                        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                            Row(Modifier.fillMaxWidth()) {
-                                AlertStat(
-                                    label = stringResource(R.string.alert_stat_bearing),
-                                    modifier = Modifier.weight(1f)
-                                ) {
+                        val onSurface = MaterialTheme.colorScheme.onSurface
+                        val valueStyle = MaterialTheme.typography.titleMedium
+                            .copy(fontFeatureSettings = NumericFeatures)
+                        val dash = "\u2014"
+                        val stats = listOf<@Composable (Modifier) -> Unit>(
+                            { m ->
+                                AlertStat(stringResource(R.string.alert_stat_bearing), m) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         BearingArrow(obs.bearingDeg, danger, size = 40.dp)
                                         Text(
                                             Format.bearing(obs.bearingDeg),
-                                            maxLines = 1,
-                                            overflow = androidx.compose.ui.text
-                                                .style.TextOverflow.Ellipsis,
                                             style = MaterialTheme.typography.bodyMedium
-                                                .copy(fontFeatureSettings = "tnum"),
-                                            color = MaterialTheme.colorScheme.onSurface)
+                                                .copy(fontFeatureSettings = NumericFeatures),
+                                            color = onSurface)
                                     }
                                 }
+                            },
+                            { m ->
                                 AlertStat(
                                     label = cp?.direction
                                         ?: stringResource(R.string.alert_stat_closing),
+                                    modifier = m,
                                     labelColor = when (cp?.trend) {
                                         Format.ClosingTrend.APPROACHING -> danger
                                         Format.ClosingTrend.RECEDING ->
                                             MaterialTheme.colorScheme.extended.success
                                         else -> null
-                                    },
-                                    modifier = Modifier.weight(1f)
-                                ) {
+                                    }
+                                ) { Text(cp?.speed ?: dash, style = valueStyle, color = onSurface) }
+                            },
+                            { m ->
+                                AlertStat(stringResource(R.string.alert_stat_altitude), m) {
                                     Text(
-                                        cp?.speed ?: "\u2014",
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style
-                                            .TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.titleMedium
-                                            .copy(fontFeatureSettings = "tnum"),
-                                        color = MaterialTheme.colorScheme.onSurface)
+                                        Format.altitude(obs.altitudeM, unit) ?: dash,
+                                        style = valueStyle, color = onSurface)
                                 }
-                                AlertStat(
-                                    label = stringResource(R.string.alert_stat_altitude),
-                                    modifier = Modifier.weight(1f)
-                                ) {
+                            },
+                            { m ->
+                                AlertStat(stringResource(R.string.alert_stat_speed), m) {
                                     Text(
-                                        Format.altitude(obs.altitudeM, unit) ?: "\u2014",
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style
-                                            .TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.titleMedium
-                                            .copy(fontFeatureSettings = "tnum"),
-                                        color = MaterialTheme.colorScheme.onSurface)
+                                        Format.speed(obs.velocityMps, unit) ?: dash,
+                                        style = valueStyle, color = onSurface)
                                 }
-                            }
-                            Row(Modifier.fillMaxWidth()) {
-                                AlertStat(
-                                    label = stringResource(R.string.alert_stat_speed),
-                                    modifier = Modifier.weight(1f)
-                                ) {
+                            },
+                            { m ->
+                                AlertStat(stringResource(R.string.alert_stat_heading), m) {
                                     Text(
-                                        Format.speed(obs.velocityMps, unit) ?: "\u2014",
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style
-                                            .TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.titleMedium
-                                            .copy(fontFeatureSettings = "tnum"),
-                                        color = MaterialTheme.colorScheme.onSurface)
+                                        Format.heading(obs.headingDeg) ?: dash,
+                                        style = valueStyle, color = onSurface)
                                 }
-                                AlertStat(
-                                    label = stringResource(R.string.alert_stat_heading),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text(
-                                        Format.heading(obs.headingDeg) ?: "\u2014",
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style
-                                            .TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.titleMedium
-                                            .copy(fontFeatureSettings = "tnum"),
-                                        color = MaterialTheme.colorScheme.onSurface)
-                                }
-                                AlertStat(
-                                    label = stringResource(R.string.alert_stat_radius),
-                                    modifier = Modifier.weight(1f)
-                                ) {
+                            },
+                            { m ->
+                                AlertStat(stringResource(R.string.alert_stat_radius), m) {
                                     Text(
                                         Format.distance(obs.effectiveRadiusKm, unit),
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style
-                                            .TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.titleMedium
-                                            .copy(fontFeatureSettings = "tnum"),
-                                        color = MaterialTheme.colorScheme.onSurface)
+                                        style = valueStyle, color = onSurface)
+                                }
+                            }
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                            for (rowItems in stats.chunked(columns)) {
+                                Row(Modifier.fillMaxWidth()) {
+                                    for (stat in rowItems) stat(Modifier.weight(1f))
+                                    repeat(columns - rowItems.size) {
+                                        Spacer(Modifier.weight(1f))
+                                    }
                                 }
                             }
                         }
+                    }
                     }
 
                     Column {
@@ -291,15 +290,32 @@ fun ProximityAlertSheet(
                                 fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val snoozeButtons: @Composable (Modifier) -> Unit = { m ->
                             OutlinedButton(
                                 onClick = { onSnooze(15) },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_snooze_15)) }
+                                modifier = m,
+                                contentPadding = PaddingValues(horizontal = 8.dp)
+                            ) {
+                                Text(stringResource(R.string.action_snooze_15),
+                                    maxLines = 1, softWrap = false)
+                            }
                             OutlinedButton(
                                 onClick = { onSnooze(60) },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_snooze_60)) }
+                                modifier = m,
+                                contentPadding = PaddingValues(horizontal = 8.dp)
+                            ) {
+                                Text(stringResource(R.string.action_snooze_60),
+                                    maxLines = 1, softWrap = false)
+                            }
+                        }
+                        if (columns == 3) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                snoozeButtons(Modifier.weight(1f))
+                            }
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                snoozeButtons(Modifier.fillMaxWidth())
+                            }
                         }
                     }
                 }
@@ -321,7 +337,7 @@ private fun AlertStat(
         content()
         Spacer(Modifier.height(4.dp))
         Text(
-            label.uppercase(),
+            label,
             maxLines = 1,
             style = MaterialTheme.typography.labelSmall,
             color = labelColor ?: MaterialTheme.colorScheme.onSurfaceVariant)

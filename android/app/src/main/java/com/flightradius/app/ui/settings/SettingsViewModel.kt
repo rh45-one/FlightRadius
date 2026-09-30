@@ -167,6 +167,12 @@ class SettingsViewModel @Inject constructor(
     fun setDynamicColor(v: Boolean) = viewModelScope.launch {
         settingsRepository.setDynamicColor(v)
     }
+    fun setKeepScreenOn(v: Boolean) = viewModelScope.launch {
+        settingsRepository.setKeepScreenOn(v)
+    }
+    fun showWelcome() = viewModelScope.launch {
+        settingsRepository.setOnboardingDone(false)
+    }
     fun setDebugLogging(v: Boolean) = viewModelScope.launch {
         settingsRepository.setDebugLogging(v)
     }

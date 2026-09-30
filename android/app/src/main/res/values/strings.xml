@@ -18,8 +18,6 @@
     <string name="action_undo">Undo</string>
     <string name="action_retry">Retry</string>
     <string name="action_refresh">Refresh</string>
-    <string name="action_fix">Fix</string>
-    <string name="action_settings">Settings</string>
     <string name="action_open_settings">Open settings</string>
     <string name="action_snooze_15">Snooze 15 min</string>
     <string name="action_snooze_30">Snooze 30 min</string>
@@ -33,33 +31,18 @@
     <string name="radar_stop">Stop</string>
     <string name="radar_pause">Pause</string>
     <string name="radar_resume">Resume</string>
-    <string name="radar_preview_banner">Live preview — alerts only while monitoring is on</string>
     <string name="radar_not_reporting">Not reporting</string>
     <string name="radar_no_live_data">No live data — may be on the ground</string>
-    <string name="radar_empty_title">No aircraft tracked yet</string>
-    <string name="radar_empty_body">Add aircraft callsigns or ICAO24 addresses to start tracking their distance.</string>
-    <string name="radar_empty_image_desc">Radar illustration</string>
+    <string name="radar_empty_title">Nothing to watch yet</string>
+    <string name="radar_empty_body">Add the aircraft you want to follow.</string>
     <string name="radar_add_aircraft">Add aircraft</string>
-    <string name="gauge_description">%1$s, alert radius %2$s</string>
-    <string name="radius_label">radius %1$s</string>
-    <string name="bearing_label">Bearing</string>
-    <string name="closing_label">closing</string>
-    <string name="alert_inside">INSIDE RADIUS</string>
+    <string name="alert_inside">Inside radius</string>
     <string name="alert_snoozed">snoozed</string>
 
     <!-- Radar chips / issues -->
     <string name="chip_location">Location</string>
-    <string name="chip_backend">Backend / OpenSky</string>
     <string name="chip_monitoring">Monitoring</string>
-    <string name="issue_location_denied">Location permission needed</string>
-    <string name="issue_location_denied_body">GPS monitoring needs location access, or switch to a manual location in Settings.</string>
-    <string name="issue_lan">Nearby devices access required</string>
-    <string name="issue_lan_body">Your backend is on your local network; Android 17 requires the Nearby devices permission to reach it.</string>
-    <string name="issue_offline">Offline</string>
-    <string name="issue_offline_body">No network connection — monitoring will resume automatically.</string>
-    <string name="issue_background_location">Background location needed for boot resume</string>
-    <string name="issue_background_location_body">Resume-on-boot in GPS mode needs "Allow all the time" location access; grant it in app settings.</string>
-    <string name="issue_last_error">Last error</string>
+    <string name="issue_background_location_body">Resume-on-boot in GPS mode needs \"Allow all the time\" location access; grant it in app settings.</string>
 
     <!-- Detail sheet -->
     <string name="detail_distance">Distance</string>
@@ -85,7 +68,7 @@
     <string name="aircraft_invalid_format">Invalid format (callsign: 2–8 A–Z/0–9; icao24: 6 hex)</string>
     <string name="aircraft_duplicate">Already tracked</string>
     <string name="aircraft_check">Check</string>
-    <string name="aircraft_live_now">Live now ✓</string>
+    <string name="aircraft_live_now">Live now</string>
     <string name="aircraft_no_data">No current data — will track when airborne</string>
     <string name="aircraft_notes">Notes</string>
     <string name="aircraft_radius_override">Radius override (%1$s)</string>
@@ -146,11 +129,10 @@
     <string name="import_result">Added %1$d aircraft (%2$d skipped), %3$d fleets, %4$d memberships</string>
     <string name="settings_monitoring">Monitoring</string>
     <string name="settings_interval">Poll interval</string>
-    <string name="settings_radius">Global alert radius: %1$s</string>
     <string name="settings_high_priority">High-priority mode</string>
     <string name="settings_high_priority_body">Keeps the CPU awake between cycles — reliable in doze, much higher battery use.</string>
     <string name="settings_resume_boot">Resume monitoring on boot</string>
-    <string name="settings_resume_boot_body">Restart monitoring after reboot. GPS mode needs "Allow all the time" location access.</string>
+    <string name="settings_resume_boot_body">Restart monitoring after reboot. GPS mode needs \"Allow all the time\" location access.</string>
     <string name="settings_radar_chirp">Radar chirp</string>
     <string name="settings_radar_chirp_body">Audio beeps at a distance-scaled cadence. Can\'t play after a boot-resume on Android 17.</string>
     <string name="settings_location">Location</string>
@@ -163,11 +145,6 @@
     <string name="settings_alert_sheet">Full-screen in-app alert</string>
     <string name="settings_notif_settings">System notification settings</string>
     <string name="settings_test_alert">Test alert</string>
-    <string name="settings_appearance">Appearance</string>
-    <string name="theme_system">System</string>
-    <string name="theme_dark">Dark</string>
-    <string name="theme_light">Light</string>
-    <string name="settings_dynamic_color">Dynamic color</string>
     <string name="settings_units">Units</string>
     <string name="settings_debug">Debug</string>
     <string name="settings_debug_logging">Debug logging</string>
@@ -182,7 +159,7 @@
     <string name="debug_search">Search logs</string>
 
     <!-- Proximity alert -->
-    <string name="alert_title">PROXIMITY ALERT</string>
+    <string name="alert_title">Proximity alert</string>
     <string name="alert_more">+%1$d more</string>
     <string name="alert_within">within %1$s radius</string>
     <string name="alert_stat_distance">Distance</string>
@@ -235,4 +212,104 @@
     <string name="credits_blocked">Out of credits. Retrying in %1$s.</string>
     <string name="credits_adaptive">Stretch credits across the day</string>
     <string name="credits_adaptive_body">Slows refreshes when needed so monitoring keeps running until credits refill.</string>
+
+    <!-- Radar glance -->
+    <string name="radar_loading">Looking for your aircraft…</string>
+    <string name="radar_none_airborne">None airborne</string>
+    <plurals name="radar_not_reporting_count">
+        <item quantity="one">%1$d tracked aircraft isn\'t reporting</item>
+        <item quantity="other">%1$d tracked aircraft aren\'t reporting</item>
+    </plurals>
+    <string name="radar_last_update">Last update %1$s</string>
+    <string name="radar_state_nearby">Nearby</string>
+    <string name="radar_state_nearest">Nearest</string>
+    <string name="radar_closing">Closing</string>
+    <string name="radar_moving_away">Moving away</string>
+    <string name="radar_steady">Steady</string>
+    <string name="radar_also_tracking">Also tracking</string>
+    <string name="radar_preview_footnote">Preview · alerts only while monitoring is on</string>
+    <string name="radar_dial_description">%1$s, %2$s %3$s, %4$s</string>
+    <string name="detail_direction">Direction</string>
+    <string name="unit_km_spoken">kilometres</string>
+    <string name="unit_mi_spoken">miles</string>
+    <string-array name="compass_points">
+        <item>north</item>
+        <item>north-northeast</item>
+        <item>north-east</item>
+        <item>east-northeast</item>
+        <item>east</item>
+        <item>east-southeast</item>
+        <item>south-east</item>
+        <item>south-southeast</item>
+        <item>south</item>
+        <item>south-southwest</item>
+        <item>south-west</item>
+        <item>west-southwest</item>
+        <item>west</item>
+        <item>west-northwest</item>
+        <item>north-west</item>
+        <item>north-northwest</item>
+    </string-array>
+
+    <!-- Status line -->
+    <string name="status_location_off">Location is off</string>
+    <string name="status_location_permission">Location permission needed</string>
+    <string name="status_play_services">Google Play services missing</string>
+    <string name="status_lan">Local network access needed</string>
+    <string name="status_offline_resume">Offline — will resume automatically</string>
+    <string name="status_auth_failed">OpenSky sign-in failed</string>
+    <string name="status_out_of_credits">Out of OpenSky credits</string>
+    <string name="status_unreachable_opensky">Can\'t reach OpenSky</string>
+    <string name="status_unreachable_backend">Can\'t reach your backend</string>
+    <string name="status_error">Something went wrong</string>
+    <string name="status_live">Live</string>
+    <string name="status_live_updated">Live · updated %1$s</string>
+    <string name="status_credits_left_suffix">" · %1$,d credits left"</string>
+    <string name="status_paused">Paused</string>
+    <string name="status_starting">Starting…</string>
+    <string name="status_finding_location">Finding your location…</string>
+    <string name="status_waiting_battery">Waiting for battery saver</string>
+    <string name="status_offline">Offline</string>
+    <string name="status_stopped">Monitoring off</string>
+    <string name="status_sheet_title">Status</string>
+    <string name="status_row_flight_data">Flight data</string>
+    <string name="status_credits_unknown">Not known yet</string>
+    <string name="status_action_allow">Allow access</string>
+
+    <!-- Welcome -->
+    <string name="welcome_tagline">Know the moment they\'re close.</string>
+    <string name="welcome_follow_title">Follow the flights that matter</string>
+    <string name="welcome_follow_body">Add a callsign or ICAO24 address and FlightRadius keeps watch.</string>
+    <string name="welcome_glance_title">Read it in one look</string>
+    <string name="welcome_glance_body">Distance, direction and how close is too close, clear by day or night.</string>
+    <string name="welcome_alerts_title">Alerts when it counts</string>
+    <string name="welcome_alerts_body">A notification the moment an aircraft enters your radius, even with the phone locked.</string>
+    <string name="welcome_add_first">Add your first aircraft</string>
+    <string name="welcome_not_now">Not now</string>
+    <string name="welcome_footnote">Flight data from The OpenSky Network.</string>
+
+    <!-- Misc new -->
+    <string name="aircraft_clear_search">Clear search</string>
+    <string name="aircraft_type_icao24">ICAO24</string>
+    <string name="fleets_delete">Delete fleet</string>
+    <string name="settings_keep_screen_on">Keep screen on</string>
+    <string name="settings_keep_screen_on_body">While the radar is open and monitoring is on.</string>
+    <string name="settings_gps_accuracy">GPS accuracy</string>
+    <string name="gps_accuracy_high">High</string>
+    <string name="gps_accuracy_balanced">Balanced</string>
+    <string name="gps_accuracy_low_power">Low power</string>
+    <string name="location_mode_gps">GPS</string>
+    <string name="location_mode_manual">Manual</string>
+    <string name="settings_location_status">Status</string>
+    <string name="settings_default_backend">Default backend: %1$s</string>
+    <string name="settings_show_welcome">Show welcome screen</string>
+    <string name="status_value_on">On</string>
+    <string name="status_value_off">Off</string>
+    <string name="status_value_connected">Connected</string>
+    <plurals name="radar_also_inside">
+        <item quantity="one">+%1$d more inside</item>
+        <item quantity="other">+%1$d more inside</item>
+    </plurals>
+    <string name="settings_alert_radius">Alert radius</string>
+    <string name="settings_refresh_every">Refresh every</string>
 </resources>

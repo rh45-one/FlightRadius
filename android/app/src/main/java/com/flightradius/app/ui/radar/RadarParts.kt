@@ -3,6 +3,7 @@ package com.flightradius.app.ui.radar
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,12 +11,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,9 +30,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.flightradius.app.R
@@ -45,16 +54,17 @@ import com.flightradius.app.location.LocationStatus
 import com.flightradius.app.service.MonitoringState
 import com.flightradius.app.service.MonitoringStatus
 import com.flightradius.app.ui.components.BearingArrow
-import com.flightradius.app.ui.components.IssueCard
-import com.flightradius.app.ui.components.MiniRingGauge
-import com.flightradius.app.ui.components.RadialGauge
-import com.flightradius.app.ui.components.RadarIllustration
-import com.flightradius.app.ui.components.ShimmerBox
-import com.flightradius.app.ui.components.zoneColor
+import com.flightradius.app.ui.components.GroupedDivider
+import com.flightradius.app.ui.components.GroupedRow
+import com.flightradius.app.ui.components.GroupedSection
+import com.flightradius.app.ui.components.NavigationChevron
+import com.flightradius.app.ui.components.ProximityDial
 import com.flightradius.app.ui.format.Format
+import com.flightradius.app.ui.theme.CodeFeatures
+import com.flightradius.app.ui.theme.InterDisplay
+import com.flightradius.app.ui.theme.NumericFeatures
 import com.flightradius.app.ui.theme.extended
 import java.util.Locale
-
 
 // ---------- label helpers ----------
 
@@ -71,14 +81,6 @@ internal fun locationLabel(s: LocationStatus, fix: UserFix?, now: Long): String 
         LocationStatus.PlayServicesUnavailable -> "Play services missing"
     }
 
-internal fun locationColor(s: LocationStatus): Color = when (s) {
-    is LocationStatus.Fix -> EmeraldGreen
-    LocationStatus.Searching -> AmberYellow
-    LocationStatus.Manual -> CyanInfo
-    LocationStatus.PermissionDenied, LocationStatus.ProviderDisabled,
-    LocationStatus.PlayServicesUnavailable -> RoseDanger
-}
-
 internal fun backendLabel(s: OpenSkyStatus, online: Boolean, source: DataSource): String = when {
     !online -> "Offline"
     s == OpenSkyStatus.OK -> "OpenSky OK"
@@ -91,27 +93,9 @@ internal fun backendLabel(s: OpenSkyStatus, online: Boolean, source: DataSource)
     else -> if (source == DataSource.DIRECT) "OpenSky" else "Backend"
 }
 
-internal fun backendColor(s: OpenSkyStatus, online: Boolean): Color = when {
-    !online -> AmberYellow
-    s == OpenSkyStatus.OK -> EmeraldGreen
-    s == OpenSkyStatus.RATE_LIMITED || s == OpenSkyStatus.TIMEOUT -> AmberYellow
-    s == OpenSkyStatus.UNAVAILABLE || s == OpenSkyStatus.UNREACHABLE ||
-        s == OpenSkyStatus.AUTH_FAILED -> RoseDanger
-    else -> CyanInfo
-}
-
-/** "3.4k credits" chip label; null until a balance has been observed. */
+/** "3.4k credits" label; null until a balance has been observed. */
 internal fun creditsLabel(c: CreditState): String? = c.remaining?.let {
     if (it >= 1000) String.format(Locale.ROOT, "%.1fk credits", it / 1000.0) else "$it credits"
-}
-
-internal fun creditsColor(c: CreditState): Color {
-    val fraction = (c.remaining ?: return CyanInfo).toFloat() / c.dailyQuota
-    return when {
-        fraction >= 0.25f -> EmeraldGreen
-        fraction >= 0.10f -> AmberYellow
-        else -> RoseDanger
-    }
 }
 
 internal fun monitoringLabel(s: MonitoringStatus): String = when (s) {
@@ -125,419 +109,606 @@ internal fun monitoringLabel(s: MonitoringStatus): String = when (s) {
     MonitoringStatus.ERROR -> "Error"
 }
 
-internal fun monitoringColor(s: MonitoringStatus): Color = when (s) {
-    MonitoringStatus.RUNNING -> EmeraldGreen
-    MonitoringStatus.PAUSED -> AmberYellow
-    MonitoringStatus.STOPPED -> SlateGray
-    MonitoringStatus.STARTING, MonitoringStatus.WAITING_FOR_LOCATION -> CyanInfo
-    MonitoringStatus.DEFERRED_DOZE, MonitoringStatus.OFFLINE -> AmberYellow
-    MonitoringStatus.ERROR -> RoseDanger
+@Composable
+internal fun zoneColor(zone: Zone): Color = when (zone) {
+    Zone.INSIDE -> MaterialTheme.colorScheme.extended.danger
+    Zone.NEAR -> MaterialTheme.colorScheme.extended.warning
+    Zone.CLEAR -> MaterialTheme.colorScheme.onSurface
 }
 
-// Semantic colors resolved without a composable context for labels (chips
-// recolor via MaterialTheme.colorScheme.extended where themed values matter).
-private val EmeraldGreen = Color(0xFF34D399)
-private val AmberYellow = Color(0xFFFBBF24)
-private val RoseDanger = Color(0xFFFB7185)
-private val CyanInfo = Color(0xFF22D3EE)
-private val SlateGray = Color(0xFF94A3B8)
-
-// ---------- issue cards ----------
+@Composable
+private fun toneColor(tone: Tone): Color = when (tone) {
+    Tone.LIVE -> MaterialTheme.colorScheme.extended.success
+    Tone.WARNING -> MaterialTheme.colorScheme.extended.warning
+    Tone.PROBLEM -> MaterialTheme.colorScheme.extended.danger
+    Tone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
+}
 
 @Composable
-internal fun IssueCards(
-    state: MonitoringState,
-    settings: AppSettings,
-    locationStatus: LocationStatus,
-    online: Boolean,
-    viewModel: RadarViewModel,
-    onOpenSettings: () -> Unit,
-    onStartMonitoring: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (locationStatus == LocationStatus.PermissionDenied) {
-            IssueCard(
-                title = stringResource(R.string.issue_location_denied),
-                body = stringResource(R.string.issue_location_denied_body),
-                actionLabel = stringResource(R.string.action_settings),
-                onAction = onOpenSettings
-            )
-        }
-        if (viewModel.localNetworkGuard.isBlocked()) {
-            IssueCard(
-                title = stringResource(R.string.issue_lan),
-                body = stringResource(R.string.issue_lan_body),
-                actionLabel = stringResource(R.string.action_fix),
-                onAction = onStartMonitoring // runs the permission chain
-            )
-        }
-        if (!online) {
-            IssueCard(
-                title = stringResource(R.string.issue_offline),
-                body = stringResource(R.string.issue_offline_body)
-            )
-        }
-        if (settings.resumeOnBoot &&
-            settings.locationMode == com.flightradius.app.data.prefs.LocationMode.GPS
-        ) {
-            IssueCard(
-                title = stringResource(R.string.issue_background_location),
-                body = stringResource(R.string.issue_background_location_body)
-            )
-        }
-        state.lastError?.let { err ->
-            if (state.status == MonitoringStatus.ERROR ||
-                state.status == MonitoringStatus.STOPPED && state.consecutiveFailures > 0
-            ) {
-                IssueCard(
-                    title = stringResource(R.string.issue_last_error),
-                    body = err.message,
-                    tone = MaterialTheme.colorScheme.extended.danger,
-                    actionLabel = stringResource(R.string.action_retry),
-                    onAction = { viewModel.retryNow() }
-                )
-            }
-        }
+private fun statusText(s: StatusSummary, nowMs: Long): String = when (s.kind) {
+    StatusKind.LOCATION_OFF -> stringResource(R.string.status_location_off)
+    StatusKind.LOCATION_PERMISSION -> stringResource(R.string.status_location_permission)
+    StatusKind.PLAY_SERVICES_MISSING -> stringResource(R.string.status_play_services)
+    StatusKind.LAN_BLOCKED -> stringResource(R.string.status_lan)
+    StatusKind.OFFLINE_RESUME -> stringResource(R.string.status_offline_resume)
+    StatusKind.AUTH_FAILED -> stringResource(R.string.status_auth_failed)
+    StatusKind.OUT_OF_CREDITS -> stringResource(R.string.status_out_of_credits)
+    StatusKind.UNREACHABLE_OPENSKY -> stringResource(R.string.status_unreachable_opensky)
+    StatusKind.UNREACHABLE_BACKEND -> stringResource(R.string.status_unreachable_backend)
+    StatusKind.ERROR -> stringResource(R.string.status_error)
+    StatusKind.LIVE -> {
+        val base = s.updatedAtMs?.let {
+            stringResource(R.string.status_live_updated, Format.age(nowMs, it))
+        } ?: stringResource(R.string.status_live)
+        s.creditsLeft?.let {
+            base + stringResource(R.string.status_credits_left_suffix, it)
+        } ?: base
     }
+    StatusKind.PAUSED -> stringResource(R.string.status_paused)
+    StatusKind.STARTING -> stringResource(R.string.status_starting)
+    StatusKind.FINDING_LOCATION -> stringResource(R.string.status_finding_location)
+    StatusKind.WAITING_BATTERY -> stringResource(R.string.status_waiting_battery)
+    StatusKind.OFFLINE -> stringResource(R.string.status_offline)
+    StatusKind.STOPPED -> stringResource(R.string.status_stopped)
 }
 
-// ---------- hero ----------
+// ---------- status line + sheet ----------
 
 @Composable
-internal fun HeroCard(
-    obs: AircraftObservation,
-    unit: DistanceUnit,
-    sweeping: Boolean,
-    nowMs: Long
-) {
-    Card(
-        Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer)
-    ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            val animatedDist by animateFloatAsState(
-                targetValue = Format.kmToUnit(obs.distanceKm, unit).toFloat(),
-                animationSpec = tween(600),
-                label = "heroDist"
-            )
-            val desc = stringResource(
-                R.string.gauge_description,
-                Format.distance(obs.distanceKm, unit),
-                Format.distance(obs.effectiveRadiusKm, unit)
-            )
-            Box(contentAlignment = Alignment.Center) {
-                RadialGauge(
-                    distanceKm = obs.distanceKm,
-                    radiusKm = obs.effectiveRadiusKm,
-                    sweeping = sweeping,
-                    description = desc,
-                    size = 240.dp
-                )
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "%.1f".format(animatedDist),
-                        fontSize = 44.sp,
-                        fontWeight = FontWeight.Bold,
-                        style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"),
-                        color = zoneColor(obs.distanceKm, obs.effectiveRadiusKm)
-                    )
-                    Text(
-                        Format.distanceUnitLabel(unit),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        Format.callsign(obs),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        stringResource(
-                            R.string.radius_label,
-                            Format.distance(obs.effectiveRadiusKm, unit)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Column(
-                    Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        BearingArrow(obs.bearingDeg,
-                            MaterialTheme.colorScheme.extended.info, size = 18.dp)
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            Format.bearing(obs.bearingDeg),
-                            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum")
-                            )
-                    }
-                    Text(
-                        stringResource(R.string.bearing_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Column(
-                    Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    val cp = Format.closingParts(obs, unit)
-                    Text(
-                        cp?.speed ?: "—",
-                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                        maxLines = 1,
-                        color = MaterialTheme.colorScheme.onSurface)
-                    Text(
-                        cp?.direction ?: stringResource(R.string.closing_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = when (cp?.trend) {
-                            Format.ClosingTrend.APPROACHING ->
-                                MaterialTheme.colorScheme.extended.danger
-                            Format.ClosingTrend.RECEDING ->
-                                MaterialTheme.colorScheme.extended.success
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        })
-                }
-                Column(
-                    Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        Format.altitude(obs.altitudeM, unit) ?: "—",
-                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                        
-                        maxLines = 1)
-                    Text(
-                        Format.speed(obs.velocityMps, unit) ?: "—",
-                        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-                        
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-    }
-}
-
-// ---------- ranked card ----------
-
-@Composable
-internal fun AircraftCard(
-    obs: AircraftObservation,
-    unit: DistanceUnit,
-    fleetColors: List<Int>,
-    snoozed: Boolean,
+internal fun StatusLine(
+    summary: StatusSummary,
     nowMs: Long,
     onClick: () -> Unit,
-    onSnooze: () -> Unit,
-    onDismissAlert: () -> Unit,
-    onEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val inside = obs.distanceKm <= obs.effectiveRadiusKm
-    Card(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (inside) {
-                MaterialTheme.colorScheme.extended.danger.copy(alpha = 0.12f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainer
-            }
-        )
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
+            .clip(MaterialTheme.shapes.small)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(toneColor(summary.tone))
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            statusText(summary, nowMs),
+            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = NumericFeatures),
+            modifier = Modifier.weight(1f)
+        )
+        NavigationChevron()
+    }
+}
+
+@Composable
+internal fun StatusSheetContent(
+    summary: StatusSummary,
+    state: MonitoringState,
+    locationStatus: LocationStatus,
+    fix: UserFix?,
+    online: Boolean,
+    settings: AppSettings,
+    credits: CreditState,
+    now: Long,
+    onAction: () -> Unit
+) {
+    Column(Modifier.padding(horizontal = 24.dp)) {
+        Text(
+            stringResource(R.string.status_sheet_title),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+        GroupedSection(
+            header = null,
+            footer = state.lastError?.message
         ) {
-            MiniRingGauge(obs.distanceKm, obs.effectiveRadiusKm)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        Format.callsign(obs),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (obs.icao24 != null) {
-                        Text(
-                            "  ${obs.icao24}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                    Spacer(Modifier.weight(1f))
-                    for (c in fleetColors.take(4)) {
-                        Box(
-                            Modifier
-                                .padding(start = 4.dp)
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(Color(c))
-                        )
-                    }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        Format.distance(obs.distanceKm, unit),
-                        style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
-                        
-                        fontWeight = FontWeight.Bold,
-                        color = zoneColor(obs.distanceKm, obs.effectiveRadiusKm)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        Format.bearing(obs.bearingDeg),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    buildList {
-                        Format.altitude(obs.altitudeM, unit)?.let { add(it) }
-                        Format.speed(obs.velocityMps, unit)?.let { add(it) }
-                        Format.heading(obs.headingDeg)?.let { add("hdg $it") }
-                    }.joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                    
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Format.closing(obs, unit)?.let { cl ->
-                    Text(
-                        cl,
-                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                        
-                        color = if (Format.closingIsSteady(obs))
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        else if ((obs.closingSpeedKmh ?: 0.0) >= 0)
-                            MaterialTheme.colorScheme.extended.danger
-                        else MaterialTheme.colorScheme.extended.success
-                    )
-                }
-                if (inside) {
-                    Row {
-                        TextButton(onClick = onSnooze) {
-                            Text(stringResource(R.string.action_snooze_30))
-                        }
-                        TextButton(onClick = onDismissAlert) {
-                            Text(stringResource(R.string.action_dismiss))
-                        }
-                    }
-                }
+            StatusValueRow(
+                stringResource(R.string.chip_location),
+                locationLabel(locationStatus, fix, now)
+            )
+            GroupedDivider()
+            StatusValueRow(
+                stringResource(R.string.status_row_flight_data),
+                flightDataValue(state.openSkyStatus, online, settings.dataSource)
+            )
+            GroupedDivider()
+            StatusValueRow(
+                stringResource(R.string.chip_monitoring),
+                monitoringValue(state.status)
+            )
+            GroupedDivider()
+            StatusValueRow(
+                stringResource(R.string.settings_credits),
+                creditsLabel(credits) ?: stringResource(R.string.status_credits_unknown)
+            )
+        }
+        val actionLabel = when (summary.action) {
+            StatusAction.NONE -> null
+            StatusAction.OPEN_SETTINGS -> stringResource(R.string.action_open_settings)
+            StatusAction.START_MONITORING -> stringResource(R.string.status_action_allow)
+            StatusAction.RETRY -> stringResource(R.string.action_retry)
+        }
+        if (actionLabel != null) {
+            Button(
+                onClick = onAction,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+                    .heightIn(min = 48.dp)
+            ) { Text(actionLabel) }
+        }
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun monitoringValue(s: MonitoringStatus): String = stringResource(
+    when (s) {
+        MonitoringStatus.RUNNING -> R.string.status_value_on
+        MonitoringStatus.PAUSED -> R.string.status_paused
+        MonitoringStatus.STOPPED -> R.string.status_value_off
+        MonitoringStatus.STARTING -> R.string.status_starting
+        MonitoringStatus.DEFERRED_DOZE -> R.string.status_waiting_battery
+        MonitoringStatus.OFFLINE -> R.string.status_offline
+        MonitoringStatus.WAITING_FOR_LOCATION -> R.string.status_finding_location
+        MonitoringStatus.ERROR -> R.string.status_error
+    }
+)
+
+@Composable
+private fun flightDataValue(
+    openSky: OpenSkyStatus,
+    online: Boolean,
+    source: DataSource
+): String = stringResource(
+    when {
+        !online -> R.string.status_offline
+        openSky == OpenSkyStatus.RATE_LIMITED -> R.string.status_out_of_credits
+        openSky == OpenSkyStatus.AUTH_FAILED -> R.string.status_auth_failed
+        openSky == OpenSkyStatus.UNAVAILABLE || openSky == OpenSkyStatus.UNREACHABLE ||
+            openSky == OpenSkyStatus.TIMEOUT ->
+            if (source == DataSource.BACKEND) R.string.status_unreachable_backend
+            else R.string.status_unreachable_opensky
+        else -> R.string.status_value_connected
+    }
+)
+
+@Composable
+private fun StatusValueRow(title: String, value: String) {
+    GroupedRow(
+        title = title,
+        trailing = {
+            Text(
+                value,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontFeatureSettings = NumericFeatures),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    )
+}
+
+// ---------- dial ----------
+
+@Composable
+internal fun GlanceDial(
+    glance: Glance,
+    unit: DistanceUnit,
+    nowMs: Long,
+    dialSize: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier
+) {
+    when (glance) {
+        is Glance.Nearest -> {
+            val obs = glance.obs
+            val color = if (glance.stale) MaterialTheme.colorScheme.onSurfaceVariant
+            else zoneColor(glance.zone)
+            ProximityDial(
+                modifier = modifier,
+                size = dialSize,
+                markerBearingDeg = obs.bearingDeg,
+                markerHeadingDeg = obs.headingDeg,
+                markerColor = zoneColor(glance.zone),
+                description = nearestDescription(glance, unit, nowMs)
+            ) {
+                NearestCenter(glance, unit, nowMs, color)
             }
-            Column(horizontalAlignment = Alignment.End) {
-                if (inside) {
-                    Text(
-                        stringResource(R.string.alert_inside),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.extended.danger,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                if (snoozed) {
-                    Text(
-                        stringResource(R.string.alert_snoozed),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.extended.warning
-                    )
-                }
-                obs.lastContactSec?.let { lc ->
-                    val ageSec = nowMs / 1000 - lc.toLong()
-                    Text(
-                        Format.age(nowMs, lc.toLong() * 1000),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (ageSec > 60) MaterialTheme.colorScheme.extended.warning
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+        }
+        Glance.NoAircraft -> ProximityDial(modifier, dialSize) {
+            CenterMessage(
+                stringResource(R.string.radar_empty_title),
+                stringResource(R.string.radar_empty_body)
+            )
+        }
+        Glance.Loading -> ProximityDial(modifier, dialSize) {
+            Text(
+                stringResource(R.string.radar_loading),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+        is Glance.NoneAirborne -> ProximityDial(modifier, dialSize) {
+            Text(
+                stringResource(R.string.radar_none_airborne),
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center
+            )
+            if (glance.notReporting > 0) {
+                Text(
+                    pluralStringResource(
+                        R.plurals.radar_not_reporting_count,
+                        glance.notReporting, glance.notReporting),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }
 }
 
 @Composable
-internal fun NoDataRow(t: TrackedAircraft) {
+private fun CenterMessage(title: String, body: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleLarge,
+        textAlign = TextAlign.Center
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+        body,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center
+    )
+}
+
+@Composable
+private fun stateWord(glance: Glance.Nearest, nowMs: Long): String = when {
+    glance.stale -> stringResource(
+        R.string.radar_last_update, Format.age(nowMs, nowMs - glance.snapshotAgeMs))
+    glance.zone == Zone.INSIDE -> stringResource(R.string.alert_inside)
+    glance.zone == Zone.NEAR -> stringResource(R.string.radar_state_nearby)
+    else -> stringResource(R.string.radar_state_nearest)
+}
+
+@Composable
+private fun NearestCenter(
+    glance: Glance.Nearest,
+    unit: DistanceUnit,
+    nowMs: Long,
+    color: Color
+) {
+    val obs = glance.obs
+    Text(
+        stateWord(glance, nowMs),
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontWeight = FontWeight.SemiBold, fontFeatureSettings = NumericFeatures),
+        color = color,
+        maxLines = 1,
+        textAlign = TextAlign.Center
+    )
+    val animatedKm by animateFloatAsState(
+        targetValue = obs.distanceKm.toFloat(),
+        animationSpec = tween(600),
+        label = "glanceDistance"
+    )
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Text(
+            Format.glanceNumber(animatedKm.toDouble(), unit),
+            style = MaterialTheme.typography.displayLarge.copy(
+                fontFamily = InterDisplay,
+                fontWeight = FontWeight.SemiBold,
+                fontFeatureSettings = NumericFeatures),
+            color = color,
+            maxLines = 1,
+            softWrap = false,
+            autoSize = TextAutoSize.StepBased(minFontSize = 32.sp, maxFontSize = 96.sp),
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .alignByBaseline()
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            Format.distanceUnitLabel(unit),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.alignByBaseline()
+        )
+    }
+    Text(
+        Format.callsign(obs),
+        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = CodeFeatures),
+        maxLines = 1,
+        textAlign = TextAlign.Center
+    )
+    if (glance.alsoInside > 0) {
+        Text(
+            pluralStringResource(
+                R.plurals.radar_also_inside, glance.alsoInside, glance.alsoInside),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.extended.danger,
+            maxLines = 1,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun nearestDescription(glance: Glance.Nearest, unit: DistanceUnit, nowMs: Long): String {
+    val obs = glance.obs
+    val compass = stringArrayResource(R.array.compass_points)
+    val idx = Math.round(((obs.bearingDeg % 360 + 360) % 360) / 22.5).toInt() % 16
+    val trend = when (Format.closingParts(obs, unit)?.trend) {
+        Format.ClosingTrend.APPROACHING -> stringResource(R.string.radar_closing)
+        Format.ClosingTrend.RECEDING -> stringResource(R.string.radar_moving_away)
+        Format.ClosingTrend.STEADY -> stringResource(R.string.radar_steady)
+        null -> null
+    }
+    val unitWord = stringResource(
+        if (unit == DistanceUnit.KM) R.string.unit_km_spoken else R.string.unit_mi_spoken)
+    val also = if (glance.alsoInside > 0) {
+        pluralStringResource(
+            R.plurals.radar_also_inside, glance.alsoInside, glance.alsoInside)
+    } else null
+    return buildList {
+        add(stateWord(glance, nowMs))
+        add(
+            stringResource(
+                R.string.radar_dial_description,
+                Format.callsign(obs),
+                Format.glanceNumber(obs.distanceKm, unit),
+                unitWord,
+                compass[idx]
+            )
+        )
+        trend?.let { add(it) }
+        also?.let { add(it) }
+    }.joinToString(". ") + "."
+}
+
+// ---------- detail row ----------
+
+@Composable
+internal fun DetailRow(obs: AircraftObservation, unit: DistanceUnit, modifier: Modifier = Modifier) {
+    val stacked = LocalDensity.current.fontScale >= 1.5f
+    val cp = Format.closingParts(obs, unit)
+    val closingLabel = when (cp?.trend) {
+        Format.ClosingTrend.RECEDING -> stringResource(R.string.radar_moving_away)
+        Format.ClosingTrend.STEADY -> stringResource(R.string.radar_steady)
+        else -> stringResource(R.string.radar_closing)
+    }
+    val directionLabel = stringResource(R.string.detail_direction)
+    val altitudeLabel = stringResource(R.string.detail_altitude)
+    val direction: @Composable () -> Unit = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BearingArrow(obs.bearingDeg, MaterialTheme.colorScheme.onSurface, size = 18.dp)
+            Spacer(Modifier.width(6.dp))
+            DetailValue(Format.bearingShort(obs.bearingDeg))
+        }
+    }
+    val altitude: @Composable () -> Unit = {
+        DetailValue(Format.altitude(obs.altitudeM, unit) ?: "—")
+    }
+    val closing: @Composable () -> Unit = { DetailValue(cp?.speed ?: "—") }
+
+    if (stacked) {
+        Column(modifier.fillMaxWidth()) {
+            StackedDetail(directionLabel, direction)
+            StackedDetail(altitudeLabel, altitude)
+            StackedDetail(closingLabel, closing)
+        }
+    } else {
+        Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            ColumnDetail(directionLabel, direction, Modifier.weight(1f))
+            ColumnDetail(altitudeLabel, altitude, Modifier.weight(1f))
+            ColumnDetail(closingLabel, closing, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun DetailValue(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = NumericFeatures),
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 1
+    )
+}
+
+@Composable
+private fun ColumnDetail(label: String, value: @Composable () -> Unit, modifier: Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        value()
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun StackedDetail(label: String, value: @Composable () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            t.identifier,
-            style = MaterialTheme.typography.bodyMedium,
+            label,
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f)
         )
-        Text(
-            stringResource(R.string.radar_no_live_data),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        value()
     }
 }
 
-// ---------- empty / skeleton / debug ----------
+// ---------- lists ----------
 
 @Composable
-internal fun EmptyState(onAdd: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        RadarIllustration(size = 160.dp)
-        Spacer(Modifier.height(16.dp))
-        Text(
-            stringResource(R.string.radar_empty_title),
-            style = MaterialTheme.typography.titleMedium)
-        Text(
-            stringResource(R.string.radar_empty_body),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(12.dp))
-        androidx.compose.material3.Button(onClick = onAdd) {
-            Text(stringResource(R.string.radar_add_aircraft))
+internal fun AlsoTrackingSection(
+    ranked: List<AircraftObservation>,
+    unit: DistanceUnit,
+    snoozes: Map<Long, Long>,
+    nowMs: Long,
+    onClick: (AircraftObservation) -> Unit
+) {
+    if (ranked.isEmpty()) return
+    GroupedSection(header = stringResource(R.string.radar_also_tracking)) {
+        ranked.forEachIndexed { i, obs ->
+            if (i > 0) GroupedDivider()
+            TrackingRow(
+                obs = obs,
+                unit = unit,
+                snoozed = snoozes[obs.aircraftId]?.let { it > nowMs } == true,
+                nowMs = nowMs,
+                onClick = { onClick(obs) }
+            )
         }
     }
 }
 
 @Composable
-internal fun SkeletonHero() {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        ShimmerBox(Modifier.size(240.dp), shape = MaterialTheme.shapes.extraLarge)
-        Spacer(Modifier.height(8.dp))
-        ShimmerBox(Modifier.size(160.dp, 20.dp))
-    }
+private fun TrackingRow(
+    obs: AircraftObservation,
+    unit: DistanceUnit,
+    snoozed: Boolean,
+    nowMs: Long,
+    onClick: () -> Unit
+) {
+    val zone = zoneOf(obs.distanceKm, obs.effectiveRadiusKm)
+    val color = zoneColor(zone)
+    val inside = zone == Zone.INSIDE
+    val ageSec = obs.lastContactSec?.let { nowMs / 1000 - it.toLong() }
+    val subtitle = buildList {
+        Format.altitude(obs.altitudeM, unit)?.let { add(it) }
+        Format.speed(obs.velocityMps, unit)?.let { add(it) }
+    }.joinToString(" · ").ifEmpty { null }
+    GroupedRow(
+        title = Format.callsign(obs),
+        titleStyle = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = CodeFeatures),
+        subtitle = subtitle,
+        subtitleStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = NumericFeatures),
+        leading = { BearingArrow(obs.bearingDeg, color, size = 20.dp) },
+        trailing = {
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    Format.distance(obs.distanceKm, unit),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontFeatureSettings = NumericFeatures),
+                    color = color
+                )
+                when {
+                    snoozed -> Text(
+                        stringResource(R.string.alert_snoozed),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    inside -> Text(
+                        stringResource(R.string.alert_inside),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.extended.danger)
+                    ageSec != null && ageSec > 60 -> Text(
+                        Format.age(nowMs, obs.lastContactSec.toLong() * 1000),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.extended.warning)
+                }
+            }
+        },
+        onClick = onClick
+    )
 }
 
 @Composable
-internal fun SkeletonCard() {
-    Row(Modifier.padding(vertical = 4.dp)) {
-        ShimmerBox(Modifier.size(44.dp), shape = MaterialTheme.shapes.small)
-        Spacer(Modifier.width(12.dp))
-        Column {
-            ShimmerBox(Modifier.size(140.dp, 16.dp))
-            Spacer(Modifier.height(6.dp))
-            ShimmerBox(Modifier.size(220.dp, 12.dp))
+internal fun NotReportingSection(noData: List<TrackedAircraft>) {
+    if (noData.isEmpty()) return
+    GroupedSection(header = stringResource(R.string.radar_not_reporting)) {
+        noData.forEachIndexed { i, t ->
+            if (i > 0) GroupedDivider()
+            GroupedRow(
+                title = t.identifier,
+                titleStyle = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = CodeFeatures),
+                titleColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                subtitle = stringResource(R.string.radar_no_live_data)
+            )
         }
     }
 }
+
+// ---------- action bar ----------
+
+@Composable
+internal fun ActionBar(
+    status: MonitoringStatus,
+    onStart: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onStop: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+        HorizontalDivider(
+            thickness = androidx.compose.ui.unit.Dp.Hairline,
+            color = MaterialTheme.colorScheme.outlineVariant)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            when (status) {
+                MonitoringStatus.STOPPED -> Button(
+                    onClick = onStart,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 56.dp)
+                ) { Text(stringResource(R.string.radar_start), style = MaterialTheme.typography.titleMedium) }
+                MonitoringStatus.PAUSED -> {
+                    Button(
+                        onClick = onResume,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 56.dp)
+                    ) { Text(stringResource(R.string.radar_resume), style = MaterialTheme.typography.titleMedium) }
+                    TextButton(
+                        onClick = onStop,
+                        modifier = Modifier.heightIn(min = 56.dp)
+                    ) { Text(stringResource(R.string.radar_stop)) }
+                }
+                else -> {
+                    FilledTonalButton(
+                        onClick = onPause,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 56.dp)
+                    ) { Text(stringResource(R.string.radar_pause), style = MaterialTheme.typography.titleMedium) }
+                    TextButton(
+                        onClick = onStop,
+                        modifier = Modifier.heightIn(min = 56.dp)
+                    ) { Text(stringResource(R.string.radar_stop)) }
+                }
+            }
+        }
+    }
+}
+
+// ---------- debug ----------
 
 @Composable
 internal fun DebugOverlay(
@@ -574,58 +745,7 @@ internal fun DebugOverlay(
     }
 }
 
-// ---------- sheets ----------
-
-@Composable
-internal fun ChipDetail(
-    which: String,
-    state: MonitoringState,
-    locationStatus: LocationStatus,
-    fix: UserFix?,
-    online: Boolean,
-    settings: AppSettings,
-    credits: CreditState,
-    now: Long,
-    onOpenSettings: () -> Unit,
-    onStartMonitoring: () -> Unit
-) {
-    Column(Modifier.padding(24.dp)) {
-        val (title, body) = when (which) {
-            "location" -> stringResource(R.string.chip_location) to
-                locationLabel(locationStatus, fix, now)
-            "backend" -> stringResource(R.string.chip_backend) to
-                backendLabel(state.openSkyStatus, online, settings.dataSource)
-            "credits" -> stringResource(R.string.settings_credits) to
-                (credits.remaining?.let {
-                    stringResource(R.string.credits_remaining, it, credits.dailyQuota) + " · " +
-                        stringResource(R.string.credits_interval,
-                            Format.duration((state.plannedIntervalSec ?: settings.monitoringIntervalSec).toLong()))
-                } ?: stringResource(R.string.credits_unknown))
-            else -> stringResource(R.string.chip_monitoring) to
-                monitoringLabel(state.status)
-        }
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(6.dp))
-        Text(body, style = MaterialTheme.typography.bodyMedium)
-        state.lastError?.let {
-            Spacer(Modifier.height(6.dp))
-            Text(it.message, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.extended.danger)
-        }
-        Spacer(Modifier.height(12.dp))
-        when (which) {
-            "location", "credits" -> TextButton(onClick = onOpenSettings) {
-                Text(stringResource(R.string.action_open_settings))
-            }
-            "monitoring" -> if (state.status == MonitoringStatus.STOPPED) {
-                TextButton(onClick = onStartMonitoring) {
-                    Text(stringResource(R.string.radar_start))
-                }
-            }
-        }
-        Spacer(Modifier.height(24.dp))
-    }
-}
+// ---------- detail sheet ----------
 
 @Composable
 internal fun AircraftDetail(
@@ -633,57 +753,73 @@ internal fun AircraftDetail(
     unit: DistanceUnit,
     nowMs: Long,
     fleets: List<Fleet>,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onSnooze: () -> Unit
 ) {
-    Column(Modifier.padding(24.dp)) {
-        Text(Format.callsign(obs), style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(8.dp))
-        val lDistance = stringResource(R.string.detail_distance)
-        val lRadius = stringResource(R.string.detail_radius)
-        val lBearing = stringResource(R.string.detail_bearing)
-        val lAltitude = stringResource(R.string.detail_altitude)
-        val lSpeed = stringResource(R.string.detail_speed)
-        val lHeading = stringResource(R.string.detail_heading)
-        val lLastContact = stringResource(R.string.detail_last_contact)
-        val lFleets = stringResource(R.string.detail_fleets)
+    val inside = obs.distanceKm <= obs.effectiveRadiusKm
+    Column(Modifier.padding(horizontal = 24.dp)) {
+        Text(
+            Format.callsign(obs),
+            style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = CodeFeatures)
+        )
         val rows = buildList {
-            fun row(l: String, v: String, c: Color? = null) = add(Triple(l, v, c))
-            row(lDistance, Format.distance(obs.distanceKm, unit))
-            row(lRadius, Format.distance(obs.effectiveRadiusKm, unit))
-            row(lBearing, Format.bearing(obs.bearingDeg))
-            Format.altitude(obs.altitudeM, unit)?.let { row(lAltitude, it) }
-            Format.speed(obs.velocityMps, unit)?.let { row(lSpeed, it) }
-            Format.heading(obs.headingDeg)?.let { row(lHeading, it) }
+            fun row(l: String, v: String, code: Boolean = false) = add(Triple(l, v, code))
+            row(stringResource(R.string.detail_distance), Format.distance(obs.distanceKm, unit))
+            row(stringResource(R.string.detail_radius), Format.distance(obs.effectiveRadiusKm, unit))
+            row(stringResource(R.string.detail_bearing), Format.bearing(obs.bearingDeg))
+            Format.altitude(obs.altitudeM, unit)?.let {
+                row(stringResource(R.string.detail_altitude), it)
+            }
+            Format.speed(obs.velocityMps, unit)?.let {
+                row(stringResource(R.string.detail_speed), it)
+            }
+            Format.heading(obs.headingDeg)?.let {
+                row(stringResource(R.string.detail_heading), it)
+            }
             Format.closingParts(obs, unit)?.let { cp ->
-                row(cp.direction, cp.speed,
+                row(
                     when (cp.trend) {
-                        Format.ClosingTrend.APPROACHING ->
-                            MaterialTheme.colorScheme.extended.danger
-                        Format.ClosingTrend.RECEDING ->
-                            MaterialTheme.colorScheme.extended.success
-                        Format.ClosingTrend.STEADY -> null
-                    })
+                        Format.ClosingTrend.APPROACHING -> stringResource(R.string.radar_closing)
+                        Format.ClosingTrend.RECEDING -> stringResource(R.string.radar_moving_away)
+                        Format.ClosingTrend.STEADY -> stringResource(R.string.radar_steady)
+                    },
+                    cp.speed
+                )
             }
             obs.lastContactSec?.let {
-                row(lLastContact, Format.age(nowMs, it.toLong() * 1000))
+                row(stringResource(R.string.detail_last_contact), Format.age(nowMs, it.toLong() * 1000))
             }
             if (fleets.isNotEmpty()) {
-                row(lFleets, fleets.joinToString(", ") { it.name })
+                row(stringResource(R.string.detail_fleets), fleets.joinToString(", ") { it.name })
             }
         }
-        for ((k, v, kc) in rows) {
-            Row(Modifier.padding(vertical = 2.dp)) {
-                Text(k, Modifier.weight(0.4f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = kc ?: MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(v, Modifier.weight(0.6f),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum")
-                    )
+        GroupedSection(header = null) {
+            rows.forEachIndexed { i, (label, value, _) ->
+                if (i > 0) GroupedDivider()
+                GroupedRow(
+                    title = label,
+                    titleColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    titleStyle = MaterialTheme.typography.bodyMedium,
+                    trailing = {
+                        Text(
+                            value,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFeatureSettings = NumericFeatures),
+                            textAlign = TextAlign.End
+                        )
+                    }
+                )
             }
         }
-        Spacer(Modifier.height(12.dp))
-        TextButton(onClick = onEdit) {
-            Text(stringResource(R.string.action_edit_aircraft))
+        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = onEdit) {
+                Text(stringResource(R.string.action_edit_aircraft))
+            }
+            if (inside) {
+                TextButton(onClick = onSnooze) {
+                    Text(stringResource(R.string.action_snooze_30))
+                }
+            }
         }
         Spacer(Modifier.height(24.dp))
     }

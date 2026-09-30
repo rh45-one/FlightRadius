@@ -1,14 +1,14 @@
 package com.flightradius.app.ui.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
@@ -22,8 +22,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.flightradius.app.R
 import com.flightradius.app.data.api.ApiSettingsStatusDto
@@ -32,29 +35,74 @@ import com.flightradius.app.data.prefs.DataSource
 import com.flightradius.app.data.secure.StoredCredentials
 import com.flightradius.app.domain.CreditPlanner
 import com.flightradius.app.service.MonitoringState
-import com.flightradius.app.ui.components.SectionHeader
+import com.flightradius.app.ui.components.GroupedDivider
+import com.flightradius.app.ui.components.GroupedRow
+import com.flightradius.app.ui.components.GroupedSection
+import com.flightradius.app.ui.components.GroupedTextField
 import com.flightradius.app.ui.format.Format
+import com.flightradius.app.ui.theme.NumericFeatures
 import com.flightradius.app.ui.theme.extended
 
 @Composable
-internal fun SettingsCard(content: @Composable () -> Unit) {
-    Card(
-        Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-    ) {
-        Column(Modifier.padding(16.dp)) { content() }
-    }
+internal fun AccentRow(
+    title: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true
+) {
+    GroupedRow(
+        title = title,
+        titleColor = if (enabled) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+        onClick = if (enabled) onClick else null
+    )
+}
+
+@Composable
+internal fun SecretField(
+    label: String,
+    value: String,
+    onChange: (String) -> Unit
+) {
+    GroupedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = label,
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            autoCorrectEnabled = false)
+    )
+}
+
+@Composable
+private fun StatusDot(color: Color) {
+    Box(
+        Modifier
+            .size(8.dp)
+            .clip(CircleShape)
+            .background(color)
+    )
+}
+
+@Composable
+private fun MessageRow(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
+    GroupedRow(title = text, titleColor = color, titleStyle = MaterialTheme.typography.bodyMedium)
 }
 
 @Composable
 internal fun DataSourceSection(selected: DataSource, onSelect: (DataSource) -> Unit) {
-    SectionHeader(stringResource(R.string.settings_data_source))
-    SettingsCard {
+    GroupedSection(
+        header = stringResource(R.string.settings_data_source),
+        footer = stringResource(
+            if (selected == DataSource.DIRECT) R.string.data_source_direct_body
+            else R.string.data_source_backend_body
+        )
+    ) {
         val options = listOf(
             DataSource.DIRECT to stringResource(R.string.data_source_direct),
             DataSource.BACKEND to stringResource(R.string.data_source_backend)
         )
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(16.dp)) {
             options.forEachIndexed { index, (source, label) ->
                 SegmentedButton(
                     selected = selected == source,
@@ -63,15 +111,6 @@ internal fun DataSourceSection(selected: DataSource, onSelect: (DataSource) -> U
                 ) { Text(label) }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            stringResource(
-                if (selected == DataSource.DIRECT) R.string.data_source_direct_body
-                else R.string.data_source_backend_body
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
@@ -88,8 +127,10 @@ internal fun OpenSkyAccountSection(
     var clientSecret by remember { mutableStateOf("") }
     var confirmRemove by remember { mutableStateOf(false) }
 
-    SectionHeader(stringResource(R.string.settings_opensky_account))
-    SettingsCard {
+    GroupedSection(
+        header = stringResource(R.string.settings_opensky_account),
+        footer = stringResource(R.string.creds_direct_hint)
+    ) {
         val (statusText, statusColor) = when {
             check is CredentialCheck.Failed && check.rejected ->
                 stringResource(R.string.creds_status_rejected) to MaterialTheme.colorScheme.extended.danger
@@ -101,47 +142,53 @@ internal fun OpenSkyAccountSection(
                 stringResource(R.string.creds_status_stored) to MaterialTheme.colorScheme.extended.success
             else -> stringResource(R.string.creds_status_anonymous) to MaterialTheme.colorScheme.onSurfaceVariant
         }
-        StatusLine(statusText, statusColor)
-        Text(
-            stringResource(R.string.creds_direct_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        GroupedRow(
+            title = statusText,
+            titleStyle = MaterialTheme.typography.bodyMedium,
+            leading = { StatusDot(statusColor) }
         )
+        GroupedDivider()
         SecretField(stringResource(R.string.creds_client_id), clientId) { clientId = it }
         SecretField(stringResource(R.string.creds_client_secret), clientSecret) { clientSecret = it }
-        Row {
-            TextButton(
-                enabled = clientId.isNotBlank() && clientSecret.isNotBlank() &&
-                    check != CredentialCheck.Checking,
-                onClick = {
-                    onSave(clientId, clientSecret)
-                    clientId = ""
-                    clientSecret = ""
-                }
-            ) { Text(stringResource(R.string.creds_save_verify)) }
-            if (stored is StoredCredentials.Present) {
-                TextButton(enabled = check != CredentialCheck.Checking, onClick = onVerify) {
-                    Text(stringResource(R.string.creds_verify))
-                }
+        GroupedDivider()
+        AccentRow(
+            title = stringResource(R.string.creds_save_verify),
+            enabled = clientId.isNotBlank() && clientSecret.isNotBlank() &&
+                check != CredentialCheck.Checking,
+            onClick = {
+                onSave(clientId, clientSecret)
+                clientId = ""
+                clientSecret = ""
             }
-            if (stored !is StoredCredentials.None) {
-                TextButton(onClick = { confirmRemove = true }) {
-                    Text(stringResource(R.string.creds_remove))
-                }
-            }
+        )
+        if (stored is StoredCredentials.Present) {
+            GroupedDivider()
+            AccentRow(
+                title = stringResource(R.string.creds_verify),
+                enabled = check != CredentialCheck.Checking,
+                onClick = onVerify
+            )
+        }
+        if (stored !is StoredCredentials.None) {
+            GroupedDivider()
+            AccentRow(
+                title = stringResource(R.string.creds_remove),
+                onClick = { confirmRemove = true }
+            )
         }
         when (check) {
-            CredentialCheck.Checking -> Text(
-                stringResource(R.string.checking), style = MaterialTheme.typography.bodySmall
-            )
-            is CredentialCheck.Failed -> if (!check.rejected) Text(
-                check.message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.extended.danger
-            )
-            CredentialCheck.Removed -> Text(
-                stringResource(R.string.creds_removed), style = MaterialTheme.typography.bodySmall
-            )
+            CredentialCheck.Checking -> {
+                GroupedDivider()
+                MessageRow(stringResource(R.string.checking))
+            }
+            is CredentialCheck.Failed -> if (!check.rejected) {
+                GroupedDivider()
+                MessageRow(check.message, MaterialTheme.colorScheme.extended.danger)
+            }
+            CredentialCheck.Removed -> {
+                GroupedDivider()
+                MessageRow(stringResource(R.string.creds_removed))
+            }
             else -> Unit
         }
     }
@@ -180,42 +227,53 @@ internal fun BackendCredentialsSection(
     val sent = stringResource(R.string.creds_sent)
     val cleared = stringResource(R.string.creds_cleared)
 
-    SectionHeader(stringResource(R.string.settings_opensky_backend))
-    SettingsCard {
+    GroupedSection(
+        header = stringResource(R.string.settings_opensky_backend),
+        footer = stringResource(R.string.settings_creds_hint)
+    ) {
         apiStatus?.api?.let { api ->
             val configured = api.clientConfigured == true
-            StatusLine(
-                stringResource(
+            GroupedRow(
+                title = stringResource(
                     R.string.creds_auth_mode,
                     if (configured) "OAuth2" else stringResource(R.string.creds_auth_anonymous)
                 ),
-                if (configured) MaterialTheme.colorScheme.extended.success
-                else MaterialTheme.colorScheme.onSurfaceVariant
+                titleStyle = MaterialTheme.typography.bodyMedium,
+                leading = {
+                    StatusDot(
+                        if (configured) MaterialTheme.colorScheme.extended.success
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             )
+            GroupedDivider()
         }
         apiStatusError?.let {
-            Text(it, color = MaterialTheme.colorScheme.extended.danger, style = MaterialTheme.typography.bodySmall)
+            MessageRow(it, MaterialTheme.colorScheme.extended.danger)
+            GroupedDivider()
         }
-        Text(
-            stringResource(R.string.settings_creds_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
         SecretField(stringResource(R.string.creds_client_id), clientId) { clientId = it }
         SecretField(stringResource(R.string.creds_client_secret), clientSecret) { clientSecret = it }
-        Row {
-            TextButton(
-                enabled = clientId.isNotBlank() || clientSecret.isNotBlank(),
-                onClick = {
-                    onSend(clientId, clientSecret) { ok, msg ->
-                        message = if (ok) sent else msg
-                        if (ok) { clientId = ""; clientSecret = "" }
-                    }
+        GroupedDivider()
+        AccentRow(
+            title = stringResource(R.string.creds_send),
+            enabled = clientId.isNotBlank() || clientSecret.isNotBlank(),
+            onClick = {
+                onSend(clientId, clientSecret) { ok, msg ->
+                    message = if (ok) sent else msg
+                    if (ok) { clientId = ""; clientSecret = "" }
                 }
-            ) { Text(stringResource(R.string.creds_send)) }
-            TextButton(onClick = { confirmClear = true }) { Text(stringResource(R.string.creds_clear)) }
+            }
+        )
+        GroupedDivider()
+        AccentRow(
+            title = stringResource(R.string.creds_clear),
+            onClick = { confirmClear = true }
+        )
+        message?.let {
+            GroupedDivider()
+            MessageRow(it)
         }
-        message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     }
 
     if (confirmClear) {
@@ -238,66 +296,55 @@ internal fun BackendCredentialsSection(
     }
 }
 
-/** Credit balance, current pace and the adaptive-interval switch. */
+/** Credit balance and current pace. */
 @Composable
 internal fun CreditsSection(
     credits: CreditState,
     monitoring: MonitoringState,
     userIntervalSec: Int,
-    adaptive: Boolean,
-    nowMs: Long,
-    onAdaptiveChange: (Boolean) -> Unit
+    nowMs: Long
 ) {
-    SectionHeader(stringResource(R.string.settings_credits))
-    SettingsCard {
+    GroupedSection(header = stringResource(R.string.settings_credits)) {
         val remaining = credits.remaining
         val quota = credits.dailyQuota
-        if (remaining == null) {
-            Text(stringResource(R.string.credits_unknown), style = MaterialTheme.typography.bodyMedium)
-        } else {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            if (remaining == null) {
+                Text(stringResource(R.string.credits_unknown), style = MaterialTheme.typography.bodyMedium)
+            } else {
+                Text(
+                    stringResource(R.string.credits_remaining, remaining, quota),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFeatureSettings = NumericFeatures)
+                )
+                LinearProgressIndicator(
+                    progress = { (remaining.toFloat() / quota).coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                )
+            }
+            val interval = monitoring.plannedIntervalSec ?: userIntervalSec
+            val perCycle = monitoring.creditsPerCycle
+            val paceLines = buildList {
+                add(stringResource(R.string.credits_interval, Format.duration(interval.toLong())))
+                if (perCycle > 0) add(stringResource(R.string.credits_per_cycle, perCycle))
+                remaining?.let { CreditPlanner.coverageHours(it, perCycle, interval) }?.let {
+                    add(stringResource(R.string.credits_coverage, Format.hours(it)))
+                }
+            }
             Text(
-                stringResource(R.string.credits_remaining, remaining, quota),
-                style = MaterialTheme.typography.titleMedium
+                paceLines.joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = NumericFeatures),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp)
             )
-            Spacer(Modifier.height(6.dp))
-            LinearProgressIndicator(
-                progress = { (remaining.toFloat() / quota).coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-        val interval = monitoring.plannedIntervalSec ?: userIntervalSec
-        val perCycle = monitoring.creditsPerCycle
-        val paceLines = buildList {
-            add(stringResource(R.string.credits_interval, Format.duration(interval.toLong())))
-            if (perCycle > 0) add(stringResource(R.string.credits_per_cycle, perCycle))
-            remaining?.let { CreditPlanner.coverageHours(it, perCycle, interval) }?.let {
-                add(stringResource(R.string.credits_coverage, Format.hours(it)))
+            credits.blockedUntilMs?.takeIf { it > nowMs }?.let { until ->
+                Text(
+                    stringResource(R.string.credits_blocked, Format.duration((until - nowMs) / 1000)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.extended.danger
+                )
             }
         }
-        Text(
-            paceLines.joinToString(" · "),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        credits.blockedUntilMs?.takeIf { it > nowMs }?.let { until ->
-            Text(
-                stringResource(R.string.credits_blocked, Format.duration((until - nowMs) / 1000)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.extended.danger
-            )
-        }
-        SwitchRow(
-            title = stringResource(R.string.credits_adaptive),
-            body = stringResource(R.string.credits_adaptive_body),
-            checked = adaptive,
-            onChange = onAdaptiveChange
-        )
     }
-}
-
-@Composable
-private fun StatusLine(text: String, color: Color) {
-    Text("\u25cf  $text", style = MaterialTheme.typography.bodyMedium, color = color)
-    Spacer(Modifier.height(4.dp))
 }
