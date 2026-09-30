@@ -98,11 +98,13 @@ without asking.
 
 1. [done 2026-09-29] Direct data source + credit budget.
 2. [done 2026-09-30] Design system + restyle (tokens, Inter, grouped lists,
-   onboarding, one-glance radar dial). Open: increased-contrast check,
-   in-app theme switch (HIG says follow system), vendored HIG text licence.
-3. Nearby airspace alerts (classifier: category → aircraft-DB lookup table
-   → unknown; rules by radius/class/altitude; grouped notifications; radar
-   scope + map view).
+   onboarding, one-glance radar dial, Light/Dark/System setting). Open:
+   increased-contrast check on a device.
+3. [done 2026-09-30] Nearby airspace (opt-in area query, classifier:
+   category → downloaded OpenSky aircraft DB → unknown; rules by
+   radius/class/altitude, off by default; grouped notifications; radar rim
+   markers + MapLibre/OpenFreeMap map tab). Goal: spot DGT "Pegasus"
+   helicopters while driving; tracked aircraft alert at any altitude.
 4. Premium extras (Live Update notification, Glance widget, shared-element
    transitions, es/en).
 5. Field test, battery profiling, Play policy prep, release signing, CI.
