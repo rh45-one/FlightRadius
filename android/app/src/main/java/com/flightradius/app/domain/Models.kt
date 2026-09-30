@@ -74,5 +74,9 @@ data class MonitoringSnapshot(
     /** Tracked aircraft with no usable live position this cycle. */
     val noData: List<TrackedAircraft>,
     val fleets: List<FleetStatus>,
-    val closest: AircraftObservation?
+    val closest: AircraftObservation?,
+    /** Non-tracked aircraft around the user (airspace watch), nearest first. */
+    val nearby: List<NearbyAircraft> = emptyList(),
+    /** Radius of the airspace query; null when airspace watch is off. */
+    val airspaceRadiusKm: Double? = null
 )

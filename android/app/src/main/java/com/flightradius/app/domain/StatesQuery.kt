@@ -63,6 +63,14 @@ object OpenSkyPricing {
         is StatesQuery.ByArea -> areaCredits(query.box.areaSqDeg)
     }
 
+    /** Credits of the airspace-watch query (one box of [radiusKm] around a point at [latDeg]). */
+    fun airspaceCredits(radiusKm: Double, latDeg: Double = 0.0): Int =
+        areaCredits(BoundingBox.around(latDeg, 0.0, radiusKm).areaSqDeg)
+
+    /** Expected spend of one cycle: tracked query plus the area query when watching. */
+    fun creditsPerCycle(trackedCredits: Int, airspaceWatch: Boolean, airspaceRadiusKm: Double): Int =
+        trackedCredits + if (airspaceWatch) airspaceCredits(airspaceRadiusKm) else 0
+
     fun areaCredits(areaSqDeg: Double): Int = when {
         areaSqDeg <= 25.0 -> 1
         areaSqDeg <= 100.0 -> 2

@@ -1,0 +1,112 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "f443ad6c8d2beeaeeb9a91ddea2159bc",
+    "entities": [
+      {
+        "tableName": "aircraft_meta",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`icao24` TEXT NOT NULL, `cls` INTEGER NOT NULL, `typecode` TEXT, `registration` TEXT, `model` TEXT, `operator` TEXT, PRIMARY KEY(`icao24`))",
+        "fields": [
+          {
+            "fieldPath": "icao24",
+            "columnName": "icao24",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cls",
+            "columnName": "cls",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "typecode",
+            "columnName": "typecode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "registration",
+            "columnName": "registration",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "model",
+            "columnName": "model",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "operator",
+            "columnName": "operator",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "icao24"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_aircraft_meta_registration",
+            "unique": false,
+            "columnNames": [
+              "registration"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_aircraft_meta_registration` ON `${TABLE_NAME}` (`registration`)"
+          }
+        ]
+      },
+      {
+        "tableName": "aircraft_meta_staging",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`icao24` TEXT NOT NULL, `cls` INTEGER NOT NULL, `typecode` TEXT, `registration` TEXT, `model` TEXT, `operator` TEXT, PRIMARY KEY(`icao24`))",
+        "fields": [
+          {
+            "fieldPath": "icao24",
+            "columnName": "icao24",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cls",
+            "columnName": "cls",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "typecode",
+            "columnName": "typecode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "registration",
+            "columnName": "registration",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "model",
+            "columnName": "model",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "operator",
+            "columnName": "operator",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "icao24"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f443ad6c8d2beeaeeb9a91ddea2159bc')"
+    ]
+  }
+}

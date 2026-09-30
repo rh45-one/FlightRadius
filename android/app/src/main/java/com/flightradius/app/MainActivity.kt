@@ -67,6 +67,7 @@ import com.flightradius.app.ui.fleets.FleetsScreen
 import com.flightradius.app.ui.onboarding.WelcomeScreen
 import com.flightradius.app.ui.radar.RadarScreen
 import com.flightradius.app.ui.rememberMonitoringStarter
+import com.flightradius.app.ui.settings.AirspaceRulesScreen
 import com.flightradius.app.ui.settings.SettingsScreen
 import com.flightradius.app.ui.theme.FlightRadiusTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -240,7 +241,11 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(NavItem.Settings.route) {
                             SettingsScreen(
-                                onOpenDebug = { nav.navigate("debug") })
+                                onOpenDebug = { nav.navigate("debug") },
+                                onOpenAirspaceRules = { nav.navigate("airspace_rules") })
+                        }
+                        composable("airspace_rules") {
+                            AirspaceRulesScreen(onBack = { nav.popBackStack() })
                         }
                         composable("debug") { DebugScreen(onBack = { nav.popBackStack() }) }
                     }
@@ -368,7 +373,7 @@ class MainActivity : ComponentActivity() {
 
     private fun isSelected(route: String?, item: NavItem) =
         route?.startsWith(item.route) == true ||
-            (route == "debug" && item == NavItem.Settings)
+            ((route == "debug" || route == "airspace_rules") && item == NavItem.Settings)
 
     /**
      * Switches to a top-level tab instead of pushing onto the current tab's

@@ -8,8 +8,10 @@ import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.flightradius.app.domain.AirspaceRule
 import com.flightradius.app.domain.DistanceUnit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
@@ -18,6 +20,9 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "flightradius_settings"
@@ -26,6 +31,18 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 enum class GpsAccuracy { HIGH, BALANCED, LOW_POWER }
 enum class LocationMode { GPS, MANUAL }
 enum class ThemeMode { SYSTEM, DARK, LIGHT }
+
+private val rulesJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+/** What was imported from the OpenSky aircraft database. */
+data class AircraftDbMeta(
+    val sourceKey: String,
+    val etag: String?,
+    val importedAtMs: Long,
+    val rowCount: Int,
+    val classifiedCount: Int,
+    val lastCheckMs: Long
+)
 
 /** Where flight data comes from. */
 enum class DataSource {
@@ -64,6 +81,10 @@ data class AppSettings(
     val inAppAlertBanner: Boolean = true,
     val keepScreenOn: Boolean = true,
     val onboardingDone: Boolean = false,
+    /** Watch every aircraft around the user (off by default). */
+    val airspaceWatch: Boolean = false,
+    val airspaceRadiusKm: Double = 25.0,
+    val airspaceRules: List<AirspaceRule> = AirspaceRule.DEFAULTS,
     /** Internal flag: monitoring should be running (survives reboot). */
     val monitoringDesired: Boolean = false
 )
@@ -94,6 +115,15 @@ class SettingsRepository @Inject constructor(
         val IN_APP_ALERT_BANNER = booleanPreferencesKey("in_app_alert_banner")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
+        val AIRSPACE_WATCH = booleanPreferencesKey("airspace_watch")
+        val AIRSPACE_RADIUS_KM = doublePreferencesKey("airspace_radius_km")
+        val AIRSPACE_RULES = stringPreferencesKey("airspace_rules_json")
+        val DB_SOURCE_KEY = stringPreferencesKey("aircraft_db_source_key")
+        val DB_ETAG = stringPreferencesKey("aircraft_db_etag")
+        val DB_IMPORTED_AT = longPreferencesKey("aircraft_db_imported_at")
+        val DB_ROWS = intPreferencesKey("aircraft_db_rows")
+        val DB_CLASSIFIED = intPreferencesKey("aircraft_db_classified")
+        val DB_LAST_CHECK = longPreferencesKey("aircraft_db_last_check")
         val MONITORING_DESIRED = booleanPreferencesKey("monitoring_desired")
     }
 
@@ -132,9 +162,58 @@ class SettingsRepository @Inject constructor(
             inAppAlertBanner = this[Keys.IN_APP_ALERT_BANNER] ?: defaults.inAppAlertBanner,
             keepScreenOn = this[Keys.KEEP_SCREEN_ON] ?: defaults.keepScreenOn,
             onboardingDone = this[Keys.ONBOARDING_DONE] ?: defaults.onboardingDone,
+            airspaceWatch = this[Keys.AIRSPACE_WATCH] ?: defaults.airspaceWatch,
+            airspaceRadiusKm =
+                (this[Keys.AIRSPACE_RADIUS_KM] ?: defaults.airspaceRadiusKm).coerceIn(5.0, 100.0),
+            airspaceRules = decodeRules(this[Keys.AIRSPACE_RULES]),
             monitoringDesired = this[Keys.MONITORING_DESIRED] ?: defaults.monitoringDesired
         )
     }
+
+    private fun decodeRules(raw: String?): List<AirspaceRule> =
+        raw?.let { runCatching { rulesJson.decodeFromString<List<AirspaceRule>>(it) }.getOrNull() }
+            ?: AirspaceRule.DEFAULTS
+
+    /** Aircraft database import metadata (null until a database was imported). */
+    val aircraftDbMeta: Flow<AircraftDbMeta?> = context.settingsDataStore.data
+        .catch { throwable ->
+            if (throwable is IOException) emit(emptyPreferences()) else throw throwable
+        }
+        .map { prefs ->
+            val rows = prefs[Keys.DB_ROWS]
+            val importedAt = prefs[Keys.DB_IMPORTED_AT]
+            if (rows == null || importedAt == null) null
+            else AircraftDbMeta(
+                sourceKey = prefs[Keys.DB_SOURCE_KEY].orEmpty(),
+                etag = prefs[Keys.DB_ETAG],
+                importedAtMs = importedAt,
+                rowCount = rows,
+                classifiedCount = prefs[Keys.DB_CLASSIFIED] ?: 0,
+                lastCheckMs = prefs[Keys.DB_LAST_CHECK] ?: 0L
+            )
+        }
+
+    suspend fun setAircraftDbMeta(meta: AircraftDbMeta?) = edit {
+        if (meta == null) {
+            it.remove(Keys.DB_SOURCE_KEY); it.remove(Keys.DB_ETAG); it.remove(Keys.DB_IMPORTED_AT)
+            it.remove(Keys.DB_ROWS); it.remove(Keys.DB_CLASSIFIED); it.remove(Keys.DB_LAST_CHECK)
+        } else {
+            it[Keys.DB_SOURCE_KEY] = meta.sourceKey
+            if (meta.etag != null) it[Keys.DB_ETAG] = meta.etag else it.remove(Keys.DB_ETAG)
+            it[Keys.DB_IMPORTED_AT] = meta.importedAtMs
+            it[Keys.DB_ROWS] = meta.rowCount
+            it[Keys.DB_CLASSIFIED] = meta.classifiedCount
+            it[Keys.DB_LAST_CHECK] = meta.lastCheckMs
+        }
+    }
+
+    suspend fun setAircraftDbLastCheck(ms: Long) = edit { it[Keys.DB_LAST_CHECK] = ms }
+
+    suspend fun setAirspaceWatch(value: Boolean) = edit { it[Keys.AIRSPACE_WATCH] = value }
+    suspend fun setAirspaceRadiusKm(value: Double) =
+        edit { it[Keys.AIRSPACE_RADIUS_KM] = value.coerceIn(5.0, 100.0) }
+    suspend fun setAirspaceRules(rules: List<AirspaceRule>) =
+        edit { it[Keys.AIRSPACE_RULES] = rulesJson.encodeToString(rules) }
 
     private inline fun <reified T : Enum<T>> enumOr(raw: String?, fallback: T): T =
         raw?.let { runCatching { enumValueOf<T>(it) }.getOrNull() } ?: fallback

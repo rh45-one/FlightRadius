@@ -36,6 +36,13 @@ object Format {
         else String.format(Locale.getDefault(), "%.0f", v)
     }
 
+    /** Altitude limit for rules: whole metres, or feet for miles users ("1,500 m"). */
+    fun altitudeLimit(m: Double, unit: DistanceUnit): String =
+        if (unit == DistanceUnit.MI) String.format(Locale.getDefault(), "%,d ft", (m * M_TO_FT).roundToInt())
+        else String.format(Locale.getDefault(), "%,d m", m.roundToInt())
+
+    const val M_TO_FT = 3.28084
+
     fun speed(mps: Double?, unit: DistanceUnit): String? =
         mps?.let { AlertText.formatSpeed(it * 3.6, unit) }
 

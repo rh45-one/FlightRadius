@@ -134,6 +134,52 @@ class GlanceTest {
         assertFalse(g.stale)
     }
 
+    // ---- nearby fallback ----
+
+    private fun nearby(km: Double, id: String = "n1", match: Boolean = false) =
+        com.flightradius.app.domain.NearbyAircraft(
+            icao24 = id, callsign = null,
+            cls = com.flightradius.app.domain.AircraftClass.HELICOPTER,
+            lat = 0.0, lon = 0.0, distanceKm = km, bearingDeg = 10.0, matchesRule = match
+        )
+
+    @Test
+    fun `nothing tracked and no watch stays NoAircraft even with nearby data`() {
+        val snap = snapshot().copy(nearby = listOf(nearby(3.0)), airspaceRadiusKm = 25.0)
+        assertEquals(Glance.NoAircraft, glanceOf(0, snap, 0L, 15, airspaceWatch = false))
+    }
+
+    @Test
+    fun `watch on and nothing tracked shows loading then the nearest nearby`() {
+        assertEquals(Glance.Loading, glanceOf(0, null, 0L, 15, airspaceWatch = true))
+        val snap = snapshot().copy(
+            nearby = listOf(nearby(8.0, "far"), nearby(3.0, "near", match = true)),
+            airspaceRadiusKm = 25.0
+        )
+        val g = glanceOf(0, snap, 1_000L, 15, airspaceWatch = true) as Glance.NearbyNearest
+        assertEquals("near", g.aircraft.icao24)
+        assertFalse(g.stale)
+    }
+
+    @Test
+    fun `watch on nothing tracked and nothing nearby`() {
+        val snap = snapshot().copy(airspaceRadiusKm = 25.0)
+        assertEquals(Glance.NothingNearby(25.0), glanceOf(0, snap, 0L, 15, airspaceWatch = true))
+    }
+
+    @Test
+    fun `tracked aircraft win over nearby`() {
+        val snap = snapshot(ranked = listOf(obs(1, 90.0)))
+            .copy(nearby = listOf(nearby(1.0)), airspaceRadiusKm = 25.0)
+        assertTrue(glanceOf(1, snap, 0L, 15, airspaceWatch = true) is Glance.Nearest)
+    }
+
+    @Test
+    fun `nearby glance goes stale like the tracked one`() {
+        val snap = snapshot(timeMs = 0L).copy(nearby = listOf(nearby(3.0)), airspaceRadiusKm = 25.0)
+        assertTrue((glanceOf(0, snap, 60_001L, 15, true) as Glance.NearbyNearest).stale)
+    }
+
     // ---- statusSummary ----
 
     private fun summary(

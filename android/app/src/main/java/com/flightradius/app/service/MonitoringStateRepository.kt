@@ -66,6 +66,22 @@ class MonitoringStateRepository @Inject constructor() {
     private val _snoozes = MutableStateFlow<Map<Long, Long>>(emptyMap())
     val snoozes: StateFlow<Map<Long, Long>> = _snoozes
 
+    /** Mute-until (epoch ms) for nearby-airspace alerts; 0 = not muted. */
+    private val _nearbyMutedUntilMs = MutableStateFlow(0L)
+    val nearbyMutedUntilMs: StateFlow<Long> = _nearbyMutedUntilMs
+
+    fun muteNearby(untilMs: Long) {
+        _nearbyMutedUntilMs.value = untilMs
+    }
+
+    /** Debug builds only: while set, cycles re-publish the injected demo snapshot. */
+    private val _demoActive = MutableStateFlow(false)
+    val demoActive: StateFlow<Boolean> = _demoActive
+
+    fun setDemoActive(active: Boolean) {
+        _demoActive.value = active
+    }
+
     fun update(transform: (MonitoringState) -> MonitoringState) = _state.update(transform)
 
     fun set(snapshot: MonitoringState) {

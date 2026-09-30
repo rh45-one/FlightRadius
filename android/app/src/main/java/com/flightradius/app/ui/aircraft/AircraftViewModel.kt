@@ -2,6 +2,8 @@ package com.flightradius.app.ui.aircraft
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flightradius.app.data.aircraftdb.AircraftMetaRepository
+import com.flightradius.app.domain.AircraftMeta
 import com.flightradius.app.data.api.ApiResult
 import com.flightradius.app.data.repo.AircraftRepository
 import com.flightradius.app.data.repo.FleetRepository
@@ -32,7 +34,8 @@ sealed interface CheckResult {
 class AircraftViewModel @Inject constructor(
     private val aircraftRepository: AircraftRepository,
     private val fleetRepository: FleetRepository,
-    private val flightData: SelectedFlightDataSource
+    private val flightData: SelectedFlightDataSource,
+    private val aircraftMeta: AircraftMetaRepository
 ) : ViewModel() {
 
     val search = MutableStateFlow("")
@@ -52,6 +55,10 @@ class AircraftViewModel @Inject constructor(
                     it.notes?.contains(query, ignoreCase = true) == true
             }.sortedBy { it.identifier }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** icao24 + stored metadata for an exact registration, when the database is ready. */
+    suspend fun lookupRegistration(raw: String): Pair<String, AircraftMeta>? =
+        aircraftMeta.findByRegistration(raw)
 
     fun existingIdentifiers(): Set<String> =
         aircraft.value.map { it.identifier }.toSet()

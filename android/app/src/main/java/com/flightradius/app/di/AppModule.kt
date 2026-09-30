@@ -7,6 +7,7 @@ import com.flightradius.app.data.api.BaseUrlInterceptor
 import com.flightradius.app.data.api.FlightRadiusApi
 import com.flightradius.app.data.api.IoErrorMapper
 import com.flightradius.app.data.api.LocalNetworkGuard
+import com.flightradius.app.data.aircraftdb.AircraftMetaDatabase
 import com.flightradius.app.data.db.AircraftDao
 import com.flightradius.app.data.db.FlightRadiusDatabase
 import com.flightradius.app.data.db.FleetDao
@@ -160,4 +161,10 @@ object DatabaseModule {
 
     @Provides
     fun provideFleetDao(db: FlightRadiusDatabase): FleetDao = db.fleetDao()
+
+    @Provides
+    @Singleton
+    fun provideAircraftMetaDatabase(@ApplicationContext context: Context): AircraftMetaDatabase =
+        Room.databaseBuilder(context, AircraftMetaDatabase::class.java, "aircraft_meta.db")
+            .build()
 }

@@ -28,6 +28,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import com.flightradius.app.ui.components.groupedSegmentedColors
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,12 +43,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.flightradius.app.R
 import com.flightradius.app.data.prefs.AppSettings
+import com.flightradius.app.domain.AircraftMeta
 import com.flightradius.app.domain.Fleet
 import com.flightradius.app.domain.IdentifierType
 import com.flightradius.app.domain.TrackedAircraft
 import com.flightradius.app.ui.format.Format
 import com.flightradius.app.ui.theme.CodeFeatures
 import com.flightradius.app.ui.theme.extended
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -87,8 +91,31 @@ internal fun AddAircraftSheet(
                     selected = type == t,
                     onClick = { type = t; check = CheckResult.Idle },
                     shape = SegmentedButtonDefaults.itemShape(
-                        index = i, count = IdentifierType.entries.size)
+                        index = i, count = IdentifierType.entries.size),
+                    colors = groupedSegmentedColors()
                 ) { Text(t.name) }
+            }
+        }
+
+        var regMatch by remember { mutableStateOf<Pair<String, AircraftMeta>?>(null) }
+        LaunchedEffect(identifier) {
+            regMatch = null
+            if (identifier.length >= 3) {
+                delay(250)
+                regMatch = viewModel.lookupRegistration(identifier)
+            }
+        }
+        regMatch?.let { (icao, meta) ->
+            TextButton(onClick = {
+                type = IdentifierType.ICAO24
+                identifier = icao
+                check = CheckResult.Idle
+            }) {
+                Text(
+                    stringResource(
+                        R.string.aircraft_track_by_icao24,
+                        listOfNotNull(icao, meta.registration, meta.typecode ?: meta.model)
+                            .joinToString(" · ")))
             }
         }
 

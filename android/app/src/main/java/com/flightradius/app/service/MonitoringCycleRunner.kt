@@ -5,17 +5,26 @@ import com.flightradius.app.data.api.ApiResult
 import com.flightradius.app.data.api.LocalNetworkGuard
 import com.flightradius.app.data.api.openSkyStatusFor
 import com.flightradius.app.data.opensky.CreditTracker
+import com.flightradius.app.BuildConfig
+import com.flightradius.app.data.aircraftdb.AircraftMetaRepository
+import com.flightradius.app.data.opensky.OpenSkyClient
 import com.flightradius.app.data.prefs.AppSettings
 import com.flightradius.app.data.prefs.RuntimeSettings
 import com.flightradius.app.data.prefs.SettingsRepository
 import com.flightradius.app.data.repo.AircraftRepository
 import com.flightradius.app.data.repo.FleetRepository
 import com.flightradius.app.data.source.SelectedFlightDataSource
+import com.flightradius.app.domain.BoundingBox
+import com.flightradius.app.domain.ComputeResultEntry
 import com.flightradius.app.domain.CreditPlanner
 import com.flightradius.app.domain.Fleet
 import com.flightradius.app.domain.MonitoringSnapshot
+import com.flightradius.app.domain.NearbyBuilder
+import com.flightradius.app.domain.OpenSkyPricing
 import com.flightradius.app.domain.OpenSkyStatus
 import com.flightradius.app.domain.SnapshotBuilder
+import com.flightradius.app.domain.StateVector
+import com.flightradius.app.domain.StatesQuery
 import com.flightradius.app.domain.TimeSource
 import com.flightradius.app.domain.TrackedAircraft
 import com.flightradius.app.location.LocationRepository
@@ -52,7 +61,9 @@ class MonitoringCycleRunner @Inject constructor(
     private val connectivity: ConnectivityMonitor,
     private val localNetworkGuard: LocalNetworkGuard,
     private val stateRepository: MonitoringStateRepository,
-    private val time: TimeSource
+    private val time: TimeSource,
+    private val openSky: OpenSkyClient,
+    private val aircraftMeta: AircraftMetaRepository
 ) {
     companion object {
         private const val TAG = "CycleRunner"
@@ -73,13 +84,28 @@ class MonitoringCycleRunner @Inject constructor(
         return result
     }
 
+    /** Debug-only: re-publishes the injected demo snapshot instead of hitting the network. */
+    private fun demoCycle(): CycleResult? {
+        if (!BuildConfig.DEBUG || !stateRepository.demoActive.value) return null
+        val snap = stateRepository.state.value.lastSnapshot ?: return null
+        val refreshed = snap.copy(timeMs = time.nowMs())
+        stateRepository.update {
+            it.copy(lastSnapshot = refreshed, lastSuccessAtMs = time.nowMs(),
+                openSkyStatus = OpenSkyStatus.OK, lastError = null,
+                consecutiveFailures = 0, cycleCount = it.cycleCount + 1)
+        }
+        return CycleResult.Success(refreshed, 0)
+    }
+
     private suspend fun execute(
         trigger: String,
         settings: AppSettings,
         aircraft: List<TrackedAircraft>,
         fleets: List<Fleet>
     ): CycleResult {
-        if (aircraft.isEmpty()) {
+        demoCycle()?.let { return it }
+        val watch = settings.airspaceWatch
+        if (aircraft.isEmpty() && !watch) {
             AppLog.d(TAG, "cycle idle", "reason" to IdleReason.NO_AIRCRAFT, "trigger" to trigger)
             return CycleResult.Idle(IdleReason.NO_AIRCRAFT)
         }
@@ -104,35 +130,61 @@ class MonitoringCycleRunner @Inject constructor(
         }
 
         val t0 = time.nowMs()
-        val result = source.fetchTracked(fix, aircraft, fleets)
+        val trackedResult: ApiResult<List<ComputeResultEntry>> =
+            if (aircraft.isEmpty()) ApiResult.Success(emptyList())
+            else source.fetchTracked(fix, aircraft, fleets)
+        if (trackedResult is ApiResult.Failure) {
+            return recordFailure(trackedResult.error, time.nowMs() - t0)
+        }
+        val results = (trackedResult as ApiResult.Success).data
+
+        var airspaceStates: List<StateVector>? = null
+        if (watch) {
+            val box = BoundingBox.around(fix.lat, fix.lon, settings.airspaceRadiusKm)
+            when (val area = openSky.states(StatesQuery.ByArea(box))) {
+                is ApiResult.Success -> airspaceStates = area.data.states
+                is ApiResult.Failure -> {
+                    AppLog.w(TAG, "airspace fetch failed", "err" to area.error.message)
+                    if (aircraft.isEmpty()) {
+                        return recordFailure(area.error, time.nowMs() - t0)
+                    }
+                }
+            }
+        }
         val latencyMs = time.nowMs() - t0
 
-        return when (result) {
-            is ApiResult.Success -> {
-                val snapshot = SnapshotBuilder.build(
-                    timeMs = time.nowMs(),
-                    fix = fix,
-                    results = result.data,
-                    tracked = aircraft,
-                    fleets = fleets,
-                    globalRadiusKm = settings.globalAlertRadiusKm,
-                    previous = stateRepository.state.value.lastSnapshot
-                )
-                stateRepository.update {
-                    it.copy(
-                        lastSnapshot = snapshot,
-                        lastError = null,
-                        lastSuccessAtMs = time.nowMs(),
-                        consecutiveFailures = 0,
-                        openSkyStatus = OpenSkyStatus.OK,
-                        cycleCount = it.cycleCount + 1,
-                        lastLatencyMs = latencyMs
-                    )
-                }
-                CycleResult.Success(snapshot, latencyMs)
-            }
-            is ApiResult.Failure -> recordFailure(result.error, latencyMs)
+        val base = SnapshotBuilder.build(
+            timeMs = time.nowMs(),
+            fix = fix,
+            results = results,
+            tracked = aircraft,
+            fleets = fleets,
+            globalRadiusKm = settings.globalAlertRadiusKm,
+            previous = stateRepository.state.value.lastSnapshot
+        )
+        val snapshot = if (watch) {
+            val states = airspaceStates.orEmpty()
+            val trackedIds = base.ranked.mapNotNullTo(HashSet()) { it.icao24 }
+            val meta = aircraftMeta.lookup(states.map { it.icao24 })
+            base.copy(
+                nearby = NearbyBuilder.build(
+                    fix, states, trackedIds, settings.airspaceRadiusKm, meta,
+                    settings.airspaceRules),
+                airspaceRadiusKm = settings.airspaceRadiusKm
+            )
+        } else base
+        stateRepository.update {
+            it.copy(
+                lastSnapshot = snapshot,
+                lastError = null,
+                lastSuccessAtMs = time.nowMs(),
+                consecutiveFailures = 0,
+                openSkyStatus = OpenSkyStatus.OK,
+                cycleCount = it.cycleCount + 1,
+                lastLatencyMs = latencyMs
+            )
         }
+        return CycleResult.Success(snapshot, latencyMs)
     }
 
     private fun recordFailure(error: ApiError, latencyMs: Long?): CycleResult.Failure {
@@ -151,7 +203,11 @@ class MonitoringCycleRunner @Inject constructor(
 
     /** Chooses the next interval from the freshest credit balance. */
     private fun publishPlan(settings: AppSettings, aircraft: List<TrackedAircraft>) {
-        val perCycle = source.estimatedCreditsPerCycle(aircraft)
+        val perCycle = OpenSkyPricing.creditsPerCycle(
+            trackedCredits = if (aircraft.isEmpty()) 0 else source.estimatedCreditsPerCycle(aircraft),
+            airspaceWatch = settings.airspaceWatch,
+            airspaceRadiusKm = settings.airspaceRadiusKm
+        )
         val interval = CreditPlanner.intervalSec(
             userIntervalSec = settings.monitoringIntervalSec,
             adaptive = settings.adaptiveCredits,

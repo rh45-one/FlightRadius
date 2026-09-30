@@ -49,6 +49,9 @@ class ConnectivityMonitor @Inject constructor(
         )
     }
 
+    /** True on mobile data or any metered network. */
+    fun isMetered(): Boolean = cm.isActiveNetworkMetered
+
     private fun currentlyOnline(): Boolean {
         val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&

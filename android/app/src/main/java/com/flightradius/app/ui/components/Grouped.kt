@@ -19,6 +19,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButtonColors
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -205,3 +207,12 @@ fun GroupedTextField(
         )
     )
 }
+
+/** Shared look for segmented rows: primary-container selection, transparent rest. */
+@Composable
+fun groupedSegmentedColors(): SegmentedButtonColors = SegmentedButtonDefaults.colors(
+    activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+    activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    inactiveContainerColor = Color.Transparent,
+    inactiveContentColor = MaterialTheme.colorScheme.onSurface
+)

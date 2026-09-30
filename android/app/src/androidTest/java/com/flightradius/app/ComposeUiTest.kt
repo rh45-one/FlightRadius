@@ -1,14 +1,28 @@
 package com.flightradius.app
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.flightradius.app.data.aircraftdb.DbState
+import com.flightradius.app.data.prefs.AppSettings
 import com.flightradius.app.data.prefs.ThemeMode
+import com.flightradius.app.domain.AirspaceRule
+import com.flightradius.app.domain.LocationSource
+import com.flightradius.app.domain.UserFix
+import com.flightradius.app.ui.debug.DemoTraffic
+import com.flightradius.app.ui.radar.NearbySection
+import com.flightradius.app.ui.settings.AirspaceRulesContent
+import com.flightradius.app.ui.settings.NearbyAirspaceSection
 import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.ui.alerts.ProximityAlertSheet
@@ -141,5 +155,69 @@ class ComposeUiTest {
         compose.onNodeWithText("Light").assertIsDisplayed()
         compose.onNodeWithText("Dark").performClick()
         assertEquals(ThemeMode.DARK, picked)
+    }
+
+    @Test
+    fun airspaceSwitchRevealsAreaAndAlertsRows() {
+        compose.setContent {
+            FlightRadiusTheme {
+                var settings by remember { mutableStateOf(AppSettings()) }
+                NearbyAirspaceSection(
+                    settings = settings,
+                    dbState = DbState.NotDownloaded,
+                    onWatch = { settings = settings.copy(airspaceWatch = it) },
+                    onRadius = {},
+                    onOpenRules = {},
+                    onOpenDb = {}
+                )
+            }
+        }
+        compose.onNodeWithText("Area").assertDoesNotExist()
+        compose.onNodeWithText("Nearby alerts").assertDoesNotExist()
+        compose.onNodeWithText("Aircraft database").assertIsDisplayed()
+        compose.onNodeWithText("Not downloaded").assertIsDisplayed()
+        compose.onNodeWithText("Watch the airspace around me").performClick()
+        compose.onNodeWithText("Area").assertIsDisplayed()
+        compose.onNodeWithText("Nearby alerts").assertIsDisplayed()
+    }
+
+    @Test
+    fun rulesScreenTogglesARule() {
+        var toggled: Pair<String, Boolean>? = null
+        compose.setContent {
+            FlightRadiusTheme {
+                AirspaceRulesContent(
+                    rules = AirspaceRule.DEFAULTS,
+                    unit = DistanceUnit.KM,
+                    onBack = {},
+                    onToggle = { id, on -> toggled = id to on },
+                    onEdit = {},
+                    onAdd = {}
+                )
+            }
+        }
+        compose.onNodeWithText("Low and close").assertIsDisplayed()
+        compose.onNodeWithText("Any aircraft", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Nearby alerts are off until you turn a rule on.", substring = true)
+            .assertIsDisplayed()
+        compose.onNode(isToggleable()).performClick()
+        assertEquals(AirspaceRule.DEFAULT_ID to true, toggled)
+    }
+
+    @Test
+    fun radarNearbySectionRendersDemoTraffic() {
+        val fix = UserFix(40.4168, -3.7038, null, 0L, LocationSource.MANUAL)
+        val enabled = AirspaceRule.DEFAULTS.map { it.copy(enabled = true) }
+        val demo = DemoTraffic.build(fix, 25.0, enabled)
+        compose.setContent {
+            FlightRadiusTheme {
+                Column { NearbySection(nearby = demo, unit = DistanceUnit.KM) }
+            }
+        }
+        compose.onNodeWithText("Nearby").assertIsDisplayed()
+        compose.onNodeWithText("PEGASO1").assertIsDisplayed()
+        compose.onNodeWithText("Helicopter", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("RYR4412").assertExists()
+        assertTrue(demo.first().matchesRule)
     }
 }

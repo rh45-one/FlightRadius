@@ -3,6 +3,7 @@ package com.flightradius.app.ui.radar
 import com.flightradius.app.data.opensky.CreditState
 import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.domain.MonitoringSnapshot
+import com.flightradius.app.domain.NearbyAircraft
 import com.flightradius.app.domain.OpenSkyStatus
 import com.flightradius.app.location.LocationStatus
 import com.flightradius.app.service.MonitoringStatus
@@ -25,6 +26,16 @@ sealed interface Glance {
     /** A snapshot exists but none of the tracked aircraft is reporting. */
     data class NoneAirborne(val notReporting: Int) : Glance
 
+    /** Watch on, nothing tracked, nothing nearby. */
+    data class NothingNearby(val radiusKm: Double?) : Glance
+
+    /** Nothing tracked: the closest non-tracked aircraft stands in. */
+    data class NearbyNearest(
+        val aircraft: NearbyAircraft,
+        val stale: Boolean,
+        val snapshotAgeMs: Long
+    ) : Glance
+
     data class Nearest(
         val obs: AircraftObservation,
         val zone: Zone,
@@ -40,14 +51,20 @@ fun glanceOf(
     trackedCount: Int,
     snapshot: MonitoringSnapshot?,
     nowMs: Long,
-    intervalSec: Int
+    intervalSec: Int,
+    airspaceWatch: Boolean = false
 ): Glance {
-    if (trackedCount == 0) return Glance.NoAircraft
+    if (trackedCount == 0 && !airspaceWatch) return Glance.NoAircraft
     if (snapshot == null) return Glance.Loading
-    val nearest = snapshot.ranked.minByOrNull { it.distanceKm }
-        ?: return Glance.NoneAirborne(snapshot.noData.size)
     val ageMs = (nowMs - snapshot.timeMs).coerceAtLeast(0L)
     val staleAfterMs = maxOf(MIN_STALE_MS, 2L * intervalSec * 1000L)
+    val nearest = snapshot.ranked.minByOrNull { it.distanceKm }
+    if (nearest == null) {
+        if (trackedCount > 0) return Glance.NoneAirborne(snapshot.noData.size)
+        val nb = snapshot.nearby.minByOrNull { it.distanceKm }
+            ?: return Glance.NothingNearby(snapshot.airspaceRadiusKm)
+        return Glance.NearbyNearest(nb, ageMs > staleAfterMs, ageMs)
+    }
     return Glance.Nearest(
         obs = nearest,
         zone = zoneOf(nearest.distanceKm, nearest.effectiveRadiusKm),

@@ -35,12 +35,18 @@ annotation class SecurePrefs
 /** File name referenced by res/xml backup exclusion rules. */
 const val SECURE_PREFS_NAME = "flightradius_secure"
 
+/** Separate so instrumented tests can point OpenSky at a local server. */
 @Module
 @InstallIn(SingletonComponent::class)
-object OpenSkyModule {
+object OpenSkyEndpointsModule {
 
     @Provides
     fun provideEndpoints(): OpenSkyEndpoints = OpenSkyEndpoints.Default
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+object OpenSkyModule {
 
     @Provides
     @Singleton

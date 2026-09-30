@@ -21,6 +21,7 @@ class AlertActionReceiver : BroadcastReceiver() {
         private const val TAG = "AlertActions"
         const val ACTION_SNOOZE = "com.flightradius.app.action.ALERT_SNOOZE"
         const val ACTION_DISMISS = "com.flightradius.app.action.ALERT_DISMISS"
+        const val ACTION_MUTE_NEARBY = "com.flightradius.app.action.NEARBY_MUTE"
         const val EXTRA_AIRCRAFT_ID = "aircraft_id"
         const val EXTRA_SNOOZE_MINUTES = "snooze_minutes"
 
@@ -41,6 +42,11 @@ class AlertActionReceiver : BroadcastReceiver() {
                     stateRepository.snooze(id, minutes, System.currentTimeMillis())
                     notifier.cancelAlert(id)
                 }
+            }
+            ACTION_MUTE_NEARBY -> {
+                val minutes = intent.getLongExtra(EXTRA_SNOOZE_MINUTES, 60L)
+                AppLog.i(TAG, "mute nearby", "min" to minutes)
+                stateRepository.muteNearby(System.currentTimeMillis() + minutes * 60_000L)
             }
             ACTION_DISMISS -> {
                 AppLog.i(TAG, "dismiss alert", "aircraftId" to id)

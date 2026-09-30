@@ -1,6 +1,7 @@
 package com.flightradius.app
 
 import android.app.Application
+import com.flightradius.app.data.aircraftdb.AircraftDatabaseManager
 import com.flightradius.app.data.opensky.CreditBucketWatcher
 import com.flightradius.app.data.prefs.RuntimeSettings
 import com.flightradius.app.di.ApplicationScope
@@ -19,6 +20,9 @@ class FlightRadiusApp : Application() {
     lateinit var creditBucketWatcher: CreditBucketWatcher
 
     @Inject
+    lateinit var aircraftDatabase: AircraftDatabaseManager
+
+    @Inject
     @ApplicationScope
     lateinit var appScope: CoroutineScope
 
@@ -28,5 +32,6 @@ class FlightRadiusApp : Application() {
         // always log; release builds honor the debugLogging switch).
         AppLog.debugEnabled = { BuildConfig.DEBUG || runtimeSettings.debugLogging }
         creditBucketWatcher.start(appScope)
+        aircraftDatabase.maybeAutoUpdate()
     }
 }

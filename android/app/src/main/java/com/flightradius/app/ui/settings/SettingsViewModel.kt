@@ -3,6 +3,7 @@ package com.flightradius.app.ui.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flightradius.app.data.aircraftdb.AircraftDatabaseManager
 import com.flightradius.app.data.api.ApiResult
 import com.flightradius.app.data.api.ApiSettingsStatusDto
 import com.flightradius.app.data.api.HealthResponseDto
@@ -66,7 +67,8 @@ class SettingsViewModel @Inject constructor(
     private val credentialStore: CredentialStore,
     private val openSky: OpenSkyClient,
     credits: CreditTracker,
-    val connectivity: ConnectivityMonitor
+    val connectivity: ConnectivityMonitor,
+    val aircraftDb: AircraftDatabaseManager
 ) : ViewModel() {
 
     val settings: StateFlow<AppSettings> = settingsRepository.settings
@@ -167,6 +169,14 @@ class SettingsViewModel @Inject constructor(
     fun setDynamicColor(v: Boolean) = viewModelScope.launch {
         settingsRepository.setDynamicColor(v)
     }
+    fun setAirspaceWatch(v: Boolean) = viewModelScope.launch {
+        settingsRepository.setAirspaceWatch(v)
+    }
+    fun setAirspaceRadius(km: Double) = viewModelScope.launch {
+        settingsRepository.setAirspaceRadiusKm(km)
+    }
+    fun checkDbUpdate() = viewModelScope.launch { aircraftDb.checkForUpdate() }
+
     fun setKeepScreenOn(v: Boolean) = viewModelScope.launch {
         settingsRepository.setKeepScreenOn(v)
     }

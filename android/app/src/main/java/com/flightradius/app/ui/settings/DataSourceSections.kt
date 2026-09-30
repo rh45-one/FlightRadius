@@ -17,6 +17,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.flightradius.app.ui.components.groupedSegmentedColors
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -107,7 +108,8 @@ internal fun DataSourceSection(selected: DataSource, onSelect: (DataSource) -> U
                 SegmentedButton(
                     selected = selected == source,
                     onClick = { onSelect(source) },
-                    shape = SegmentedButtonDefaults.itemShape(index, options.size)
+                    shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                    colors = groupedSegmentedColors()
                 ) { Text(label) }
             }
         }

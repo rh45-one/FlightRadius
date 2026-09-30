@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,6 +48,7 @@ import com.flightradius.app.data.prefs.DataSource
 import com.flightradius.app.domain.AircraftObservation
 import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.domain.Fleet
+import com.flightradius.app.domain.NearbyAircraft
 import com.flightradius.app.domain.OpenSkyStatus
 import com.flightradius.app.domain.TrackedAircraft
 import com.flightradius.app.domain.UserFix
@@ -60,6 +62,8 @@ import com.flightradius.app.ui.components.GroupedSection
 import com.flightradius.app.ui.components.NavigationChevron
 import com.flightradius.app.ui.components.ProximityDial
 import com.flightradius.app.ui.format.Format
+import com.flightradius.app.ui.format.icon
+import com.flightradius.app.ui.format.labelRes
 import com.flightradius.app.ui.theme.CodeFeatures
 import com.flightradius.app.ui.theme.InterDisplay
 import com.flightradius.app.ui.theme.NumericFeatures
@@ -320,6 +324,31 @@ internal fun GlanceDial(
                 NearestCenter(glance, unit, nowMs, color)
             }
         }
+        is Glance.NearbyNearest -> {
+            val a = glance.aircraft
+            val color = if (glance.stale) MaterialTheme.colorScheme.onSurfaceVariant
+            else if (a.matchesRule) MaterialTheme.colorScheme.extended.danger
+            else MaterialTheme.colorScheme.onSurface
+            ProximityDial(
+                modifier = modifier,
+                size = dialSize,
+                markerBearingDeg = a.bearingDeg,
+                markerHeadingDeg = a.trackDeg,
+                markerColor = if (a.matchesRule) MaterialTheme.colorScheme.extended.danger
+                else MaterialTheme.colorScheme.onSurface,
+                description = nearbyDescription(glance, unit, nowMs)
+            ) {
+                NearbyCenter(glance, unit, nowMs, color)
+            }
+        }
+        is Glance.NothingNearby -> ProximityDial(modifier, dialSize) {
+            CenterMessage(
+                stringResource(R.string.radar_nothing_nearby),
+                glance.radiusKm?.let {
+                    stringResource(R.string.radar_nothing_nearby_body, Format.distance(it, unit))
+                } ?: ""
+            )
+        }
         Glance.NoAircraft -> ProximityDial(modifier, dialSize) {
             CenterMessage(
                 stringResource(R.string.radar_empty_title),
@@ -445,6 +474,76 @@ private fun NearestCenter(
 }
 
 @Composable
+private fun NearbyCenter(glance: Glance.NearbyNearest, unit: DistanceUnit, nowMs: Long, color: Color) {
+    val a = glance.aircraft
+    Text(
+        if (glance.stale) stringResource(
+            R.string.radar_last_update, Format.age(nowMs, nowMs - glance.snapshotAgeMs))
+        else stringResource(R.string.radar_nearest_nearby),
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontWeight = FontWeight.SemiBold, fontFeatureSettings = NumericFeatures),
+        color = color,
+        maxLines = 1,
+        textAlign = TextAlign.Center
+    )
+    val animatedKm by animateFloatAsState(
+        targetValue = a.distanceKm.toFloat(),
+        animationSpec = tween(600),
+        label = "nearbyDistance"
+    )
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+        Text(
+            Format.glanceNumber(animatedKm.toDouble(), unit),
+            style = MaterialTheme.typography.displayLarge.copy(
+                fontFamily = InterDisplay,
+                fontWeight = FontWeight.SemiBold,
+                fontFeatureSettings = NumericFeatures),
+            color = color,
+            maxLines = 1,
+            softWrap = false,
+            autoSize = TextAutoSize.StepBased(minFontSize = 32.sp, maxFontSize = 96.sp),
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .alignByBaseline()
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            Format.distanceUnitLabel(unit),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.alignByBaseline()
+        )
+    }
+    Text(
+        a.displayName,
+        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = CodeFeatures),
+        maxLines = 1,
+        textAlign = TextAlign.Center
+    )
+    Text(
+        stringResource(a.cls.labelRes()),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        textAlign = TextAlign.Center
+    )
+}
+
+@Composable
+private fun nearbyDescription(glance: Glance.NearbyNearest, unit: DistanceUnit, nowMs: Long): String {
+    val a = glance.aircraft
+    val compass = stringArrayResource(R.array.compass_points)
+    val idx = Math.round(((a.bearingDeg % 360 + 360) % 360) / 22.5).toInt() % 16
+    val unitWord = stringResource(
+        if (unit == DistanceUnit.KM) R.string.unit_km_spoken else R.string.unit_mi_spoken)
+    return stringResource(R.string.radar_nearest_nearby) + ". " +
+        stringResource(
+            R.string.radar_dial_description,
+            a.displayName, Format.glanceNumber(a.distanceKm, unit), unitWord, compass[idx]
+        ) + ". " + stringResource(a.cls.labelRes()) + "."
+}
+
+@Composable
 private fun nearestDescription(glance: Glance.Nearest, unit: DistanceUnit, nowMs: Long): String {
     val obs = glance.obs
     val compass = stringArrayResource(R.array.compass_points)
@@ -481,38 +580,55 @@ private fun nearestDescription(glance: Glance.Nearest, unit: DistanceUnit, nowMs
 
 @Composable
 internal fun DetailRow(obs: AircraftObservation, unit: DistanceUnit, modifier: Modifier = Modifier) {
-    val stacked = LocalDensity.current.fontScale >= 1.5f
     val cp = Format.closingParts(obs, unit)
     val closingLabel = when (cp?.trend) {
         Format.ClosingTrend.RECEDING -> stringResource(R.string.radar_moving_away)
         Format.ClosingTrend.STEADY -> stringResource(R.string.radar_steady)
         else -> stringResource(R.string.radar_closing)
     }
+    DetailRowContent(
+        obs.bearingDeg, Format.altitude(obs.altitudeM, unit), closingLabel, cp?.speed, modifier)
+}
+
+@Composable
+internal fun NearbyDetailRow(a: NearbyAircraft, unit: DistanceUnit, modifier: Modifier = Modifier) {
+    DetailRowContent(
+        a.bearingDeg, Format.altitude(a.altitudeM, unit),
+        stringResource(R.string.detail_speed), Format.speed(a.velocityMps, unit), modifier)
+}
+
+@Composable
+private fun DetailRowContent(
+    bearingDeg: Double,
+    altitude: String?,
+    thirdLabel: String,
+    thirdValue: String?,
+    modifier: Modifier
+) {
+    val stacked = LocalDensity.current.fontScale >= 1.5f
     val directionLabel = stringResource(R.string.detail_direction)
     val altitudeLabel = stringResource(R.string.detail_altitude)
     val direction: @Composable () -> Unit = {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            BearingArrow(obs.bearingDeg, MaterialTheme.colorScheme.onSurface, size = 18.dp)
+            BearingArrow(bearingDeg, MaterialTheme.colorScheme.onSurface, size = 18.dp)
             Spacer(Modifier.width(6.dp))
-            DetailValue(Format.bearingShort(obs.bearingDeg))
+            DetailValue(Format.bearingShort(bearingDeg))
         }
     }
-    val altitude: @Composable () -> Unit = {
-        DetailValue(Format.altitude(obs.altitudeM, unit) ?: "—")
-    }
-    val closing: @Composable () -> Unit = { DetailValue(cp?.speed ?: "—") }
+    val altitudeValue: @Composable () -> Unit = { DetailValue(altitude ?: "—") }
+    val third: @Composable () -> Unit = { DetailValue(thirdValue ?: "—") }
 
     if (stacked) {
         Column(modifier.fillMaxWidth()) {
             StackedDetail(directionLabel, direction)
-            StackedDetail(altitudeLabel, altitude)
-            StackedDetail(closingLabel, closing)
+            StackedDetail(altitudeLabel, altitudeValue)
+            StackedDetail(thirdLabel, third)
         }
     } else {
         Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             ColumnDetail(directionLabel, direction, Modifier.weight(1f))
-            ColumnDetail(altitudeLabel, altitude, Modifier.weight(1f))
-            ColumnDetail(closingLabel, closing, Modifier.weight(1f))
+            ColumnDetail(altitudeLabel, altitudeValue, Modifier.weight(1f))
+            ColumnDetail(thirdLabel, third, Modifier.weight(1f))
         }
     }
 }
@@ -631,6 +747,71 @@ private fun TrackingRow(
             }
         },
         onClick = onClick
+    )
+}
+
+private const val NEARBY_MAX_ROWS = 8
+
+@Composable
+internal fun NearbySection(
+    nearby: List<NearbyAircraft>,
+    unit: DistanceUnit
+) {
+    if (nearby.isEmpty()) return
+    val shown = nearby.take(NEARBY_MAX_ROWS)
+    val extra = nearby.size - shown.size
+    GroupedSection(header = stringResource(R.string.radar_nearby)) {
+        shown.forEachIndexed { i, a ->
+            if (i > 0) GroupedDivider()
+            NearbyRow(a, unit)
+        }
+        if (extra > 0) {
+            GroupedDivider()
+            GroupedRow(
+                title = stringResource(R.string.radar_nearby_more, extra),
+                titleColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                titleStyle = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+@Composable
+private fun NearbyRow(a: NearbyAircraft, unit: DistanceUnit) {
+    val tint = if (a.matchesRule) MaterialTheme.colorScheme.extended.danger
+    else MaterialTheme.colorScheme.onSurface
+    val subtitle = buildList {
+        add(stringResource(a.cls.labelRes()))
+        Format.altitude(a.altitudeM, unit)?.let { add(it) }
+        Format.speed(a.velocityMps, unit)?.let { add(it) }
+    }.joinToString(" · ")
+    GroupedRow(
+        title = a.displayName,
+        titleColor = tint,
+        titleStyle = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = CodeFeatures),
+        subtitle = subtitle,
+        subtitleStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = NumericFeatures),
+        leading = {
+            Icon(
+                a.cls.icon(),
+                contentDescription = stringResource(a.cls.labelRes()),
+                tint = tint,
+                modifier = Modifier.size(24.dp)
+            )
+        },
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    Format.distance(a.distanceKm, unit),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontFeatureSettings = NumericFeatures),
+                    color = tint
+                )
+                Spacer(Modifier.width(8.dp))
+                BearingArrow(a.bearingDeg, tint, size = 20.dp)
+            }
+        }
     )
 }
 

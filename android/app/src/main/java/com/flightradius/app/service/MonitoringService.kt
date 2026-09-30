@@ -20,6 +20,8 @@ import com.flightradius.app.data.prefs.AppSettings
 import com.flightradius.app.data.prefs.LocationMode
 import com.flightradius.app.data.prefs.SettingsRepository
 import com.flightradius.app.domain.AircraftAlertState
+import com.flightradius.app.domain.AirspaceAlertEngine
+import com.flightradius.app.domain.NearbyAlertState
 import com.flightradius.app.domain.AlertText
 import com.flightradius.app.domain.MonitoringSnapshot
 import com.flightradius.app.domain.NextDelayPolicy
@@ -92,6 +94,8 @@ class MonitoringService : Service() {
 
     private val alertEngine = ProximityAlertEngine()
     private var alertStates: Map<Long, AircraftAlertState> = emptyMap()
+    private val nearbyEngine = AirspaceAlertEngine()
+    private var nearbyStates: Map<String, NearbyAlertState> = emptyMap()
 
     @Volatile private var running = false
     @Volatile private var foregroundStarted = false
@@ -165,6 +169,7 @@ class MonitoringService : Service() {
             settingsRepository.settings.collect { s ->
                 currentSettings = s
                 notifier.ensureAlertChannel(s.alertSound, s.alertVibration)
+                notifier.ensureNearbyChannel(s.alertSound, s.alertVibration)
                 stateRepository.update {
                     it.copy(highPriority = s.highPriorityMode)
                 }
@@ -389,6 +394,7 @@ class MonitoringService : Service() {
             when (result) {
                 is CycleResult.Success -> {
                     evaluateAlerts(result.snapshot, s)
+                    evaluateNearby(result.snapshot, s)
                     stateRepository.update {
                         it.copy(status = MonitoringStatus.RUNNING)
                     }
@@ -478,6 +484,29 @@ class MonitoringService : Service() {
             notifier.postProximityAlert(event, settings.distanceUnit)
             stateRepository.emitAlert(event)
         }
+    }
+
+    private fun evaluateNearby(snapshot: MonitoringSnapshot, settings: AppSettings) {
+        val wasInside = nearbyStates.filterValues { it.inside }.keys
+        if (!settings.airspaceWatch || snapshot.airspaceRadiusKm == null) {
+            if (nearbyStates.isNotEmpty()) {
+                notifier.cancelAllNearby(wasInside)
+                nearbyStates = emptyMap()
+            }
+            return
+        }
+        val now = System.currentTimeMillis()
+        val eval = nearbyEngine.evaluate(
+            now, snapshot.nearby, settings.airspaceRules, nearbyStates,
+            stateRepository.nearbyMutedUntilMs.value)
+        nearbyStates = eval.states.filterValues {
+            it.inside || it.lastSeenMs?.let { seen -> now - seen < 30 * 60_000L } == true
+        }
+        val nowInside = nearbyStates.filterValues { it.inside }.keys
+        val active = snapshot.nearby.filter { it.icao24 in nowInside }
+        notifier.postNearbyAlerts(eval.alerts, active, settings.distanceUnit)
+        val left = wasInside - nowInside
+        if (left.isNotEmpty()) notifier.syncNearbyNotifications(left, active, settings.distanceUnit)
     }
 
     private fun scheduleBackstopAlarm(atMs: Long) {

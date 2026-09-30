@@ -19,6 +19,9 @@ import com.flightradius.app.MainActivity
 import com.flightradius.app.domain.AlertEvent
 import com.flightradius.app.domain.AlertText
 import com.flightradius.app.domain.DistanceUnit
+import com.flightradius.app.domain.NearbyAircraft
+import com.flightradius.app.domain.NearbyAlertEvent
+import com.flightradius.app.ui.format.labelRes
 import com.flightradius.app.R
 import com.flightradius.app.service.AlertActionReceiver
 import com.flightradius.app.service.MonitoringService
@@ -47,6 +50,13 @@ class AlertNotifier @Inject constructor(
         private val VIBRATION = longArrayOf(0, 400, 200, 400, 200, 800)
 
         /** alert channel id variant for the current sound/vibration flags. */
+        fun nearbyChannelId(sound: Boolean, vibration: Boolean): String =
+            "nearby_airspace_s${if (sound) 1 else 0}_v${if (vibration) 1 else 0}"
+
+        private const val NEARBY_GROUP = "nearby_airspace"
+        private const val NEARBY_SUMMARY_ID = 5
+        private const val NEARBY_ID_BASE = 2_000_000
+
         fun alertChannelId(sound: Boolean, vibration: Boolean): String =
             "proximity_alerts_s${if (sound) 1 else 0}_v${if (vibration) 1 else 0}"
     }
@@ -56,6 +66,9 @@ class AlertNotifier @Inject constructor(
     /** Last-ensured alert channel variant (kept by ensureAlertChannel). */
     @Volatile
     private var alertChannelId: String = alertChannelId(sound = true, vibration = true)
+
+    @Volatile
+    private var nearbyChannelId: String = nearbyChannelId(sound = true, vibration = true)
 
     fun ensureStatusChannel() {
         val ch = NotificationChannel(
@@ -71,12 +84,27 @@ class AlertNotifier @Inject constructor(
     /** Create the channel variant matching current settings; delete the rest. */
     fun ensureAlertChannel(sound: Boolean, vibration: Boolean) {
         alertChannelId = alertChannelId(sound, vibration)
+        syncChannelVariants({ s, v -> alertChannelId(s, v) }, "Proximity alerts", sound, vibration)
+    }
+
+    /** Same as [ensureAlertChannel] for the nearby-airspace channel family. */
+    fun ensureNearbyChannel(sound: Boolean, vibration: Boolean) {
+        nearbyChannelId = nearbyChannelId(sound, vibration)
+        syncChannelVariants({ s, v -> nearbyChannelId(s, v) }, "Nearby aircraft", sound, vibration)
+    }
+
+    private fun syncChannelVariants(
+        idFor: (Boolean, Boolean) -> String,
+        name: String,
+        sound: Boolean,
+        vibration: Boolean
+    ) {
         for (s in booleanArrayOf(true, false)) {
             for (v in booleanArrayOf(true, false)) {
-                val id = alertChannelId(s, v)
+                val id = idFor(s, v)
                 if (s == sound && v == vibration) {
                     val ch = NotificationChannel(
-                        id, "Proximity alerts", NotificationManager.IMPORTANCE_HIGH
+                        id, name, NotificationManager.IMPORTANCE_HIGH
                     ).apply {
                         if (sound) {
                             setSound(
@@ -172,6 +200,123 @@ class AlertNotifier @Inject constructor(
         } catch (e: SecurityException) {
             AppLog.w(TAG, "post alert denied", throwable = e)
         }
+    }
+
+    private fun nearbyId(icao24: String): Int =
+        NEARBY_ID_BASE + (icao24.toIntOrNull(16) ?: icao24.hashCode().and(0xFFFFFF))
+
+    private fun nearbyLine(a: NearbyAircraft, unit: DistanceUnit): String = buildList {
+        add(context.getString(a.cls.labelRes()))
+        add(AlertText.formatDistance(a.distanceKm, unit) + " " + AlertText.cardinal(a.bearingDeg))
+        AlertText.formatAltitude(a.altitudeM, unit)?.let { add(it) }
+    }.joinToString(" · ")
+
+    /**
+     * One notification per newly matched aircraft plus an InboxStyle summary
+     * while more than one aircraft is active. [active] = every aircraft
+     * currently inside a rule (for the summary lines).
+     */
+    fun postNearbyAlerts(
+        events: List<NearbyAlertEvent>,
+        active: List<NearbyAircraft>,
+        unit: DistanceUnit
+    ) {
+        if (events.isEmpty()) return
+        if (!canPost()) {
+            AppLog.w(TAG, "notifications disabled; nearby alert skipped")
+            return
+        }
+        val content = PendingIntent.getActivity(
+            context, NEARBY_SUMMARY_ID,
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val mute = PendingIntent.getBroadcast(
+            context, NEARBY_SUMMARY_ID * 10 + 1,
+            AlertActionReceiver.intent(context, AlertActionReceiver.ACTION_MUTE_NEARBY)
+                .putExtra(AlertActionReceiver.EXTRA_SNOOZE_MINUTES, 60L),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        try {
+            for (e in events) {
+                val a = e.aircraft
+                val line = nearbyLine(a, unit)
+                val n = NotificationCompat.Builder(context, nearbyChannelId)
+                    .setSmallIcon(R.drawable.ic_stat_radar)
+                    .setContentTitle(a.displayName)
+                    .setContentText(line)
+                    .setSubText(e.rule.name)
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(line))
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setCategory(NotificationCompat.CATEGORY_STATUS)
+                    .setGroup(NEARBY_GROUP)
+                    .setAutoCancel(true)
+                    .setTimeoutAfter(10 * 60_000L)
+                    .setContentIntent(content)
+                    .addAction(0, context.getString(R.string.nearby_mute_action), mute)
+                    .build()
+                nm.notify(nearbyId(a.icao24), n)
+            }
+            updateNearbySummary(active, unit, content, mute)
+        } catch (e: SecurityException) {
+            AppLog.w(TAG, "post nearby denied", throwable = e)
+        }
+    }
+
+    private fun updateNearbySummary(
+        active: List<NearbyAircraft>,
+        unit: DistanceUnit,
+        content: PendingIntent,
+        mute: PendingIntent
+    ) {
+        if (active.size < 2) {
+            nm.cancel(NEARBY_SUMMARY_ID)
+            return
+        }
+        val inbox = NotificationCompat.InboxStyle()
+        for (a in active.take(6)) inbox.addLine(a.displayName + " · " + nearbyLine(a, unit))
+        val title = context.resources.getQuantityString(
+            R.plurals.nearby_summary_title, active.size, active.size)
+        val n = NotificationCompat.Builder(context, nearbyChannelId)
+            .setSmallIcon(R.drawable.ic_stat_radar)
+            .setContentTitle(title)
+            .setContentText(active.first().displayName + " · " + nearbyLine(active.first(), unit))
+            .setStyle(inbox)
+            .setGroup(NEARBY_GROUP)
+            .setGroupSummary(true)
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+            .setAutoCancel(true)
+            .setContentIntent(content)
+            .addAction(0, context.getString(R.string.nearby_mute_action), mute)
+            .build()
+        nm.notify(NEARBY_SUMMARY_ID, n)
+    }
+
+    /** Clears notifications of aircraft that left every rule (and the summary if <2 remain). */
+    fun syncNearbyNotifications(left: Collection<String>, active: List<NearbyAircraft>, unit: DistanceUnit) {
+        for (id in left) nm.cancel(nearbyId(id))
+        if (active.size < 2) nm.cancel(NEARBY_SUMMARY_ID)
+        else if (left.isNotEmpty() && canPost()) {
+            val content = PendingIntent.getActivity(
+                context, NEARBY_SUMMARY_ID,
+                Intent(context, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val mute = PendingIntent.getBroadcast(
+                context, NEARBY_SUMMARY_ID * 10 + 1,
+                AlertActionReceiver.intent(context, AlertActionReceiver.ACTION_MUTE_NEARBY)
+                    .putExtra(AlertActionReceiver.EXTRA_SNOOZE_MINUTES, 60L),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            runCatching { updateNearbySummary(active, unit, content, mute) }
+        }
+    }
+
+    fun cancelAllNearby(icao24s: Collection<String>) {
+        for (id in icao24s) nm.cancel(nearbyId(id))
+        nm.cancel(NEARBY_SUMMARY_ID)
     }
 
     /** "Tap to resume" fallback when a background start isn't allowed. */

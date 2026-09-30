@@ -2,6 +2,7 @@ package com.flightradius.app
 
 import android.content.Context
 import androidx.room.Room
+import com.flightradius.app.data.aircraftdb.AircraftMetaDatabase
 import com.flightradius.app.data.db.AircraftDao
 import com.flightradius.app.data.db.FlightRadiusDatabase
 import com.flightradius.app.data.db.FleetDao
@@ -30,4 +31,11 @@ object TestDatabaseModule {
 
     @Provides
     fun provideFleetDao(db: FlightRadiusDatabase): FleetDao = db.fleetDao()
+
+    @Provides
+    @Singleton
+    fun provideAircraftMetaDatabase(@ApplicationContext context: Context): AircraftMetaDatabase =
+        Room.inMemoryDatabaseBuilder(context, AircraftMetaDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
 }

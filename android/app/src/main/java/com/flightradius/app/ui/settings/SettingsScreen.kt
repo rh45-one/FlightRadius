@@ -31,6 +31,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.flightradius.app.ui.components.groupedSegmentedColors
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -73,6 +74,7 @@ private val INTERVAL_PRESETS = listOf(10, 15, 20, 30, 45, 60, 120, 300, 600)
 @Composable
 fun SettingsScreen(
     onOpenDebug: () -> Unit,
+    onOpenAirspaceRules: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -95,6 +97,8 @@ fun SettingsScreen(
     val credits by viewModel.credits.collectAsStateWithLifecycle()
     val monitoring by viewModel.monitoring.collectAsStateWithLifecycle()
     val directMode = settings.dataSource == DataSource.DIRECT
+    val dbState by viewModel.aircraftDb.state.collectAsStateWithLifecycle()
+    var showDbSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(directMode) { if (!directMode) viewModel.refreshApiStatus() }
 
@@ -164,6 +168,16 @@ fun SettingsScreen(
                 }
             )
         }
+
+        // ---- Nearby airspace ----
+        NearbyAirspaceSection(
+            settings = settings,
+            dbState = dbState,
+            onWatch = { viewModel.setAirspaceWatch(it) },
+            onRadius = { viewModel.setAirspaceRadius(it) },
+            onOpenRules = onOpenAirspaceRules,
+            onOpenDb = { showDbSheet = true }
+        )
 
         // ---- Monitoring ----
         GroupedSection(
@@ -271,7 +285,8 @@ fun SettingsScreen(
                         selected = settings.locationMode == m,
                         onClick = { viewModel.setLocationMode(m) },
                         shape = SegmentedButtonDefaults.itemShape(
-                            index = i, count = LocationMode.entries.size)
+                            index = i, count = LocationMode.entries.size),
+                        colors = groupedSegmentedColors()
                     ) {
                         Text(
                             stringResource(
@@ -383,7 +398,8 @@ fun SettingsScreen(
                         selected = settings.distanceUnit == u,
                         onClick = { viewModel.setUnit(u) },
                         shape = SegmentedButtonDefaults.itemShape(
-                            index = i, count = DistanceUnit.entries.size)
+                            index = i, count = DistanceUnit.entries.size),
+                        colors = groupedSegmentedColors()
                     ) { Text(if (u == DistanceUnit.KM) "km" else "mi") }
                 }
             }
@@ -544,6 +560,18 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(32.dp))
     }
+
+    if (showDbSheet) {
+        AircraftDbSheet(
+            state = dbState,
+            metered = { viewModel.aircraftDb.isMetered() },
+            onDownload = { viewModel.aircraftDb.download() },
+            onCancel = { viewModel.aircraftDb.cancel() },
+            onCheck = { viewModel.checkDbUpdate() },
+            onDelete = { viewModel.aircraftDb.delete() },
+            onDismiss = { showDbSheet = false }
+        )
+    }
 }
 
 @Composable
@@ -564,12 +592,7 @@ internal fun AppearanceRow(selected: ThemeMode, onSelect: (ThemeMode) -> Unit) {
                 onClick = { onSelect(mode) },
                 shape = SegmentedButtonDefaults.itemShape(index = i, count = options.size),
                 modifier = Modifier.heightIn(min = 48.dp),
-                colors = SegmentedButtonDefaults.colors(
-                    activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    inactiveContainerColor = Color.Transparent,
-                    inactiveContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                colors = groupedSegmentedColors()
             ) {
                 Text(stringResource(label), style = MaterialTheme.typography.labelLarge)
             }

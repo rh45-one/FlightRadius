@@ -38,4 +38,21 @@ class OpenSkyPricingTest {
         assertEquals(180.0, polar.lonMax, 1e-9)
         assertTrue(polar.lonMin >= -180.0)
     }
+
+    @Test
+    fun `a 100 km airspace box costs one credit at any usable latitude`() {
+        for (lat in listOf(0.0, 40.0, 60.0, 70.0)) {
+            val box = BoundingBox.around(lat, 10.0, 100.0)
+            assertEquals("lat $lat", 1, OpenSkyPricing.credits(StatesQuery.ByArea(box)))
+            assertEquals("lat $lat", 1, OpenSkyPricing.airspaceCredits(100.0, lat))
+        }
+    }
+
+    @Test
+    fun `credits per cycle include the area query only when watching`() {
+        assertEquals(1, OpenSkyPricing.creditsPerCycle(1, false, 25.0))
+        assertEquals(2, OpenSkyPricing.creditsPerCycle(1, true, 25.0))
+        assertEquals(1, OpenSkyPricing.creditsPerCycle(0, true, 100.0))
+        assertEquals(0, OpenSkyPricing.creditsPerCycle(0, false, 25.0))
+    }
 }

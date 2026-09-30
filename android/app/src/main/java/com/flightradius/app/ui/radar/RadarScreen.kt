@@ -81,7 +81,7 @@ fun RadarScreen(
     val unit = settings.distanceUnit
     val snapshot = state.lastSnapshot
     val intervalSec = state.plannedIntervalSec ?: settings.monitoringIntervalSec
-    val glance = glanceOf(aircraft.size, snapshot, now, intervalSec)
+    val glance = glanceOf(aircraft.size, snapshot, now, intervalSec, settings.airspaceWatch)
     val summary = statusSummary(
         status = state.status,
         openSkyStatus = state.openSkyStatus,
@@ -94,6 +94,7 @@ fun RadarScreen(
         backendMode = settings.dataSource == DataSource.BACKEND
     )
     val hero = (glance as? Glance.Nearest)?.obs
+    val nearbyHero = (glance as? Glance.NearbyNearest)?.aircraft
     val showBar = glance != Glance.NoAircraft
 
     val lists: @Composable ColumnScope.() -> Unit = {
@@ -114,6 +115,12 @@ fun RadarScreen(
                 nowMs = now,
                 onClick = { detail = it }
             )
+            if (settings.airspaceWatch) {
+                NearbySection(
+                    nearby = snapshot.nearby.filter { it.icao24 != nearbyHero?.icao24 },
+                    unit = unit
+                )
+            }
             NotReportingSection(snapshot.noData)
             if (state.status == MonitoringStatus.STOPPED) {
                 Text(
@@ -166,6 +173,9 @@ fun RadarScreen(
                             if (hero != null) {
                                 DetailRow(hero, unit, Modifier.padding(top = 8.dp))
                             }
+                            if (nearbyHero != null) {
+                                NearbyDetailRow(nearbyHero, unit, Modifier.padding(top = 8.dp))
+                            }
                             lists()
                         }
                         actionBar()
@@ -192,6 +202,9 @@ fun RadarScreen(
                         }
                         if (hero != null) {
                             DetailRow(hero, unit, Modifier.padding(top = 16.dp))
+                        }
+                        if (nearbyHero != null) {
+                            NearbyDetailRow(nearbyHero, unit, Modifier.padding(top = 16.dp))
                         }
                         lists()
                     }
