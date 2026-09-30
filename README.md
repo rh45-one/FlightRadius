@@ -1,146 +1,184 @@
 # FlightRadius
 
-FlightRadius is a full-stack aircraft monitoring platform. It fetches live
-aircraft telemetry from OpenSky and computes real-time distance from your
-current location to each tracked aircraft.
+FlightRadius tracks live aircraft and tells you how far away they are from
+where you are. Pick the callsigns or transponder (ICAO24) addresses you care
+about and get live distances, bearings and speeds, plus an alert when one
+comes within a radius you choose.
+
+Data comes from the [OpenSky Network](https://opensky-network.org/).
+
+> **Status:** under active development. Expect bugs, unfinished features and
+> rough edges, and don't expose the web stack to the public internet (the
+> backend has no authentication).
+
+## Clients
+
+| Client | What it is | Docs |
+|---|---|---|
+| **Android app** (`android/`) | Native Kotlin + Jetpack Compose app. Monitors in the background with a foreground service and raises proximity alerts. Queries OpenSky directly by default, so it works anywhere with internet. | [android/README.md](android/README.md) |
+| **Web app** (`web/`) | React dashboard + Node/Express backend + nginx HTTPS proxy, run with Docker. The backend proxies OpenSky. | [below](#web-app) |
+
+The Android app can optionally use the web backend instead of talking to
+OpenSky itself, and can import your aircraft and fleets from it.
 
 ## Repository layout
 
-This is a monorepo hosting multiple clients over a shared backend:
+```
+android/   Native Android app (Gradle project)
+web/
+  backend/   Node.js + Express API (OpenSky access, distance computation)
+  frontend/  React + Vite + TypeScript + Tailwind
+  nginx/     HTTPS reverse proxy config and certs
+  docker-compose.yml
+docs/      Design notes
+AGENTS.md  Project facts for coding agents (commands, API constraints)
+```
 
-- `web/` — Dockerized web version (React frontend + Express backend +
-  nginx HTTPS proxy). This is the original app; run it with
-  `docker compose -f web/docker-compose.yml up --build`.
-- `android/` — native Android app (Kotlin + Jetpack Compose). See
-  [android/README.md](android/README.md) for build, backend wiring and the
-  monitoring architecture.
-- `docs/` — cross-cutting design and API documentation.
+## Android app
 
-The sections below describe the web version.
+Quick start (JDK 21 and the Android SDK required; see
+[android/README.md](android/README.md) for details):
 
-Please note FlightRadius is still under development. Users may encounter bugs, unfinished functionality implementations, or security flaws. 
+```bash
+cd android
+./gradlew :app:assembleDebug          # APK in app/build/outputs/apk/debug/
+./gradlew :app:testDebugUnitTest      # unit tests
+```
 
-## Index
+To build, install and launch on a USB-connected phone:
 
-- [Quick start](#quick-start)
-- [Architecture overview](#architecture-overview)
-- [Data sources](#data-sources)
-- [API credentials](#api-credentials)
-- [Location and privacy](#location-and-privacy)
-- [Distance computation](#distance-computation)
-- [Refresh logic](#refresh-logic)
-- [Debug tools](#debug-tools)
-- [Configuration](#configuration)
-- [Troubleshooting](#troubleshooting)
+```bash
+android/scripts/run-on-device.sh          # backend reached over your LAN
+android/scripts/run-on-device.sh --usb    # backend tunnelled over the cable
+```
 
-## Quick start
+Highlights: live distance/bearing/closing-speed cards, per-aircraft and
+per-fleet alert radii, hysteresis and cooldown so alerts don't spam, optional
+radar-style chirp, Doze-aware scheduling, resume after reboot, and OpenSky
+credit budgeting so a free account can monitor all day. The full
+description, permissions rationale and troubleshooting live in
+[android/README.md](android/README.md).
+
+## Web app
 
 ### Requirements
 
 - Docker and Docker Compose
 
-### Run with Docker
+### Run
 
 ```bash
 docker compose -f web/docker-compose.yml up --build
 ```
 
-- Frontend: https://localhost:8443
+- Frontend: https://localhost:8443 (self-signed certificate)
 - Backend API: http://localhost:3000
 
-If you are testing on mobile, use HTTPS. The Docker setup exposes 8443 to
-support geolocation requirements on modern browsers.
+### Architecture
 
-## Architecture overview
+- Frontend: React + Vite, state in Zustand, UI state in browser localStorage
+- Backend: Node.js + Express; app state persisted to
+  `web/backend/data/app-state.json`
+- nginx terminates HTTPS on 8443 (required for browser geolocation) and
+  proxies `/api` to the backend
 
-- Frontend: React + Vite
-- Backend: Node.js + Express
-- Data: OpenSky Network (live state vectors)
-- Storage: Browser localStorage for UI state; backend JSON for app state
+### Using it
 
-## Data sources
+- Add aircraft by callsign or ICAO24 (single or bulk with validation) and
+  group them into fleets.
+- Click **Enable Location** on the Monitoring page and grant the browser
+  prompt, or set a manual location in Settings.
+- Distances refresh every `distanceUpdateIntervalSec` seconds and on GPS
+  movement (debounced by 5 s).
+- Add `?debug=true` to the Monitoring URL for debug overlays, e.g.
+  `https://localhost:8443/monitoring?debug=true`.
 
-OpenSky Network provides live state vectors used for:
+### Backend API
 
-- Aircraft telemetry (position, altitude, velocity)
-- Distance calculations from your current location
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/health` | Uptime, OpenSky reachability (1-credit probe), cache size |
+| `GET /api/aircraft/:icao24`, `/callsign/:callsign` | Telemetry for one aircraft |
+| `POST /api/aircraft/validate-callsigns` | Which callsigns are currently live |
+| `POST /api/distance/aircraft`, `/fleets`, `/compute` | Batched distances and fleet proximity |
+| `POST /api/user/location` | Ingest the client's location |
+| `GET/POST /api/app/state` | Persisted settings, aircraft and fleets (secrets masked on read) |
+| `GET/POST /api/settings/api` | OpenSky configuration status |
 
-OpenSky can be rate limited or delayed, and a tracked callsign might not be
-visible at a given moment.
+Distances use the Haversine formula (Earth radius 6371 km), rounded to two
+decimals. Results include optional `velocity_mps`, `heading_deg` and
+`last_contact`. OpenSky rate-limit errors are passed through as HTTP 429
+with `Retry-After`, and the remaining credit balance is exposed in the
+`X-OpenSky-Credits-Remaining` header.
 
-## API credentials
+Backend development (in `web/backend/`):
 
-OpenSky works in anonymous mode with strict rate limits. For higher limits
-and stability, configure credentials.
+```bash
+npm install
+npm run build
+npm test
+```
 
-You can enter API settings in the UI:
+## OpenSky credentials and limits
 
-1. Open Settings in the web app.
-2. Fill in the OpenSky API fields and save.
+OpenSky works anonymously but with a small daily credit budget. For more
+headroom, create an **API client** on your OpenSky account page and use its
+client ID and secret. (Username/password login is no longer supported by
+OpenSky.)
 
-These settings are persisted in the backend app state.
+| Account | `/states` credits per day |
+|---|---|
+| Anonymous | 400 |
+| Standard account | 4,000 |
+| Active feeder | 8,000 |
 
-### Fields and where they are stored
+A worldwide query costs 4 credits; a query for specific transponders or a
+small area costs 1.
 
-- API base URL, auth URL, username, password, client ID, client secret
-- Saved in [web/backend/data/app-state.json](web/backend/data/app-state.json)
+- **Web app:** enter the client ID and secret in Settings. They are stored in
+  `web/backend/data/app-state.json` on the server, or can be set via the
+  backend environment (`web/backend/.env`). Never commit that file.
+- **Android app:** enter them in Settings → OpenSky account. They are
+  encrypted on the device and never leave it (except to OpenSky).
 
-If you want to set these directly, edit the JSON file and restart the
-containers.
+## Privacy
 
-## Location and privacy
-
-- Location is requested only after a user action on the Monitoring dashboard.
-- Coordinates live in browser state and localStorage only.
-- Location is not persisted on the server.
-
-To enable location, click **Enable Location** in the Monitoring header and
-grant permission in the browser prompt.
-
-## Distance computation
-
-- Uses the Haversine formula with Earth radius 6371 km.
-- Distances are rounded to 2 decimals.
-- Typical accuracy is within about 0.5 km for short to medium ranges.
-
-## Refresh logic
-
-- Recomputes every `distanceUpdateIntervalSec` seconds.
-- Also recomputes on GPS movement when auto-refresh is enabled.
-- GPS updates are debounced by 5 seconds to avoid duplicate calls.
-
-## Debug tools
-
-Open the Monitoring page with the `debug` query flag to show debug overlays
-and logs:
-
-- Example: `https://localhost:8443/monitoring?debug=true`
-
-The debug panel shows the latest distance map and the card overlay shows the
-raw distance value used for rendering.
-
-## Configuration
-
-Key settings are managed in the web UI and persisted in backend state.
-
-- Location mode: GPS or manual
-- Distance units: km or mi
-- Refresh intervals and GPS accuracy
+- **Web:** your location lives in browser state and localStorage and is sent
+  to your own backend only to compute distances.
+- **Android (direct mode):** your location never leaves the phone; queries
+  contain only transponder IDs and distances are computed on-device.
 
 ## Troubleshooting
 
 ### No distances visible
 
-- Confirm location permission is granted.
-- Verify OpenSky callsigns or ICAO24 identifiers are valid.
-- Check browser console for `DISTANCE API RAW` logs when debug is enabled.
+- Confirm location permission is granted (or use a manual location).
+- Check that the callsigns or ICAO24 identifiers are valid and the aircraft
+  is currently broadcasting. A callsign can be absent from OpenSky at any
+  moment.
+- If OpenSky is out of credits you will see rate-limit errors; add an API
+  client or wait for the daily refill.
 
-### Geolocation not working on mobile
+### Geolocation not working on mobile browsers
 
-- Use HTTPS (https://localhost:8443).
-- Ensure the browser permission prompt was accepted.
+- Browsers only allow geolocation on HTTPS, so open
+  `https://<server-ip>:8443`, where `<server-ip>` is the LAN address of the
+  machine running Docker. `localhost` on a phone points at the phone itself.
+- Accept the self-signed certificate warning, then the location prompt.
+- Both devices must be on the same network, and the server's firewall must
+  allow port 8443.
 
-## Future providers
+### Android app can't reach the backend
 
-The backend distance engine is provider-agnostic. OpenSky can be replaced
-with other ADS-B sources without changing distance logic.
+- Use `http://<server-ip>:3000/` (not `localhost`); the emulator uses
+  `10.0.2.2`. Or skip the backend entirely: direct OpenSky mode is the
+  default. More in [android/README.md](android/README.md#troubleshooting).
+
+## Extending
+
+The distance engine is provider-agnostic: OpenSky can be replaced with
+another ADS-B source without changing the distance logic.
+
+## License
+
+See [LICENCE](LICENCE).
