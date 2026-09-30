@@ -97,7 +97,9 @@ cyan accent; include home-screen widget, Spanish localisation and a map view
 without asking.
 
 1. [done 2026-09-29] Direct data source + credit budget.
-2. Design system + restyle (tokens, Inter, grouped lists, onboarding).
+2. [done 2026-09-30] Design system + restyle (tokens, Inter, grouped lists,
+   onboarding, one-glance radar dial). Open: increased-contrast check,
+   in-app theme switch (HIG says follow system), vendored HIG text licence.
 3. Nearby airspace alerts (classifier: category → aircraft-DB lookup table
    → unknown; rules by radius/class/altitude; grouped notifications; radar
    scope + map view).
