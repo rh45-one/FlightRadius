@@ -97,7 +97,8 @@ docker compose -f web/docker-compose.yml up --build
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/health` | Uptime, OpenSky reachability (1-credit probe), cache size |
+| `GET /api/live` | Free liveness probe (no OpenSky call); used by the docker healthcheck |
+| `GET /api/health` | Uptime, OpenSky reachability (1-credit probe, cached 60 s), cache size |
 | `GET /api/aircraft/:icao24`, `/callsign/:callsign` | Telemetry for one aircraft |
 | `POST /api/aircraft/validate-callsigns` | Which callsigns are currently live |
 | `POST /api/distance/aircraft`, `/fleets`, `/compute` | Batched distances and fleet proximity |

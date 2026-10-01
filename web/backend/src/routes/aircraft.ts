@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { MAX_IDENTIFIERS, TOO_MANY_IDENTIFIERS } from "../limits";
 import { asyncHandler, setCreditsHeader } from "../middleware/http";
 import {
   getAircraftTelemetry,
@@ -41,6 +42,11 @@ router.post("/validate-callsigns", asyncHandler(async (req, res) => {
 
   if (!Array.isArray(callsigns)) {
     res.status(400).json({ error: "Invalid payload", status: 400 });
+    return;
+  }
+
+  if (callsigns.length > MAX_IDENTIFIERS) {
+    res.status(400).json({ error: TOO_MANY_IDENTIFIERS, status: 400 });
     return;
   }
 

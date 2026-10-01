@@ -1,6 +1,13 @@
 import { Router } from "express";
 import { asyncHandler, setCreditsHeader } from "../middleware/http";
 import { OpenSkyProvider } from "../providers/openSkyProvider";
+import {
+  identifierCount,
+  MAX_GROUPS,
+  MAX_IDENTIFIERS,
+  TOO_MANY_GROUPS,
+  TOO_MANY_IDENTIFIERS
+} from "../limits";
 import { buildDistanceResults, buildGroupProximity } from "../services/distanceEngine";
 
 const router = Router();
@@ -66,6 +73,11 @@ router.post("/aircraft", asyncHandler(async (req, res) => {
     return;
   }
 
+  if (identifierCount(callsigns, icao24s) > MAX_IDENTIFIERS) {
+    res.status(400).json({ error: TOO_MANY_IDENTIFIERS, status: 400 });
+    return;
+  }
+
   const normalizedCallsigns = normalizeCallsigns(callsigns);
   const normalizedIcao24s = normalizeIcao24s(icao24s);
   const positions = await OpenSkyProvider.getPositions({
@@ -96,6 +108,18 @@ router.post("/fleets", asyncHandler(async (req, res) => {
 
   if (!Array.isArray(fleets)) {
     res.status(400).json({ error: "Invalid fleets payload", status: 400 });
+    return;
+  }
+
+  if (fleets.length > MAX_GROUPS) {
+    res.status(400).json({ error: TOO_MANY_GROUPS, status: 400 });
+    return;
+  }
+  if (
+    identifierCount(...fleets.map((fleet) => (fleet ? fleet.callsigns : undefined))) >
+    MAX_IDENTIFIERS
+  ) {
+    res.status(400).json({ error: TOO_MANY_IDENTIFIERS, status: 400 });
     return;
   }
 
@@ -147,8 +171,18 @@ router.post("/compute", asyncHandler(async (req, res) => {
     return;
   }
 
+  if (identifierCount(callsigns, icao24s) > MAX_IDENTIFIERS) {
+    res.status(400).json({ error: TOO_MANY_IDENTIFIERS, status: 400 });
+    return;
+  }
+
   if (groups !== undefined && !Array.isArray(groups)) {
     res.status(400).json({ error: "Invalid groups payload", status: 400 });
+    return;
+  }
+
+  if (Array.isArray(groups) && groups.length > MAX_GROUPS) {
+    res.status(400).json({ error: TOO_MANY_GROUPS, status: 400 });
     return;
   }
 

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../middleware/http";
 import { getAppState, maskSecrets, saveAppState } from "../services/appStateStore";
-import { setApiSettings } from "../services/settings";
+import { assertAllowedUrl, setApiSettings, UrlNotAllowedError } from "../services/settings";
 
 const router = Router();
 
@@ -12,6 +12,16 @@ router.get("/app/state", asyncHandler(async (_req, res) => {
 
 router.post("/app/state", asyncHandler(async (req, res) => {
   const incoming = req.body || {};
+  try {
+    assertAllowedUrl(incoming.settings?.apiBaseUrl);
+    assertAllowedUrl(incoming.settings?.apiAuthUrl);
+  } catch (error) {
+    if (error instanceof UrlNotAllowedError) {
+      res.status(400).json({ error: "URL not allowed", status: 400 });
+      return;
+    }
+    throw error;
+  }
   const updated = await saveAppState(incoming);
 
   if (incoming.settings) {

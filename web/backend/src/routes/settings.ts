@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { getApiSettings, setApiSettings } from "../services/settings";
+import {
+  assertAllowedUrl,
+  getApiSettings,
+  setApiSettings,
+  UrlNotAllowedError
+} from "../services/settings";
 
 const router = Router();
 
@@ -26,6 +31,16 @@ router.get("/api", (_req, res) => {
 router.post("/api", (req, res) => {
   const { baseUrl, username, password, authUrl, clientId, clientSecret } =
     req.body || {};
+
+  try {
+    assertAllowedUrl(baseUrl);
+    assertAllowedUrl(authUrl);
+  } catch (error) {
+    if (error instanceof UrlNotAllowedError) {
+      return res.status(400).json({ error: "URL not allowed", status: 400 });
+    }
+    throw error;
+  }
 
   const updated = setApiSettings({
     baseUrl,

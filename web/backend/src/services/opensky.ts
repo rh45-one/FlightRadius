@@ -1,4 +1,5 @@
 import { getCacheEntry, setCacheEntry } from "./cache";
+import { createHash } from "crypto";
 import { getApiSettings } from "./settings";
 
 export type OpenSkyConfig = {
@@ -59,8 +60,8 @@ let upstreamQueue: Promise<unknown> = Promise.resolve();
 const inFlight = new Map<string, Promise<OpenSkyResponse>>();
 let globalSnapshot: { states: OpenSkyState[]; fetchedAt: number } | null = null;
 let creditsRemaining: number | null = null;
-let tokenCache: { accessToken: string; expiresAt: number } | null = null;
-let tokenInFlight: Promise<string> | null = null;
+let tokenCache: { key: string; accessToken: string; expiresAt: number } | null = null;
+let tokenInFlight: { key: string; promise: Promise<string> } | null = null;
 let warnedAboutBasicAuth = false;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -90,7 +91,15 @@ const getConfig = (): OpenSkyConfig => {
 /** Last `X-Rate-Limit-Remaining` value seen from OpenSky, if any. */
 export const getCreditsRemaining = () => creditsRemaining;
 
-const fetchAccessToken = async (config: OpenSkyConfig) => {
+/** Identifies a credential set without keeping the raw secret around. */
+const tokenKey = (config: OpenSkyConfig) =>
+  [
+    config.authUrl || DEFAULT_AUTH_URL,
+    config.clientId || "",
+    createHash("sha256").update(config.clientSecret || "").digest("hex")
+  ].join("|");
+
+const fetchAccessToken = async (config: OpenSkyConfig, key: string) => {
   if (!config.clientId || !config.clientSecret) {
     throw new ApiError("OpenSky auth not configured", 401);
   }
@@ -118,6 +127,7 @@ const fetchAccessToken = async (config: OpenSkyConfig) => {
 
   const expiresIn = payload.expires_in ?? 1800;
   tokenCache = {
+    key,
     accessToken: payload.access_token,
     expiresAt: Date.now() + (expiresIn - 60) * 1000
   };
@@ -128,15 +138,17 @@ const getAccessToken = async (config: OpenSkyConfig) => {
   if (!config.clientId || !config.clientSecret) {
     return null;
   }
-  if (tokenCache && Date.now() < tokenCache.expiresAt) {
+  const key = tokenKey(config);
+  if (tokenCache && tokenCache.key === key && Date.now() < tokenCache.expiresAt) {
     return tokenCache.accessToken;
   }
-  if (!tokenInFlight) {
-    tokenInFlight = fetchAccessToken(config).finally(() => {
-      tokenInFlight = null;
+  if (!tokenInFlight || tokenInFlight.key !== key) {
+    const promise = fetchAccessToken(config, key).finally(() => {
+      if (tokenInFlight?.key === key) tokenInFlight = null;
     });
+    tokenInFlight = { key, promise };
   }
-  return tokenInFlight;
+  return tokenInFlight.promise;
 };
 
 const buildStatesUrl = (baseUrl: string, icao24s?: string[]) => {
@@ -404,18 +416,38 @@ export const getAircraftTelemetry = async (icao24: string) => {
   return telemetry;
 };
 
-/** Reachability probe: a 1-credit icao24 query instead of a global fetch. */
+const PING_TTL_MS = 60_000;
+let pingCache: { result: string; at: number } | null = null;
+let pingInFlight: Promise<string> | null = null;
+
+/**
+ * Reachability probe: a 1-credit icao24 query instead of a global fetch.
+ * Cached for 60 s and deduplicated, so /api/health spends at most 1 credit/min.
+ */
 export const pingOpenSky = async () => {
   if (process.env.OPENSKY_ENABLED !== "true") {
     return "disabled";
   }
-  try {
-    await fetchStatesQueued(getConfig(), [PROBE_ICAO24]);
-    return "reachable";
-  } catch (error) {
-    console.error("OpenSky ping error", error);
-    return "unreachable";
+  if (pingCache && Date.now() - pingCache.at < PING_TTL_MS) {
+    return pingCache.result;
   }
+  if (!pingInFlight) {
+    pingInFlight = (async () => {
+      let result: string;
+      try {
+        await fetchStatesQueued(getConfig(), [PROBE_ICAO24]);
+        result = "reachable";
+      } catch (error) {
+        console.error("OpenSky ping error", error);
+        result = "unreachable";
+      }
+      pingCache = { result, at: Date.now() };
+      return result;
+    })().finally(() => {
+      pingInFlight = null;
+    });
+  }
+  return pingInFlight;
 };
 
 export { ApiError };

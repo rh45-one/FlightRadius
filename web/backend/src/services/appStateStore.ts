@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { isAllowedApiUrl, redactUrl } from "./settings";
 
 export type StoredAircraft = {
   id: string;
@@ -106,7 +107,7 @@ const filePath =
   process.env.APP_STATE_PATH || path.join(__dirname, "../../data/app-state.json");
 
 let cachedState: AppState | null = null;
-let writePromise: Promise<void> | null = null;
+let writeChain: Promise<void> = Promise.resolve();
 
 const ensureDir = async () => {
   const dir = path.dirname(filePath);
@@ -114,19 +115,39 @@ const ensureDir = async () => {
 };
 
 const readStateFile = async () => {
+  await ensureDir();
+  let raw: string;
   try {
-    await ensureDir();
-    const raw = await fs.readFile(filePath, "utf8");
+    raw = await fs.readFile(filePath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null;
+    }
+    // Unreadable for another reason: don't pretend there is no data (a later
+    // save would overwrite it).
+    throw error;
+  }
+  try {
     return JSON.parse(raw) as AppState;
   } catch (_error) {
+    const backup = `${filePath}.corrupt-${Date.now()}`;
+    try {
+      await fs.rename(filePath, backup);
+      console.warn(`App state file is corrupt; moved to ${backup} and starting with defaults`);
+    } catch (renameError) {
+      console.warn("App state file is corrupt and could not be moved aside", renameError);
+    }
     return null;
   }
 };
 
+/** Atomic: write a temp file, then rename over the real one. */
 const writeStateFile = async (state: AppState) => {
   await ensureDir();
   const payload = JSON.stringify(state, null, 2);
-  await fs.writeFile(filePath, payload, "utf8");
+  const tmp = `${filePath}.tmp`;
+  await fs.writeFile(tmp, payload, "utf8");
+  await fs.rename(tmp, filePath);
 };
 
 const mergeState = (incoming: Partial<AppState>, base: AppState) => ({
@@ -147,8 +168,12 @@ const mergeState = (incoming: Partial<AppState>, base: AppState) => ({
 });
 
 const normalizeSettings = (settings: StoredSettings, base: StoredSettings) => {
-  const normalizeUrl = (value: string, fallback: string) =>
-    /^https?:\/\//i.test(value) ? value : fallback;
+  const normalizeUrl = (value: unknown, fallback: string) => {
+    if (typeof value !== "string" || !value) return fallback;
+    if (isAllowedApiUrl(value)) return value;
+    console.warn(`Stored API URL not allowed (${redactUrl(value)}); using the default`);
+    return fallback;
+  };
 
   return {
     ...settings,
@@ -199,21 +224,17 @@ export const saveAppState = async (incoming: Partial<AppState>) => {
   }
 
   const merged = mergeState(sanitized, current);
-  cachedState = {
+  const next: AppState = {
     ...merged,
     settings: normalizeSettings(merged.settings, defaultState.settings)
   };
+  cachedState = next;
 
-  if (!writePromise) {
-    writePromise = (async () => {
-      try {
-        await writeStateFile(cachedState as AppState);
-      } finally {
-        writePromise = null;
-      }
-    })();
-  }
-
-  await writePromise;
-  return cachedState;
+  // Serialize writes: each one runs after the previous finishes and writes
+  // whatever cachedState is by then, so the newest state always reaches disk.
+  writeChain = writeChain
+    .catch(() => undefined)
+    .then(() => writeStateFile(cachedState as AppState));
+  await writeChain;
+  return next;
 };

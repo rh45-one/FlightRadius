@@ -27,7 +27,13 @@ Notes:
   **Never print, copy, commit or log its contents.** New secrets go through
   the secrets tooling, not the conversation.
 - `GET /api/health` triggers a real (1-credit) OpenSky probe when
-  `OPENSKY_ENABLED=true` — not a free liveness check.
+  `OPENSKY_ENABLED=true` (cached 60 s, so at most 1 credit/min) — not a free
+  liveness check. Use `GET /api/live` (no OpenSky call) for healthchecks; the
+  docker compose healthcheck does.
+- API/auth URLs set via `/api/settings/api` or `/api/app/state` must be https and
+  on the allowlist (`opensky-network.org`, `auth.opensky-network.org`; override
+  with `OPENSKY_ALLOWED_HOSTS`, comma list) — the client secret is POSTed there.
+- Batch endpoints cap at 500 identifiers / 50 groups per request.
 - The backend serializes OpenSky `/states/all` fetches behind its own 5 s
   rate limiter with in-flight dedup; anonymous OpenSky access is additionally
   heavily rate-limited upstream. Never poll per-aircraft — batch via

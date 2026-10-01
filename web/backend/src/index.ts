@@ -31,6 +31,11 @@ if (corsOrigins.length > 0) {
 }
 app.use(express.json({ limit: "1mb" }));
 
+// Free liveness probe (no OpenSky call): use this for container healthchecks.
+app.get("/api/live", (_req, res) => {
+  res.json({ status: "ok", uptime: process.uptime() });
+});
+
 app.get("/api/health", async (_req, res) => {
   const openskyStatus = await pingOpenSky();
 
