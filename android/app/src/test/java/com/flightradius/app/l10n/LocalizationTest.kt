@@ -91,7 +91,7 @@ class LocalizationTest {
         "app_name", "nav_radar", "fleets_color", "location_mode_gps", "location_mode_manual",
         "aircraft_type_icao24", "detail_icao24", "db_state_percent", "radar_dial_description",
         "words_backend_ok", "words_backend_opensky", "words_loc_fix", "words_loc_manual",
-        "words_err_http", "words_coverage_lt1", "words_mon_error"
+        "words_err_http", "words_coverage_lt1", "words_mon_error", "bulk_mode_icao24"
     )
 
     @Test

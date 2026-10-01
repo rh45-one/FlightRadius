@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.aircraft
 
+import androidx.compose.ui.platform.testTag
 import com.flightradius.app.ui.format.W
 import com.flightradius.app.ui.format.Words
 import androidx.compose.foundation.layout.Arrangement
@@ -271,10 +272,33 @@ internal fun BulkAddContent(
 ) {
     val scope = rememberCoroutineScope()
     var text by remember { mutableStateOf("") }
+    var parsedText by remember { mutableStateOf("") }
+    var mode by remember { mutableStateOf(BulkMode.AUTO) }
     var entries by remember { mutableStateOf<List<BulkAddEntry>>(emptyList()) }
     var parsed by remember { mutableStateOf(false) }
     var liveCallsigns by remember { mutableStateOf<Set<String>?>(null) }
+    var checkedCallsigns by remember { mutableStateOf<Set<String>>(emptySet()) }
     var validating by remember { mutableStateOf(false) }
+
+    // One batched live check for callsigns not asked about yet (each call costs
+    // OpenSky credits, so never per row, and never twice for the same callsign).
+    fun validateNew(list: List<BulkAddEntry>) {
+        val wanted = list
+            .filter { it.type == IdentifierType.CALLSIGN && it.status == BulkAddStatus.NEW }
+            .map { it.identifier }
+            .filter { it !in checkedCallsigns }
+            .distinct()
+        if (wanted.isEmpty()) return
+        scope.launch {
+            validating = true
+            val live = validateCallsigns(wanted)
+            if (live != null) {
+                liveCallsigns = (liveCallsigns ?: emptySet()) + live
+                checkedCallsigns = checkedCallsigns + wanted
+            }
+            validating = false
+        }
+    }
 
     // One scroll container (a single LazyColumn) with the Add button pinned below it:
     // no nested scrolling, so a fling at the end of the list can't leak into the sheet.
@@ -286,146 +310,103 @@ internal fun BulkAddContent(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         item {
-        Column {
-        Text(
-            stringResource(R.string.aircraft_bulk_title),
-            style = MaterialTheme.typography.titleLarge)
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it; parsed = false; liveCallsigns = null },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp)
-                .heightIn(min = 120.dp),
-            label = { Text(stringResource(R.string.aircraft_bulk_hint)) }
-        )
-        Text(
-            stringResource(R.string.aircraft_bulk_explainer),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp)
-        )
-        Row(Modifier.padding(vertical = 8.dp)) {
-            OutlinedButton(
-                enabled = text.isNotBlank(),
-                onClick = {
-                    entries = AircraftForms.parseBulk(
-                        text, existingIdentifiers())
-                    parsed = true
-                    scope.launch {
-                        validating = true
-                        liveCallsigns = validateCallsigns(
-                            entries.filter {
-                                it.type == IdentifierType.CALLSIGN &&
-                                    it.status == BulkAddStatus.NEW
-                            }.map { it.identifier })
-                        validating = false
+            Column {
+                Text(
+                    stringResource(R.string.aircraft_bulk_title),
+                    style = MaterialTheme.typography.titleLarge)
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = {
+                        text = it; parsed = false
+                        liveCallsigns = null; checkedCallsigns = emptySet()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .heightIn(min = 120.dp),
+                    label = { Text(stringResource(R.string.aircraft_bulk_hint)) }
+                )
+                Text(
+                    stringResource(R.string.aircraft_bulk_explainer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Text(
+                    stringResource(R.string.bulk_add_as),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                SingleChoiceSegmentedButtonRow(
+                    Modifier.fillMaxWidth().padding(top = 4.dp)
+                ) {
+                    BulkMode.entries.forEachIndexed { i, m ->
+                        SegmentedButton(
+                            selected = mode == m,
+                            onClick = {
+                                if (mode != m) {
+                                    mode = m
+                                    if (parsed) {
+                                        entries = AircraftForms.reparse(
+                                            parsedText, existingIdentifiers(), m, entries)
+                                        validateNew(entries)
+                                    }
+                                }
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = i, count = BulkMode.entries.size),
+                            colors = groupedSegmentedColors()
+                        ) {
+                            Text(
+                                stringResource(
+                                    when (m) {
+                                        BulkMode.AUTO -> R.string.bulk_mode_auto
+                                        BulkMode.CALLSIGNS -> R.string.bulk_mode_callsigns
+                                        BulkMode.ICAO24 -> R.string.bulk_mode_icao24
+                                    }),
+                                maxLines = 1)
+                        }
                     }
                 }
-            ) { Text(stringResource(R.string.aircraft_parse)) }
-        }
-        }
+                Row(Modifier.padding(vertical = 8.dp)) {
+                    OutlinedButton(
+                        enabled = text.isNotBlank(),
+                        onClick = {
+                            parsedText = text
+                            entries = AircraftForms.parseBulk(text, existingIdentifiers(), mode)
+                            parsed = true
+                            validateNew(entries)
+                        }
+                    ) { Text(stringResource(R.string.aircraft_parse)) }
+                }
+            }
         }
         if (parsed) {
             if (entries.isEmpty()) {
                 item {
                     Text(
-                    stringResource(R.string.aircraft_bulk_none),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        stringResource(R.string.aircraft_bulk_none),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
-                    items(entries) { e ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = e.selected,
-                                enabled = e.status == BulkAddStatus.NEW,
-                                onCheckedChange = { checked ->
-                                    entries = entries.map {
-                                        if (it.identifier == e.identifier)
-                                            it.copy(selected = checked)
-                                        else it
-                                    }
-                                }
-                            )
-                            Text(
-                                e.identifier,
-                                Modifier.padding(end = 8.dp),
-                                maxLines = 1,
-                                softWrap = false,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontFeatureSettings = CodeFeatures))
-                            if (e.ambiguous) {
-                                FilterChip(
-                                    selected = e.type == IdentifierType.ICAO24,
-                                    onClick = {
-                                        val newType =
-                                            if (e.type == IdentifierType.ICAO24)
-                                                IdentifierType.CALLSIGN
-                                            else IdentifierType.ICAO24
-                                        entries = entries.map {
-                                            if (it.identifier == e.identifier)
-                                                AircraftForms.retype(
-                                                    it, newType,
-                                                    existingIdentifiers())
-                                            else it
-                                        }
-                                        if (newType == IdentifierType.CALLSIGN) {
-                                            scope.launch {
-                                                validating = true
-                                                val live =
-                                                    validateCallsigns(
-                                                        listOf(
-                                                            entries.first {
-                                                                it.identifier ==
-                                                                    e.identifier
-                                                            }.identifier))
-                                                liveCallsigns =
-                                                    (liveCallsigns
-                                                        ?: emptySet()) +
-                                                        (live ?: emptySet())
-                                                validating = false
-                                            }
-                                        }
-                                    },
-                                    label = {
-                                        Text(
-                                            if (e.type == IdentifierType.ICAO24)
-                                                stringResource(R.string.aircraft_type_icao24)
-                                            else stringResource(R.string.aircraft_callsign),
-                                            style = MaterialTheme.typography
-                                                .labelSmall)
-                                    },
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
+                items(entries, key = { it.id }) { e ->
+                    BulkEntryRow(
+                        e = e,
+                        liveCallsigns = liveCallsigns,
+                        validating = validating,
+                        onChecked = { checked ->
+                            entries = entries.map {
+                                if (it.id == e.id) it.copy(selected = checked) else it
                             }
-                            Text(
-                                when {
-                                    e.status == BulkAddStatus.INVALID ->
-                                        stringResource(R.string.bulk_invalid)
-                                    e.status == BulkAddStatus.ALREADY_TRACKED ->
-                                        stringResource(R.string.bulk_tracked)
-                                    e.type == IdentifierType.ICAO24 ->
-                                        stringResource(R.string.bulk_not_validated)
-                                    validating ->
-                                        stringResource(R.string.checking)
-                                    liveCallsigns != null ->
-                                        if (e.identifier in liveCallsigns!!)
-                                            stringResource(R.string.aircraft_live_now)
-                                        else stringResource(R.string.aircraft_no_data)
-                                    else -> e.type?.label() ?: ""
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.weight(1f),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                                color = when (e.status) {
-                                    BulkAddStatus.INVALID -> MaterialTheme.colorScheme.extended.danger
-                                    BulkAddStatus.ALREADY_TRACKED ->
-                                        MaterialTheme.colorScheme.extended.warning
-                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                            )
+                        },
+                        onToggleType = {
+                            val updated = AircraftForms.toggleType(
+                                entries, e.id, existingIdentifiers())
+                            entries = updated
+                            validateNew(updated)
                         }
-                    }
+                    )
+                }
             }
         }
     }
@@ -441,6 +422,69 @@ internal fun BulkAddContent(
             }
         }
     }
+    }
+}
+
+@Composable
+private fun BulkEntryRow(
+    e: BulkAddEntry,
+    liveCallsigns: Set<String>?,
+    validating: Boolean,
+    onChecked: (Boolean) -> Unit,
+    onToggleType: () -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(
+            checked = e.selected,
+            enabled = e.status == BulkAddStatus.NEW,
+            onCheckedChange = onChecked
+        )
+        Text(
+            e.identifier,
+            Modifier.padding(end = 8.dp),
+            maxLines = 1,
+            softWrap = false,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontFeatureSettings = CodeFeatures))
+        if (e.ambiguous) {
+            FilterChip(
+                selected = e.type == IdentifierType.ICAO24,
+                onClick = onToggleType,
+                label = {
+                    Text(
+                        e.type?.label() ?: "",
+                        style = MaterialTheme.typography.labelSmall)
+                },
+                modifier = Modifier.padding(end = 8.dp).testTag("bulk-type-chip-${e.id}")
+            )
+        }
+        Text(
+            when {
+                e.status == BulkAddStatus.INVALID -> stringResource(
+                    when (e.invalidFor) {
+                        IdentifierType.ICAO24 -> R.string.bulk_invalid_icao24
+                        IdentifierType.CALLSIGN -> R.string.bulk_invalid_callsign
+                        null -> R.string.bulk_invalid
+                    })
+                e.status == BulkAddStatus.ALREADY_TRACKED ->
+                    stringResource(R.string.bulk_tracked)
+                e.type == IdentifierType.ICAO24 ->
+                    stringResource(R.string.bulk_not_validated)
+                validating && liveCallsigns == null -> stringResource(R.string.checking)
+                liveCallsigns != null ->
+                    if (e.identifier in liveCallsigns) stringResource(R.string.aircraft_live_now)
+                    else stringResource(R.string.aircraft_no_data)
+                else -> e.type?.label() ?: ""
+            },
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.weight(1f),
+            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            color = when (e.status) {
+                BulkAddStatus.INVALID -> MaterialTheme.colorScheme.extended.danger
+                BulkAddStatus.ALREADY_TRACKED -> MaterialTheme.colorScheme.extended.warning
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
     }
 }
 

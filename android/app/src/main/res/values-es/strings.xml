@@ -557,4 +557,10 @@
     <string name="update_banner_title">Ya está disponible la versión %1$s</string>
     <string name="update_banner_tap">Toca para descargarla</string>
     <string name="update_banner_dismiss">Cerrar</string>
+    <string name="bulk_add_as">Añadir como</string>
+    <string name="bulk_mode_auto">Automático</string>
+    <string name="bulk_mode_callsigns">Indicativos</string>
+    <string name="bulk_mode_icao24">ICAO24</string>
+    <string name="bulk_invalid_icao24">No es un ICAO24 válido</string>
+    <string name="bulk_invalid_callsign">No es un indicativo válido</string>
 </resources>

@@ -543,4 +543,10 @@
     <string name="update_banner_title">Version %1$s is available</string>
     <string name="update_banner_tap">Tap to download</string>
     <string name="update_banner_dismiss">Dismiss</string>
+    <string name="bulk_add_as">Add as</string>
+    <string name="bulk_mode_auto">Auto</string>
+    <string name="bulk_mode_callsigns">Callsigns</string>
+    <string name="bulk_mode_icao24">ICAO24</string>
+    <string name="bulk_invalid_icao24">Not a valid ICAO24</string>
+    <string name="bulk_invalid_callsign">Not a valid callsign</string>
 </resources>
