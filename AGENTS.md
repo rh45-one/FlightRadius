@@ -118,3 +118,12 @@ without asking.
    per-app language). User-visible text lives in resources only; the
    `LocalizationTest` keeps values/ and values-es/ in sync.
 5. Field test, battery profiling, Play policy prep, release signing, CI.
+
+## Versioning (user rule)
+
+`android/version.txt` (MAJOR.MINOR.PATCH) is the single app version; pushing a
+change to it on `main` publishes a GitHub release that installed apps offer as
+an update. **Bump it in every change that touches the app**, in the same
+commit: PATCH for bug fixes, MINOR for new features or behaviour changes
+(MAJOR stays 0 until a public 1.0). Never lower it (the release workflow
+rejects non-increasing versions).
