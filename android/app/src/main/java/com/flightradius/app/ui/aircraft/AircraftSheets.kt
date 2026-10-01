@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.height
@@ -51,7 +52,9 @@ import com.flightradius.app.domain.AircraftMeta
 import com.flightradius.app.domain.Fleet
 import com.flightradius.app.domain.IdentifierType
 import com.flightradius.app.domain.TrackedAircraft
+import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.ui.format.Format
+import com.flightradius.app.ui.format.RadiusInput
 import com.flightradius.app.ui.theme.CodeFeatures
 import com.flightradius.app.ui.theme.extended
 import kotlinx.coroutines.delay
@@ -254,12 +257,15 @@ internal fun AddAircraftSheet(
 @Composable
 internal fun BulkAddSheet(
     viewModel: AircraftViewModel,
+    settings: AppSettings,
     onDone: () -> Unit
 ) = BulkAddContent(
     existingIdentifiers = { viewModel.existingIdentifiers() },
     validateCallsigns = { viewModel.validateBulkCallsigns(it) },
-    addBulk = { entries, done -> viewModel.addBulk(entries) { done() } },
-    onDone = onDone
+    addBulk = { entries, radiusKm, done -> viewModel.addBulk(entries, radiusKm) { done() } },
+    onDone = onDone,
+    unit = settings.distanceUnit,
+    defaultRadiusKm = settings.globalAlertRadiusKm
 )
 
 /** The Bulk add form, free of the ViewModel so it can be tested on its own. */
@@ -267,10 +273,18 @@ internal fun BulkAddSheet(
 internal fun BulkAddContent(
     existingIdentifiers: () -> Set<String>,
     validateCallsigns: suspend (List<String>) -> Set<String>?,
-    addBulk: (List<BulkAddEntry>, onDone: () -> Unit) -> Unit,
-    onDone: () -> Unit
+    addBulk: (List<BulkAddEntry>, radiusKm: Double?, onDone: () -> Unit) -> Unit,
+    onDone: () -> Unit,
+    unit: DistanceUnit = DistanceUnit.KM,
+    defaultRadiusKm: Double = 25.0
 ) {
     val scope = rememberCoroutineScope()
+    var customRadius by remember { mutableStateOf(false) }
+    var radiusText by remember {
+        mutableStateOf(RadiusInput.toFieldText(defaultRadiusKm, unit))
+    }
+    val customKm = RadiusInput.parseKm(radiusText, unit)
+    val radiusValid = !customRadius || customKm != null
     var text by remember { mutableStateOf("") }
     var parsedText by remember { mutableStateOf("") }
     var mode by remember { mutableStateOf(BulkMode.AUTO) }
@@ -368,6 +382,61 @@ internal fun BulkAddContent(
                         }
                     }
                 }
+                Text(
+                    stringResource(R.string.bulk_radius_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                SingleChoiceSegmentedButtonRow(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                        .height(androidx.compose.foundation.layout.IntrinsicSize.Min)
+                ) {
+                    listOf(false, true).forEachIndexed { i, custom ->
+                        SegmentedButton(
+                            modifier = Modifier.fillMaxHeight(),
+                            selected = customRadius == custom,
+                            onClick = { customRadius = custom },
+                            shape = SegmentedButtonDefaults.itemShape(index = i, count = 2),
+                            colors = groupedSegmentedColors()
+                        ) {
+                            Text(
+                                if (custom) stringResource(R.string.bulk_radius_custom)
+                                else stringResource(
+                                    R.string.bulk_radius_default,
+                                    Format.radius(defaultRadiusKm, unit)),
+                                maxLines = 2,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        }
+                    }
+                }
+                if (customRadius) {
+                    OutlinedTextField(
+                        value = radiusText,
+                        onValueChange = { radiusText = it },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .testTag("bulk-radius-field"),
+                        label = {
+                            Text(stringResource(R.string.radius_field_label,
+                                Format.distanceUnitLabel(unit)))
+                        },
+                        isError = customKm == null,
+                        supportingText = {
+                            if (customKm == null) {
+                                Text(stringResource(
+                                    R.string.radius_error_range,
+                                    Format.radius(RadiusInput.MIN_KM, unit),
+                                    Format.radius(RadiusInput.MAX_KM, unit)))
+                            }
+                        },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
+                    )
+                }
                 Row(Modifier.padding(vertical = 8.dp)) {
                     OutlinedButton(
                         enabled = text.isNotBlank(),
@@ -415,8 +484,10 @@ internal fun BulkAddContent(
         Row(Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 16.dp)) {
             Spacer(Modifier.weight(1f))
             Button(
-                enabled = selected > 0,
-                onClick = { addBulk(entries) { onDone() } }
+                enabled = selected > 0 && radiusValid,
+                onClick = {
+                    addBulk(entries, if (customRadius) customKm else null) { onDone() }
+                }
             ) {
                 Text(stringResource(R.string.bulk_add_n, selected))
             }

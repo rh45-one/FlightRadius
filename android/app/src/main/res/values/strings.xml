@@ -310,7 +310,7 @@
         <item quantity="one">+%1$d more inside</item>
         <item quantity="other">+%1$d more inside</item>
     </plurals>
-    <string name="settings_alert_radius">Alert radius</string>
+    <string name="settings_alert_radius">Default alert radius</string>
     <string name="settings_refresh_every">Refresh every</string>
     <string name="settings_appearance">Appearance</string>
     <string name="theme_system">System</string>
@@ -549,4 +549,10 @@
     <string name="bulk_mode_icao24">ICAO24</string>
     <string name="bulk_invalid_icao24">Not a valid ICAO24</string>
     <string name="bulk_invalid_callsign">Not a valid callsign</string>
+    <string name="settings_alert_radius_hint">Used for aircraft without their own radius or a fleet radius.</string>
+    <string name="radius_field_label">Radius (%1$s)</string>
+    <string name="radius_error_range">Enter a value between %1$s and %2$s.</string>
+    <string name="bulk_radius_label">Alert radius</string>
+    <string name="bulk_radius_default">Default (%1$s)</string>
+    <string name="bulk_radius_custom">Custom</string>
 </resources>

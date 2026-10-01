@@ -117,31 +117,11 @@ fun SettingsScreen(
 
         // ---- Alerts ----
         GroupedSection(header = stringResource(R.string.settings_alerts)) {
-            val unit = settings.distanceUnit
-            val unitMax = Format.kmToUnit(200.0, unit).toFloat()
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.settings_alert_radius),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f))
-                    Text(
-                        Format.distance(settings.globalAlertRadiusKm, unit),
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontFeatureSettings = NumericFeatures),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Slider(
-                    value = Format.kmToUnit(settings.globalAlertRadiusKm, unit)
-                        .toFloat().coerceIn(1f, unitMax),
-                    onValueChange = { v ->
-                        val km = if (unit == DistanceUnit.MI)
-                            v.toDouble() / Format.KM_TO_MI else v.toDouble()
-                        viewModel.setGlobalRadius(km)
-                    },
-                    valueRange = 1f..unitMax
-                )
-            }
+            DefaultRadiusRow(
+                radiusKm = settings.globalAlertRadiusKm,
+                unit = settings.distanceUnit,
+                onChange = { viewModel.setGlobalRadius(it) }
+            )
             GroupedDivider()
             SwitchRow(
                 stringResource(R.string.settings_alert_sound), null,

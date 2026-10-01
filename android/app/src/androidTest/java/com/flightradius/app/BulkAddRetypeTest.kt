@@ -32,7 +32,7 @@ class BulkAddRetypeTest {
                     BulkAddContent(
                         existingIdentifiers = { emptySet() },
                         validateCallsigns = { validated += it; emptySet() },
-                        addBulk = { _, done -> done() },
+                        addBulk = { _, _, done -> done() },
                         onDone = {}
                     )
                 }

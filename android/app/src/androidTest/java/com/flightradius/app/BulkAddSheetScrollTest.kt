@@ -45,7 +45,7 @@ class BulkAddSheetScrollTest {
                     BulkAddContent(
                         existingIdentifiers = { emptySet() },
                         validateCallsigns = { null },
-                        addBulk = { _, done -> done() },
+                        addBulk = { _, _, done -> done() },
                         onDone = {}
                     )
                 }

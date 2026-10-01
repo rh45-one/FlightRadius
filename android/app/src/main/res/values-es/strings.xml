@@ -310,7 +310,7 @@
         <item quantity="one">+%1$d más dentro</item>
         <item quantity="other">+%1$d más dentro</item>
     </plurals>
-    <string name="settings_alert_radius">Radio de alerta</string>
+    <string name="settings_alert_radius">Radio de alerta predeterminado</string>
     <string name="settings_refresh_every">Actualizar cada</string>
     <string name="settings_appearance">Apariencia</string>
     <string name="theme_system">Sistema</string>
@@ -563,4 +563,10 @@
     <string name="bulk_mode_icao24">ICAO24</string>
     <string name="bulk_invalid_icao24">No es un ICAO24 válido</string>
     <string name="bulk_invalid_callsign">No es un indicativo válido</string>
+    <string name="settings_alert_radius_hint">Se usa en las aeronaves sin radio propio ni radio de flota.</string>
+    <string name="radius_field_label">Radio (%1$s)</string>
+    <string name="radius_error_range">Introduce un valor entre %1$s y %2$s.</string>
+    <string name="bulk_radius_label">Radio de alerta</string>
+    <string name="bulk_radius_default">Predeterminado (%1$s)</string>
+    <string name="bulk_radius_custom">Personalizado</string>
 </resources>

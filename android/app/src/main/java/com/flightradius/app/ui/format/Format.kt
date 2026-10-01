@@ -24,6 +24,14 @@ object Format {
     fun distance(km: Double, unit: DistanceUnit): String =
         AlertText.formatDistance(km, unit)
 
+    /** Radius setting: "10 km" for whole values, one decimal otherwise ("0,5 km"). */
+    fun radius(km: Double, unit: DistanceUnit): String {
+        val v = Math.round(kmToUnit(km, unit) * 10) / 10.0
+        val number = if (v == v.toLong().toDouble()) v.toLong().toString()
+        else String.format(java.util.Locale.getDefault(), "%.1f", v)
+        return "$number ${distanceUnitLabel(unit)}"
+    }
+
     /** Distance number only ("12.4") for animated/hero displays. */
     fun distanceNumber(km: Double, unit: DistanceUnit): String =
         "%.1f".format(kmToUnit(km, unit))

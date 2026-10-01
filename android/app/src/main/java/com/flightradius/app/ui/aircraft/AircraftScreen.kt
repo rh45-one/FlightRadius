@@ -253,6 +253,7 @@ fun AircraftScreen(
         FormBottomSheet(onDismiss = { showBulk = false }) {
             BulkAddSheet(
                 viewModel = viewModel,
+                settings = settings,
                 onDone = { showBulk = false }
             )
         }

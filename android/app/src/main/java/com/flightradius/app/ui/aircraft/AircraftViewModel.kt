@@ -142,8 +142,10 @@ class AircraftViewModel @Inject constructor(
         return (flightData.liveCallsigns(normalized) as? ApiResult.Success)?.data
     }
 
+    /** [radiusKm] null = follow the global default (also future changes to it). */
     fun addBulk(
         entries: List<BulkAddEntry>,
+        radiusKm: Double?,
         onDone: (added: Int) -> Unit
     ) {
         viewModelScope.launch {
@@ -151,7 +153,7 @@ class AircraftViewModel @Inject constructor(
             for (e in entries) {
                 if (!e.selected || e.status != BulkAddStatus.NEW) continue
                 val type = e.type ?: continue
-                if (aircraftRepository.add(e.identifier, type) != null) added++
+                if (aircraftRepository.add(e.identifier, type, alertRadiusKm = radiusKm) != null) added++
             }
             onDone(added)
         }
