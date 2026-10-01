@@ -428,3 +428,12 @@ web/nginx/certs/
 
 # Third-party agent skills (local only; contain Apple HIG text)
 .devin/skills/apple-design/
+
+# The Visual Studio rules above ignore every directory named Debug or Log.
+# These Android source paths share those names and must stay in the repo.
+!android/app/src/debug/
+!android/app/src/debug/**
+!android/app/src/**/debug/
+!android/app/src/**/debug/**
+!android/app/src/**/log/
+!android/app/src/**/log/**
