@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.aircraft
 
+import com.flightradius.app.ui.components.FormBottomSheet
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -240,10 +241,7 @@ fun AircraftScreen(
     }
 
     if (showAdd) {
-        ModalBottomSheet(
-            onDismissRequest = { showAdd = false },
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
+        FormBottomSheet(onDismiss = { showAdd = false }) {
             AddAircraftSheet(
                 viewModel = viewModel,
                 settings = settings,
@@ -252,10 +250,7 @@ fun AircraftScreen(
         }
     }
     if (showBulk) {
-        ModalBottomSheet(
-            onDismissRequest = { showBulk = false },
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
+        FormBottomSheet(onDismiss = { showBulk = false }) {
             BulkAddSheet(
                 viewModel = viewModel,
                 onDone = { showBulk = false }
@@ -263,10 +258,7 @@ fun AircraftScreen(
         }
     }
     editing?.let { a ->
-        ModalBottomSheet(
-            onDismissRequest = { editing = null },
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
+        FormBottomSheet(onDismiss = { editing = null }) {
             EditAircraftSheet(
                 aircraft = a,
                 fleets = fleets,

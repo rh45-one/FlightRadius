@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.fleets
 
+import com.flightradius.app.ui.components.FormBottomSheet
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -169,10 +170,7 @@ fun FleetsScreen(
     }
 
     if (showCreate) {
-        ModalBottomSheet(
-            onDismissRequest = { showCreate = false },
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
+        FormBottomSheet(onDismiss = { showCreate = false }) {
             FleetEditSheet(
                 fleet = null,
                 aircraft = aircraft,
@@ -186,10 +184,7 @@ fun FleetsScreen(
         }
     }
     editFleet?.let { fleet ->
-        ModalBottomSheet(
-            onDismissRequest = { editFleet = null },
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
+        FormBottomSheet(onDismiss = { editFleet = null }) {
             FleetEditSheet(
                 fleet = fleet,
                 aircraft = aircraft,

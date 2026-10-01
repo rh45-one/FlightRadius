@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -253,6 +254,20 @@ internal fun AddAircraftSheet(
 internal fun BulkAddSheet(
     viewModel: AircraftViewModel,
     onDone: () -> Unit
+) = BulkAddContent(
+    existingIdentifiers = { viewModel.existingIdentifiers() },
+    validateCallsigns = { viewModel.validateBulkCallsigns(it) },
+    addBulk = { entries, done -> viewModel.addBulk(entries) { done() } },
+    onDone = onDone
+)
+
+/** The Bulk add form, free of the ViewModel so it can be tested on its own. */
+@Composable
+internal fun BulkAddContent(
+    existingIdentifiers: () -> Set<String>,
+    validateCallsigns: suspend (List<String>) -> Set<String>?,
+    addBulk: (List<BulkAddEntry>, onDone: () -> Unit) -> Unit,
+    onDone: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var text by remember { mutableStateOf("") }
@@ -261,11 +276,17 @@ internal fun BulkAddSheet(
     var liveCallsigns by remember { mutableStateOf<Set<String>?>(null) }
     var validating by remember { mutableStateOf(false) }
 
-    Column(
-        Modifier
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState())
+    // One scroll container (a single LazyColumn) with the Add button pinned below it:
+    // no nested scrolling, so a fling at the end of the list can't leak into the sheet.
+    Column(Modifier.fillMaxWidth().imePadding()) {
+    LazyColumn(
+        Modifier.weight(1f, fill = false),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 24.dp, end = 24.dp, top = 24.dp, bottom = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        item {
+        Column {
         Text(
             stringResource(R.string.aircraft_bulk_title),
             style = MaterialTheme.typography.titleLarge)
@@ -289,11 +310,11 @@ internal fun BulkAddSheet(
                 enabled = text.isNotBlank(),
                 onClick = {
                     entries = AircraftForms.parseBulk(
-                        text, viewModel.existingIdentifiers())
+                        text, existingIdentifiers())
                     parsed = true
                     scope.launch {
                         validating = true
-                        liveCallsigns = viewModel.validateBulkCallsigns(
+                        liveCallsigns = validateCallsigns(
                             entries.filter {
                                 it.type == IdentifierType.CALLSIGN &&
                                     it.status == BulkAddStatus.NEW
@@ -303,17 +324,16 @@ internal fun BulkAddSheet(
                 }
             ) { Text(stringResource(R.string.aircraft_parse)) }
         }
-
+        }
+        }
         if (parsed) {
             if (entries.isEmpty()) {
-                Text(
+                item {
+                    Text(
                     stringResource(R.string.aircraft_bulk_none),
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             } else {
-                LazyColumn(
-                    Modifier.heightIn(max = 300.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
                     items(entries) { e ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
@@ -346,15 +366,14 @@ internal fun BulkAddSheet(
                                             if (it.identifier == e.identifier)
                                                 AircraftForms.retype(
                                                     it, newType,
-                                                    viewModel
-                                                        .existingIdentifiers())
+                                                    existingIdentifiers())
                                             else it
                                         }
                                         if (newType == IdentifierType.CALLSIGN) {
                                             scope.launch {
                                                 validating = true
-                                                val live = viewModel
-                                                    .validateBulkCallsigns(
+                                                val live =
+                                                    validateCallsigns(
                                                         listOf(
                                                             entries.first {
                                                                 it.identifier ==
@@ -407,24 +426,21 @@ internal fun BulkAddSheet(
                             )
                         }
                     }
-                }
-                val selected = entries.count {
-                    it.selected && it.status == BulkAddStatus.NEW
-                }
-                Row(Modifier.padding(top = 8.dp)) {
-                    Spacer(Modifier.weight(1f))
-                    Button(
-                        enabled = selected > 0,
-                        onClick = {
-                            viewModel.addBulk(entries) { onDone() }
-                        }
-                    ) {
-                        Text(stringResource(R.string.bulk_add_n, selected))
-                    }
-                }
             }
         }
-        Spacer(Modifier.height(24.dp))
+    }
+    val selected = entries.count { it.selected && it.status == BulkAddStatus.NEW }
+    if (parsed && entries.isNotEmpty()) {
+        Row(Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 16.dp)) {
+            Spacer(Modifier.weight(1f))
+            Button(
+                enabled = selected > 0,
+                onClick = { addBulk(entries) { onDone() } }
+            ) {
+                Text(stringResource(R.string.bulk_add_n, selected))
+            }
+        }
+    }
     }
 }
 

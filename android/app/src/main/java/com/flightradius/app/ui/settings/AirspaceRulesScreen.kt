@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.settings
 
+import com.flightradius.app.ui.components.FormBottomSheet
 import com.flightradius.app.ui.format.displayName
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -171,11 +172,7 @@ internal fun RuleEditorSheet(
     val radiusMax = Format.kmToUnit(50.0, unit).toFloat()
     val altFactor = if (unit == DistanceUnit.MI) Format.M_TO_FT.toFloat() else 1f
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        dragHandle = { BottomSheetDefaults.DragHandle() }
-    ) {
+    FormBottomSheet(onDismiss = onDismiss) {
         Column(
             Modifier
                 .padding(horizontal = 24.dp)

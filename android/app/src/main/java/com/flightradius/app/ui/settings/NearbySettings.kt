@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.settings
 
+import com.flightradius.app.ui.components.FormBottomSheet
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -160,10 +161,9 @@ internal fun AircraftDbSheet(
         if (metered()) confirmMetered = true else onDownload()
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.background,
-        dragHandle = { BottomSheetDefaults.DragHandle() }
+    FormBottomSheet(
+        onDismiss = onDismiss,
+        containerColor = MaterialTheme.colorScheme.background
     ) {
         Column(Modifier.padding(horizontal = 24.dp)) {
             Text(
