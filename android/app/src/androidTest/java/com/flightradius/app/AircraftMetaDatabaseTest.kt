@@ -87,4 +87,15 @@ class AircraftMetaDatabaseTest {
         assertNull(db.dao().findByRegistration("EC-KZX"))
         assertNotNull(db.dao().findByRegistration("EC-NEW"))
     }
+
+    @Test
+    fun hasRowsReflectsTheMainTable() = runBlocking {
+        org.junit.Assert.assertFalse(db.dao().hasRows())
+        stage("$header\n'a00001','','H2T','EC-KZX','',''")
+        org.junit.Assert.assertFalse(db.dao().hasRows()) // staging only
+        db.dao().swap()
+        org.junit.Assert.assertTrue(db.dao().hasRows())
+        db.dao().clearMain()
+        org.junit.Assert.assertFalse(db.dao().hasRows())
+    }
 }

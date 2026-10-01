@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.update
 
+import com.flightradius.app.ui.util.startActivitySafely
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -85,11 +86,8 @@ fun UpdateBannerHost(alertActive: Boolean, modifier: Modifier = Modifier) {
         UpdateBanner(
             version = update.version,
             onOpen = {
-                runCatching {
-                    context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse(update.url))
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                }
+                context.startActivitySafely(
+                    Intent(Intent.ACTION_VIEW, Uri.parse(update.url)))
             },
             onDismiss = { shown = null },
             modifier = modifier

@@ -20,6 +20,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -90,8 +91,14 @@ class AircraftDatabaseManager @Inject constructor(
         scope.launch {
             val meta = settings.aircraftDbMeta.first()
             if (meta != null && _state.value is DbState.NotDownloaded) {
-                hasData = true
-                _state.value = meta.toReady()
+                // The meta (DataStore) can be restored from a backup while the
+                // excluded database file is gone: only trust it if rows exist.
+                if (restoredMetaIsValid(meta, dao.hasRows())) {
+                    hasData = true
+                    _state.value = meta.toReady()
+                } else {
+                    settings.setAircraftDbMeta(null)
+                }
             }
         }
     }
@@ -130,8 +137,11 @@ class AircraftDatabaseManager @Inject constructor(
     }
 
     fun delete() {
-        job?.cancel()
+        val running = job
         scope.launch {
+            // Let the cancelled import finish its own cleanup/state restore first,
+            // otherwise it could run after us and flip the state back to Ready.
+            running?.cancelAndJoin()
             dao.clearMain()
             dao.clearStaging()
             runCatching { db.openHelper.writableDatabase.execSQL("VACUUM") }
@@ -249,3 +259,7 @@ class AircraftDatabaseManager @Inject constructor(
             super.read(b, off, len).also { if (it > 0) bytes += it }
     }
 }
+
+/** Stored import metadata only counts while the main table actually has rows. */
+internal fun restoredMetaIsValid(meta: AircraftDbMeta?, tableHasRows: Boolean): Boolean =
+    meta != null && tableHasRows

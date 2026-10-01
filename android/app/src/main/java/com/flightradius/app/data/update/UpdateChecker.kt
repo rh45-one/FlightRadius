@@ -31,11 +31,27 @@ data class ReleaseInfo(
 /** A newer release that was found (persisted so the banner can show on later launches). */
 data class AvailableUpdate(val version: String, val url: String)
 
+enum class UpdateFailure { RATE_LIMITED, NETWORK, OTHER }
+
+/** Release page URLs are only trusted when they point at github.com over https. */
+object UpdateUrls {
+    fun fallback(repo: String) = "https://github.com/$repo/releases/latest"
+
+    fun safe(url: String?, repo: String): String {
+        val uri = try { java.net.URI(url?.trim().orEmpty()) } catch (_: Exception) { null }
+        val ok = uri != null &&
+            uri.scheme.equals("https", ignoreCase = true) &&
+            uri.host.equals("github.com", ignoreCase = true) &&
+            uri.userInfo == null
+        return if (ok) url!!.trim() else fallback(repo)
+    }
+}
+
 sealed interface UpdateCheckResult {
     data class UpToDate(val current: String) : UpdateCheckResult
     data class Available(val release: ReleaseInfo) : UpdateCheckResult
-    /** [rateLimited] covers HTTP 403/429; otherwise network or parse problems. */
-    data class Failed(val message: String, val rateLimited: Boolean = false) : UpdateCheckResult
+    /** [kind] drives the user-facing text; [detail] is raw and only meant for logs. */
+    data class Failed(val kind: UpdateFailure, val detail: String) : UpdateCheckResult
 }
 
 /** Asks GitHub for the latest release of [repo] and compares it with [currentVersion]. */
@@ -59,12 +75,13 @@ class UpdateChecker(
                 when {
                     r.code == 404 -> UpdateCheckResult.UpToDate(currentVersion)
                     r.code == 403 || r.code == 429 ->
-                        UpdateCheckResult.Failed("rate limited (HTTP ${r.code})", rateLimited = true)
-                    !r.isSuccessful -> UpdateCheckResult.Failed("HTTP ${r.code}")
+                        UpdateCheckResult.Failed(UpdateFailure.RATE_LIMITED, "HTTP ${r.code}")
+                    !r.isSuccessful -> UpdateCheckResult.Failed(UpdateFailure.OTHER, "HTTP ${r.code}")
                     else -> {
                         val release = json.decodeFromString<ReleaseInfo>(r.body.string())
                         if (SemVer.isNewer(release.version, currentVersion)) {
-                            UpdateCheckResult.Available(release)
+                            UpdateCheckResult.Available(
+                                release.copy(htmlUrl = UpdateUrls.safe(release.htmlUrl, repo)))
                         } else {
                             UpdateCheckResult.UpToDate(currentVersion)
                         }
@@ -74,9 +91,9 @@ class UpdateChecker(
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: IOException) {
-            UpdateCheckResult.Failed(e.message ?: "network error")
+            UpdateCheckResult.Failed(UpdateFailure.NETWORK, e.message ?: "network error")
         } catch (e: Exception) {
-            UpdateCheckResult.Failed(e.message ?: "unexpected response")
+            UpdateCheckResult.Failed(UpdateFailure.OTHER, e.message ?: "unexpected response")
         }
     }
 }

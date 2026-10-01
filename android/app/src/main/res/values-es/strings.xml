@@ -551,7 +551,8 @@
     <string name="update_checking">Comprobando…</string>
     <string name="update_up_to_date">Actualizada · %1$s</string>
     <string name="update_available">%1$s disponible</string>
-    <string name="update_check_failed">No se ha podido comprobar</string>
+    <string name="update_failed_rate_limited">GitHub está limitando las peticiones. Inténtalo más tarde.</string>
+    <string name="update_failed_other">No se pudieron buscar actualizaciones</string>
     <string name="update_current_version">Versión actual</string>
     <string name="update_banner_title">Ya está disponible la versión %1$s</string>
     <string name="update_banner_tap">Toca para descargarla</string>

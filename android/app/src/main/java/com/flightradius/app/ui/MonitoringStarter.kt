@@ -1,5 +1,6 @@
 package com.flightradius.app.ui
 
+import com.flightradius.app.ui.util.startActivitySafely
 import com.flightradius.app.ui.format.W
 import com.flightradius.app.ui.format.Words
 import android.Manifest
@@ -166,7 +167,7 @@ class MonitoringStarter(
     fun openAppSettings() {
         dialog = null
         pendingStage = null
-        activity?.startActivity(
+        activity?.startActivitySafely(
             Intent(
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", activity.packageName, null)

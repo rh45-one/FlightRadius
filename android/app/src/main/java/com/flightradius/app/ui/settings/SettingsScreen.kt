@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.settings
 
+import com.flightradius.app.ui.util.startActivitySafely
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
@@ -170,9 +171,10 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_notif_settings),
                 trailing = { NavigationChevron() },
                 onClick = {
-                    context.startActivity(
+                    context.startActivitySafely(
                         Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+                        fallbackToAppDetails = true)
                 }
             )
         }
@@ -258,7 +260,8 @@ fun SettingsScreen(
                 AccentRow(
                     title = stringResource(R.string.action_disable_battery_opt),
                     onClick = {
-                        context.startActivity(BatteryOptimization.requestIntent(context))
+                        context.startActivitySafely(
+                            BatteryOptimization.requestIntent(context), fallbackToAppDetails = true)
                     }
                 )
             }
@@ -389,7 +392,8 @@ fun SettingsScreen(
                 title = stringResource(R.string.action_location_settings),
                 trailing = { NavigationChevron() },
                 onClick = {
-                    context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                    context.startActivitySafely(
+                        Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS), fallbackToAppDetails = true)
                 }
             )
         }
@@ -636,9 +640,10 @@ private fun LiveUpdatesRow() {
         },
         onClick = {
             if (Build.VERSION.SDK_INT >= 36) {
-                context.startActivity(
+                context.startActivitySafely(
                     Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS)
-                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+                    fallbackToAppDetails = true)
             }
         }
     )

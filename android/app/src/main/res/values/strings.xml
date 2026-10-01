@@ -537,7 +537,8 @@
     <string name="update_checking">Checking…</string>
     <string name="update_up_to_date">Up to date · %1$s</string>
     <string name="update_available">%1$s available</string>
-    <string name="update_check_failed">Couldn\'t check</string>
+    <string name="update_failed_rate_limited">GitHub is limiting requests. Try again later.</string>
+    <string name="update_failed_other">Couldn\'t check for updates</string>
     <string name="update_current_version">Current version</string>
     <string name="update_banner_title">Version %1$s is available</string>
     <string name="update_banner_tap">Tap to download</string>

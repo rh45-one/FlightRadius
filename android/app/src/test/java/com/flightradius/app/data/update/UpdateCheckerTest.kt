@@ -87,16 +87,16 @@ class UpdateCheckerTest {
     @Test fun `403 and 429 are rate limited failures`() = runBlocking {
         respond(403, """{"message":"API rate limit exceeded"}""")
         val a = checker().check()
-        assertTrue(a is UpdateCheckResult.Failed && a.rateLimited)
+        assertTrue(a is UpdateCheckResult.Failed && a.kind == UpdateFailure.RATE_LIMITED)
         respond(429)
         val b = checker().check()
-        assertTrue(b is UpdateCheckResult.Failed && b.rateLimited)
+        assertTrue(b is UpdateCheckResult.Failed && b.kind == UpdateFailure.RATE_LIMITED)
     }
 
     @Test fun `server error and garbage are plain failures`() = runBlocking {
         respond(500)
         val a = checker().check()
-        assertTrue(a is UpdateCheckResult.Failed && !a.rateLimited)
+        assertTrue(a is UpdateCheckResult.Failed && a.kind == UpdateFailure.OTHER)
         respond(200, "not json")
         assertTrue(checker().check() is UpdateCheckResult.Failed)
     }
@@ -110,5 +110,43 @@ class UpdateCheckerTest {
         val c = checker()
         server.close()
         assertTrue(c.check() is UpdateCheckResult.Failed)
+    }
+
+    @Test fun `unreachable host is classified as a network failure`() = runBlocking {
+        val c = checker()
+        server.close()
+        val r = c.check()
+        assertTrue(r is UpdateCheckResult.Failed && r.kind == UpdateFailure.NETWORK)
+    }
+
+    @Test fun `html_url from the api is only trusted on github com over https`() = runBlocking {
+        val fallback = "https://github.com/rh45-one/FlightRadius/releases/latest"
+        for (evil in listOf(
+            "http://github.com/rh45-one/FlightRadius/releases/tag/v0.2.0",
+            "https://evil.com/github.com",
+            "https://github.com.evil.com/x",
+            "https://github.com@evil.com/x",
+            "javascript:alert(1)",
+            "intent://github.com#Intent;scheme=https;end",
+            "not a url"
+        )) {
+            respond(200, sample.replace(
+                "https://github.com/rh45-one/FlightRadius/releases/tag/v0.2.0", evil))
+            val r = checker().check()
+            assertEquals(evil, fallback, (r as UpdateCheckResult.Available).release.htmlUrl)
+        }
+        respond(200, sample)
+        assertEquals(
+            "https://github.com/rh45-one/FlightRadius/releases/tag/v0.2.0",
+            (checker().check() as UpdateCheckResult.Available).release.htmlUrl)
+    }
+
+    @Test fun `UpdateUrls safe accepts github and rejects the rest`() {
+        assertEquals("https://github.com/a/b/releases/tag/v1.0.0",
+            UpdateUrls.safe("https://github.com/a/b/releases/tag/v1.0.0", "a/b"))
+        assertEquals("https://github.com/a/b/releases/latest", UpdateUrls.safe(null, "a/b"))
+        assertEquals("https://github.com/a/b/releases/latest", UpdateUrls.safe("", "a/b"))
+        assertEquals("https://github.com/a/b/releases/latest",
+            UpdateUrls.safe("https://user@github.com/x", "a/b"))
     }
 }

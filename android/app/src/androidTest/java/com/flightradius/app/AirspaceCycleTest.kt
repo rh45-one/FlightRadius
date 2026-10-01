@@ -15,6 +15,7 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import java.util.concurrent.CopyOnWriteArrayList
 import javax.inject.Inject
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -58,12 +59,16 @@ class AirspaceCycleTest {
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var stateRepository: MonitoringStateRepository
     @Inject lateinit var controller: MonitoringController
+    @Inject lateinit var cycleRunner: com.flightradius.app.service.MonitoringCycleRunner
     @Inject lateinit var runtimeSettings: com.flightradius.app.data.prefs.RuntimeSettings
     @Inject lateinit var aircraftRepository: com.flightradius.app.data.repo.AircraftRepository
 
     private lateinit var server: MockWebServer
     private val statesRequests = CopyOnWriteArrayList<RecordedRequest>()
     @Volatile private var failArea = false
+    @Volatile private var measureConcurrency = false
+    private val activeRequests = java.util.concurrent.atomic.AtomicInteger()
+    private val maxConcurrentRequests = java.util.concurrent.atomic.AtomicInteger()
 
     // Fix (52.0, 13.0): one airborne aircraft ~3 km north, one on the ground.
     private val body = """
@@ -80,6 +85,12 @@ class AirspaceCycleTest {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 if (request.url.encodedPath.endsWith("/states/all")) {
                     statesRequests += request
+                    if (measureConcurrency) {
+                        val now = activeRequests.incrementAndGet()
+                        maxConcurrentRequests.updateAndGet { maxOf(it, now) }
+                        Thread.sleep(250)
+                        activeRequests.decrementAndGet()
+                    }
                     if (failArea && request.url.queryParameter("lamin") != null) {
                         return MockResponse.Builder().code(500).body("boom").build()
                     }
@@ -151,6 +162,8 @@ class AirspaceCycleTest {
             assertEquals(1, stateRepository.state.value.creditsPerCycle)
 
             staleNearbyPhase()
+            // The service must still be running (it keeps the manual fix registered).
+            concurrentCyclesAreSerialized()
 
             controller.stop()
             withTimeout(15_000) {
@@ -158,6 +171,20 @@ class AirspaceCycleTest {
             }
             assertFalse(statesRequests.isEmpty())
         }
+    }
+
+    /** Phase 3: overlapping callers (service loop, retry, fleets refresh) must not overlap upstream. */
+    private suspend fun concurrentCyclesAreSerialized() {
+        failArea = false
+        val before = statesRequests.size
+        measureConcurrency = true
+        kotlinx.coroutines.coroutineScope {
+            (1..3).map { i -> this.async { cycleRunner.runCycle("test-$i") } }
+                .forEach { it.await() }
+        }
+        measureConcurrency = false
+        assertTrue("cycles did not issue requests", statesRequests.size - before >= 3)
+        assertEquals("upstream requests overlapped", 1, maxConcurrentRequests.get())
     }
 
     /** Phase 2 (same Hilt graph: only one secure DataStore may exist per process). */

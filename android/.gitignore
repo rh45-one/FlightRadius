@@ -7,3 +7,5 @@ keystore.properties
 .idea/
 captures/
 *.iml
+*.jks.bak-*
+keystore.properties.bak-*

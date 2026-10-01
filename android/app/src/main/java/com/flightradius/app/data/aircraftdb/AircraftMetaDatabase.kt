@@ -64,6 +64,9 @@ abstract class AircraftMetaDao {
     @Query("SELECT * FROM aircraft_meta WHERE registration = :registration LIMIT 1")
     abstract suspend fun findByRegistration(registration: String): AircraftMetaEntity?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM aircraft_meta LIMIT 1)")
+    abstract suspend fun hasRows(): Boolean
+
     @Query("SELECT COUNT(*) FROM aircraft_meta")
     abstract suspend fun count(): Int
 }

@@ -1,5 +1,7 @@
 package com.flightradius.app.service
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import com.flightradius.app.data.api.ApiError
 import com.flightradius.app.data.api.ApiResult
 import com.flightradius.app.data.api.LocalNetworkGuard
@@ -76,13 +78,20 @@ class MonitoringCycleRunner @Inject constructor(
         return settingsRepository.settings.first()
     }
 
-    suspend fun runCycle(trigger: String): CycleResult {
+    /**
+     * Callers (service loop, Radar retry, Fleets refresh) may overlap; cycles run
+     * one at a time so they never double-spend credits or interleave the
+     * "previous snapshot" used for closing speed and heading.
+     */
+    private val cycleLock = Mutex()
+
+    suspend fun runCycle(trigger: String): CycleResult = cycleLock.withLock {
         val settings = awaitSettings()
         val aircraft = aircraftRepository.getAll()
         val fleets = fleetRepository.getAll()
         val result = execute(trigger, settings, aircraft, fleets)
         publishPlan(settings, aircraft)
-        return result
+        result
     }
 
     /** Debug-only: re-publishes the injected demo snapshot instead of hitting the network. */

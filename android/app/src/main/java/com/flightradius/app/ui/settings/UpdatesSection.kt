@@ -1,5 +1,6 @@
 package com.flightradius.app.ui.settings
 
+import com.flightradius.app.ui.util.startActivitySafely
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,9 @@ import androidx.compose.ui.res.stringResource
 import com.flightradius.app.BuildConfig
 import com.flightradius.app.R
 import com.flightradius.app.data.update.ManualCheckState
+import com.flightradius.app.data.update.UpdateFailure
+import com.flightradius.app.ui.format.W
+import com.flightradius.app.ui.format.Words
 import com.flightradius.app.domain.UpdateFrequency
 import com.flightradius.app.ui.components.GroupedDivider
 import com.flightradius.app.ui.components.GroupedRow
@@ -80,10 +84,18 @@ internal fun UpdatesSection(
             ManualCheckState.Checking -> stringResource(R.string.update_checking)
             is ManualCheckState.UpToDate -> stringResource(R.string.update_up_to_date, state.current)
             is ManualCheckState.Available -> stringResource(R.string.update_available, state.version)
-            is ManualCheckState.Failed -> stringResource(R.string.update_check_failed)
+            is ManualCheckState.Failed -> null
+        }
+        val error = (state as? ManualCheckState.Failed)?.let {
+            when (it.kind) {
+                UpdateFailure.RATE_LIMITED -> stringResource(R.string.update_failed_rate_limited)
+                UpdateFailure.NETWORK -> Words.get(W.ERR_NETWORK)
+                UpdateFailure.OTHER -> stringResource(R.string.update_failed_other)
+            }
         }
         GroupedRow(
             title = stringResource(R.string.update_check_now),
+            subtitle = error,
             trailing = {
                 if (status != null) {
                     Text(
@@ -96,11 +108,8 @@ internal fun UpdatesSection(
             },
             onClick = {
                 if (state is ManualCheckState.Available) {
-                    runCatching {
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse(state.url))
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    }
+                    context.startActivitySafely(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(state.url)))
                 } else onCheckNow()
             }
         )

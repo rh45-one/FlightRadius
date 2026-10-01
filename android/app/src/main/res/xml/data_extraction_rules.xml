@@ -3,12 +3,22 @@
   Android 12+ backup/transfer rules. The encrypted OpenSky credentials are
   excluded: their Keystore key never leaves the device, so a restored copy
   would be undecryptable anyway, and secrets must not reach cloud backups.
+  The downloaded aircraft database (~40 MB, re-downloadable) is excluded too:
+  it would exceed the 25 MB Auto Backup quota and silently stop all backups.
 -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="file" path="datastore/flightradius_secure.preferences_pb" />
+        <exclude domain="database" path="aircraft_meta.db" />
+        <exclude domain="database" path="aircraft_meta.db-wal" />
+        <exclude domain="database" path="aircraft_meta.db-shm" />
+        <exclude domain="database" path="aircraft_meta.db-journal" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="datastore/flightradius_secure.preferences_pb" />
+        <exclude domain="database" path="aircraft_meta.db" />
+        <exclude domain="database" path="aircraft_meta.db-wal" />
+        <exclude domain="database" path="aircraft_meta.db-shm" />
+        <exclude domain="database" path="aircraft_meta.db-journal" />
     </device-transfer>
 </data-extraction-rules>

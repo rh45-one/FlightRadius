@@ -11,7 +11,9 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.flightradius.app.BuildConfig
 import com.flightradius.app.data.update.AvailableUpdate
+import com.flightradius.app.data.update.UpdateUrls
 import com.flightradius.app.domain.AirspaceRule
 import com.flightradius.app.domain.UpdateFrequency
 import com.flightradius.app.domain.DistanceUnit
@@ -169,7 +171,9 @@ class SettingsRepository @Inject constructor(
             updateFrequency = enumOr(this[Keys.UPDATE_FREQUENCY], defaults.updateFrequency),
             lastUpdateCheckAtMs = this[Keys.LAST_UPDATE_CHECK] ?: 0L,
             availableUpdate = this[Keys.UPDATE_VERSION]?.let { v ->
-                this[Keys.UPDATE_URL]?.let { AvailableUpdate(v, it) }
+                this[Keys.UPDATE_URL]?.let {
+                    AvailableUpdate(v, UpdateUrls.safe(it, BuildConfig.UPDATE_REPO))
+                }
             },
             dynamicColor = this[Keys.DYNAMIC_COLOR] ?: defaults.dynamicColor,
             debugLogging = this[Keys.DEBUG_LOGGING] ?: defaults.debugLogging,

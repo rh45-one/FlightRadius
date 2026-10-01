@@ -47,6 +47,31 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Require a strictly newer version than the latest release
+        if: steps.exists.outputs.skip != 'true'
+        run: |
+          new="${{ steps.version.outputs.version }}"
+          latest="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName 2>/dev/null || true)"
+          if [ -z "$latest" ]; then
+            echo "::notice::No previous release; publishing v$new."
+            exit 0
+          fi
+          latest="${latest#v}"
+          if ! [[ "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::warning::Latest release tag 'v$latest' is not MAJOR.MINOR.PATCH; skipping the monotonic-version check."
+            exit 0
+          fi
+          IFS=. read -r n1 n2 n3 <<<"$new"
+          IFS=. read -r l1 l2 l3 <<<"$latest"
+          if (( 10#$n1 > 10#$l1 )) \
+             || (( 10#$n1 == 10#$l1 && 10#$n2 > 10#$l2 )) \
+             || (( 10#$n1 == 10#$l1 && 10#$n2 == 10#$l2 && 10#$n3 > 10#$l3 )); then
+            echo "Version $new is newer than the latest release $latest."
+          else
+            echo "::error::android/version.txt ($new) must be strictly greater than the latest release ($latest); otherwise the new release would be marked latest and phones would not update to it."
+            exit 1
+          fi
+
       - name: Require signing secrets
         if: steps.exists.outputs.skip != 'true'
         env:

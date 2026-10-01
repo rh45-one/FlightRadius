@@ -6,8 +6,10 @@
 #                   ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD with `gh secret set`
 #                   (needs an authenticated gh; values go over stdin, never argv)
 #   --repo OWNER/NAME  Repository for --github (default: this checkout's repo)
-#   --force         Overwrite an existing release.jks / keystore.properties
-#                   (DANGEROUS: apps signed with the old key can't be updated)
+#   --force         Replace an existing release.jks / keystore.properties. The old
+#                   files are renamed to *.bak-<UTC timestamp>, never deleted
+#                   (DANGEROUS anyway: apps signed with the old key can't be
+#                   updated by the new one)
 #
 # Creates android/release.jks (RSA 4096, 10000 days, alias "flightradius") and
 # android/keystore.properties (chmod 600); both are git-ignored. The generated
@@ -55,7 +57,17 @@ if [[ $force -eq 0 && ( -e "$jks" || -e "$props" ) ]]; then
   echo "Using the existing key in $OUT_DIR"
 else
   mkdir -p "$OUT_DIR"
-  rm -f "$jks" "$props"
+  # Never delete a signing key: with --force the old files are renamed, so the
+  # key stays recoverable (losing it means installed apps can't be updated).
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  for f in "$jks" "$props"; do
+    if [[ -e "$f" ]]; then
+      mv "$f" "$f.bak-$stamp"
+      echo "Moved existing $f to $f.bak-$stamp"
+    fi
+  done
+  # Nothing created below may ever be group/world readable, not even briefly.
+  umask 077
   FR_STORE_PASS="$(openssl rand -base64 32)"
   FR_KEY_PASS="$FR_STORE_PASS"
 
@@ -64,7 +76,6 @@ else
     -storepass:env FR_STORE_PASS -keypass:env FR_KEY_PASS >/dev/null 2>&1 ||
     die "keytool failed to generate the key"
 
-  umask 077
   {
     echo "storeFile=release.jks"
     echo "storePassword=$FR_STORE_PASS"

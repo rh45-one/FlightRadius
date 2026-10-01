@@ -22,7 +22,7 @@ sealed interface ManualCheckState {
     data object Checking : ManualCheckState
     data class UpToDate(val current: String) : ManualCheckState
     data class Available(val version: String, val url: String) : ManualCheckState
-    data class Failed(val message: String) : ManualCheckState
+    data class Failed(val kind: UpdateFailure) : ManualCheckState
 }
 
 @Singleton
@@ -55,7 +55,7 @@ class UpdateManager @Inject constructor(
             }
             if (!s.updateFrequency.isDue(nowMs, s.lastUpdateCheckAtMs)) return@launch
             when (val r = checker.check()) {
-                is UpdateCheckResult.Failed -> AppLog.w(TAG, "auto update check failed", "err" to r.message)
+                is UpdateCheckResult.Failed -> AppLog.w(TAG, "auto update check failed", "kind" to r.kind, "err" to r.detail)
                 else -> record(r, nowMs)
             }
         }
@@ -67,7 +67,10 @@ class UpdateManager @Inject constructor(
         scope.launch {
             val now = System.currentTimeMillis()
             _manual.value = when (val r = checker.check()) {
-                is UpdateCheckResult.Failed -> ManualCheckState.Failed(r.message)
+                is UpdateCheckResult.Failed -> {
+                    AppLog.w(TAG, "update check failed", "kind" to r.kind, "err" to r.detail)
+                    ManualCheckState.Failed(r.kind)
+                }
                 is UpdateCheckResult.UpToDate -> {
                     record(r, now); ManualCheckState.UpToDate(r.current)
                 }
