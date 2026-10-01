@@ -1,5 +1,8 @@
 package com.flightradius.app.service
 
+import kotlinx.coroutines.runBlocking
+import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.Lifecycle
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.app.Service
@@ -70,6 +73,8 @@ class MonitoringService : Service() {
 
         const val ACTION_START = "com.flightradius.app.action.START"
         const val ACTION_STOP = "com.flightradius.app.action.STOP"
+        const val EXTRA_KEEP_DESIRED = "keep_desired"
+        const val EXTRA_APP_VISIBLE = "app_visible"
         const val ACTION_PAUSE = "com.flightradius.app.action.PAUSE"
         const val ACTION_RESUME = "com.flightradius.app.action.RESUME"
         /** Alarm backstop / location wake -> run a cycle if due. */
@@ -199,9 +204,15 @@ class MonitoringService : Service() {
                 stopSelf(startId)
                 return START_NOT_STICKY
             }
+            if (intent == null && shouldStayDownAfterRestart()) {
+                AppLog.i(TAG, "system restart ignored: background monitoring is off")
+                stopSelf(startId)
+                return START_NOT_STICKY
+            }
             explicitStart = intent != null
             val fromUser = intent?.getBooleanExtra(EXTRA_FROM_USER, false) ?: false
-            startedFromBackground = !fromUser
+            val appVisible = intent?.getBooleanExtra(EXTRA_APP_VISIBLE, false) ?: false
+            startedFromBackground = !fromUser && !appVisible
             if (!tryGoForeground(fromUser)) return START_NOT_STICKY
             foregroundStarted = true
             running = true
@@ -245,7 +256,8 @@ class MonitoringService : Service() {
                     refreshStatusNotification()
                 }
             }
-            ACTION_STOP -> internalStop()
+            ACTION_STOP -> internalStop(
+                clearDesired = !(intent?.getBooleanExtra(EXTRA_KEEP_DESIRED, false) ?: false))
         }
         return START_STICKY
     }
@@ -591,6 +603,14 @@ class MonitoringService : Service() {
                     )
             }.onFailure { AppLog.w(TAG, "status notify failed", throwable = it) }
         }
+    }
+
+    /** Sticky restart while "Run in the background" is off and the app isn't visible. */
+    private fun shouldStayDownAfterRestart(): Boolean {
+        val background = runBlocking { settingsRepository.settings.first().backgroundMonitoring }
+        val visible = ProcessLifecycleOwner.get().lifecycle.currentState
+            .isAtLeast(Lifecycle.State.STARTED)
+        return !background && !visible
     }
 
     private fun internalStop(clearDesired: Boolean = true) {

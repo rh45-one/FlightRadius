@@ -248,9 +248,18 @@ fun SettingsScreen(
             }
             GroupedDivider()
             SwitchRow(
+                stringResource(R.string.settings_background),
+                stringResource(R.string.settings_background_body),
+                settings.backgroundMonitoring
+            ) { viewModel.setBackgroundMonitoring(it) }
+            GroupedDivider()
+            SwitchRow(
                 stringResource(R.string.settings_resume_boot),
-                stringResource(R.string.settings_resume_boot_body),
-                settings.resumeOnBoot
+                stringResource(
+                    if (settings.backgroundMonitoring) R.string.settings_resume_boot_body
+                    else R.string.settings_resume_boot_needs_background),
+                settings.resumeOnBoot,
+                enabled = settings.backgroundMonitoring
             ) { viewModel.setResumeOnBoot(it) }
             GroupedDivider()
             SwitchRow(

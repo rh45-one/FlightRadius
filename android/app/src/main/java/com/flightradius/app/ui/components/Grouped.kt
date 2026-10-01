@@ -160,16 +160,28 @@ fun SwitchRow(
     body: String?,
     checked: Boolean,
     onChange: (Boolean) -> Unit
+) = SwitchRow(title, body, checked, true, onChange)
+
+@Composable
+fun SwitchRow(
+    title: String,
+    body: String?,
+    checked: Boolean,
+    enabled: Boolean,
+    onChange: (Boolean) -> Unit
 ) {
     GroupedRow(
         title = title,
         subtitle = body,
+        titleColor = if (enabled) MaterialTheme.colorScheme.onSurface
+        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
         modifier = Modifier.toggleable(
             value = checked,
+            enabled = enabled,
             role = Role.Switch,
             onValueChange = onChange
         ),
-        trailing = { Switch(checked = checked, onCheckedChange = null) }
+        trailing = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) }
     )
 }
 

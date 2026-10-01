@@ -96,7 +96,9 @@ data class AppSettings(
     /** Internal flag: monitoring should be running (survives reboot). */
     val monitoringDesired: Boolean = false,
     /** Ids of groups folded in the Aircraft tab (default: all expanded). */
-    val collapsedGroupIds: Set<Long> = emptySet()
+    val collapsedGroupIds: Set<Long> = emptySet(),
+    /** false = stop monitoring when the app leaves the foreground; restart on return. */
+    val backgroundMonitoring: Boolean = true
 )
 
 @Singleton
@@ -120,6 +122,7 @@ class SettingsRepository @Inject constructor(
         val HIGH_PRIORITY_MODE = booleanPreferencesKey("high_priority_mode")
         val RESUME_ON_BOOT = booleanPreferencesKey("resume_on_boot")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val BACKGROUND_MONITORING = booleanPreferencesKey("background_monitoring")
         val COLLAPSED_GROUPS = stringSetPreferencesKey("collapsed_groups")
         val UPDATE_FREQUENCY = stringPreferencesKey("update_frequency")
         val LAST_UPDATE_CHECK = longPreferencesKey("last_update_check_ms")
@@ -190,7 +193,8 @@ class SettingsRepository @Inject constructor(
             airspaceRules = decodeRules(this[Keys.AIRSPACE_RULES]),
             monitoringDesired = this[Keys.MONITORING_DESIRED] ?: defaults.monitoringDesired,
             collapsedGroupIds = this[Keys.COLLAPSED_GROUPS].orEmpty()
-                .mapNotNull { it.toLongOrNull() }.toSet()
+                .mapNotNull { it.toLongOrNull() }.toSet(),
+            backgroundMonitoring = this[Keys.BACKGROUND_MONITORING] ?: defaults.backgroundMonitoring
         )
     }
 
@@ -275,6 +279,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setHighPriorityMode(value: Boolean) = edit { it[Keys.HIGH_PRIORITY_MODE] = value }
     suspend fun setResumeOnBoot(value: Boolean) = edit { it[Keys.RESUME_ON_BOOT] = value }
     suspend fun setThemeMode(value: ThemeMode) = edit { it[Keys.THEME_MODE] = value.name }
+    suspend fun setBackgroundMonitoring(value: Boolean) =
+        edit { it[Keys.BACKGROUND_MONITORING] = value }
     suspend fun setGroupCollapsed(groupId: Long, collapsed: Boolean) = edit {
         val current = it[Keys.COLLAPSED_GROUPS].orEmpty()
         val id = groupId.toString()

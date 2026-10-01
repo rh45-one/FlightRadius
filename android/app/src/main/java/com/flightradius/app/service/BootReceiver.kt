@@ -28,6 +28,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * - Manual mode needs a dataSync FGS — forbidden from BOOT_COMPLETED on
  *   API 35+, allowed below.
  * Otherwise a "Tap to resume" notification is posted.
+ * With "Run in the background" off nothing resumes and nothing is posted:
+ * monitoring only runs while the app is open.
  */
 @AndroidEntryPoint
 class BootReceiver : BroadcastReceiver() {
@@ -49,7 +51,10 @@ class BootReceiver : BroadcastReceiver() {
                     settingsRepository.settings.first()
                 } ?: return@launch
 
-                if (!settings.resumeOnBoot || !settings.monitoringDesired) return@launch
+                if (!shouldResumeOnBoot(
+                        settings.resumeOnBoot, settings.monitoringDesired,
+                        settings.backgroundMonitoring)
+                ) return@launch
                 AppLog.i("BootReceiver", "resume requested",
                     "mode" to settings.locationMode)
 
@@ -80,3 +85,10 @@ class BootReceiver : BroadcastReceiver() {
         }
     }
 }
+
+/** Boot/update resume is only considered when all three settings agree. */
+fun shouldResumeOnBoot(
+    resumeOnBoot: Boolean,
+    monitoringDesired: Boolean,
+    backgroundMonitoring: Boolean
+): Boolean = resumeOnBoot && monitoringDesired && backgroundMonitoring

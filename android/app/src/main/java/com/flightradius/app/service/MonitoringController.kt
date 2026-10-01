@@ -34,14 +34,32 @@ class MonitoringController @Inject constructor(
      * grants while-in-use audio (radar chirp) and requires a valid location
      * config (fails loudly otherwise).
      */
-    fun start(fromUser: Boolean) {
-        AppLog.i("MonitoringCtl", "start", "fromUser" to fromUser)
+    fun start(fromUser: Boolean, appVisible: Boolean = false) {
+        AppLog.i("MonitoringCtl", "start", "fromUser" to fromUser, "visible" to appVisible)
         scope.launch { settingsRepository.setMonitoringDesired(true) }
         ContextCompat.startForegroundService(
             context,
             MonitoringService.intent(context, MonitoringService.ACTION_START)
                 .putExtra(MonitoringService.EXTRA_FROM_USER, fromUser)
+                .putExtra(MonitoringService.EXTRA_APP_VISIBLE, appVisible)
         )
+    }
+
+    /**
+     * Stops the service completely because the app left the foreground
+     * ("Run in the background" is off). Unlike [stop] this keeps
+     * `monitoringDesired`, so the app resumes when it returns. Uses a plain
+     * startService: the process still holds the foreground service, which
+     * exempts it from background-start limits.
+     */
+    fun stopForBackground() {
+        if (stateRepository.state.value.status == MonitoringStatus.STOPPED) return
+        AppLog.i("MonitoringCtl", "stop for background")
+        runCatching {
+            context.startService(
+                MonitoringService.intent(context, MonitoringService.ACTION_STOP)
+                    .putExtra(MonitoringService.EXTRA_KEEP_DESIRED, true))
+        }.onFailure { AppLog.w("MonitoringCtl", "stopForBackground failed", throwable = it) }
     }
 
     fun stop() {

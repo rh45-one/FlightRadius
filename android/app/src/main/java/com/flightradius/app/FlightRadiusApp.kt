@@ -30,6 +30,9 @@ class FlightRadiusApp : Application() {
     lateinit var widgetUpdater: com.flightradius.app.widget.WidgetUpdater
 
     @Inject
+    lateinit var backgroundPolicy: com.flightradius.app.service.BackgroundPolicy
+
+    @Inject
     @ApplicationScope
     lateinit var appScope: CoroutineScope
 
@@ -44,5 +47,6 @@ class FlightRadiusApp : Application() {
         aircraftDatabase.maybeAutoUpdate()
         widgetUpdater.start(appScope)
         updateManager.checkOnLaunch()
+        backgroundPolicy.start()
     }
 }

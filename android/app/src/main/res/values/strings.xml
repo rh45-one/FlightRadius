@@ -582,4 +582,7 @@
         <item quantity="other">%1$d aircraft were already in another group and kept it</item>
     </plurals>
     <string name="radius_group_label">(group)</string>
+    <string name="settings_background">Run in the background</string>
+    <string name="settings_background_body">When off, monitoring stops as soon as you leave the app or lock the screen, and starts again when you return. Keep it on to get alerts while using navigation.</string>
+    <string name="settings_resume_boot_needs_background">Needs Run in the background.</string>
 </resources>

@@ -150,6 +150,9 @@ class SettingsViewModel @Inject constructor(
     fun setManualLocation(lat: Double?, lon: Double?) = viewModelScope.launch {
         settingsRepository.setManualLocation(lat, lon)
     }
+    fun setBackgroundMonitoring(v: Boolean) = viewModelScope.launch {
+        settingsRepository.setBackgroundMonitoring(v)
+    }
     fun setGlobalRadius(km: Double) = viewModelScope.launch {
         settingsRepository.setGlobalAlertRadiusKm(km)
     }
