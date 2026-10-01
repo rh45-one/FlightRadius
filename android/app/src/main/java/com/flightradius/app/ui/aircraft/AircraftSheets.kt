@@ -1,9 +1,13 @@
 package com.flightradius.app.ui.aircraft
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.flightradius.app.ui.components.FormBottomSheet
+import com.flightradius.app.ui.components.GroupPicker
 import androidx.compose.ui.platform.testTag
 import com.flightradius.app.ui.format.W
 import com.flightradius.app.ui.format.Words
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -73,6 +77,7 @@ internal fun AddAircraftSheet(
     var radiusText by remember { mutableStateOf("") }
     var check by remember { mutableStateOf<CheckResult>(CheckResult.Idle) }
     var error by remember { mutableStateOf<String?>(null) }
+    var groupId by remember { mutableStateOf<Long?>(null) }
 
     val validation = AircraftForms.validate(identifier, type, viewModel.existingIdentifiers())
     val suggestion = AircraftForms.suggestType(identifier)
@@ -226,6 +231,14 @@ internal fun AddAircraftSheet(
             singleLine = true
         )
 
+        GroupPickerField(
+            viewModel = viewModel,
+            settings = settings,
+            selectedId = groupId,
+            onSelect = { groupId = it },
+            modifier = Modifier.padding(top = 8.dp)
+        )
+
         error?.let {
             Text(it, color = MaterialTheme.colorScheme.extended.danger,
                 style = MaterialTheme.typography.bodySmall)
@@ -243,7 +256,7 @@ internal fun AddAircraftSheet(
                             v / Format.KM_TO_MI
                         } else v
                     }
-                    viewModel.add(identifier, type, notes, radiusKm) { ok ->
+                    viewModel.add(identifier, type, notes, radiusKm, groupId) { ok ->
                         if (ok) onDone()
                         else error = Words.get(W.ERR_ADD)
                     }
@@ -262,10 +275,15 @@ internal fun BulkAddSheet(
 ) = BulkAddContent(
     existingIdentifiers = { viewModel.existingIdentifiers() },
     validateCallsigns = { viewModel.validateBulkCallsigns(it) },
-    addBulk = { entries, radiusKm, done -> viewModel.addBulk(entries, radiusKm) { done() } },
+    addBulk = { entries, radiusKm, groupId, done ->
+        viewModel.addBulk(entries, radiusKm, groupId) { done() }
+    },
     onDone = onDone,
     unit = settings.distanceUnit,
-    defaultRadiusKm = settings.globalAlertRadiusKm
+    defaultRadiusKm = settings.globalAlertRadiusKm,
+    groupPicker = { selectedId, onSelect ->
+        GroupPickerField(viewModel, settings, selectedId, onSelect)
+    }
 )
 
 /** The Bulk add form, free of the ViewModel so it can be tested on its own. */
@@ -273,11 +291,13 @@ internal fun BulkAddSheet(
 internal fun BulkAddContent(
     existingIdentifiers: () -> Set<String>,
     validateCallsigns: suspend (List<String>) -> Set<String>?,
-    addBulk: (List<BulkAddEntry>, radiusKm: Double?, onDone: () -> Unit) -> Unit,
+    addBulk: (List<BulkAddEntry>, radiusKm: Double?, groupId: Long?, onDone: () -> Unit) -> Unit,
     onDone: () -> Unit,
     unit: DistanceUnit = DistanceUnit.KM,
-    defaultRadiusKm: Double = 25.0
+    defaultRadiusKm: Double = 25.0,
+    groupPicker: @Composable (selectedId: Long?, onSelect: (Long?) -> Unit) -> Unit = { _, _ -> }
 ) {
+    var groupId by remember { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
     var customRadius by remember { mutableStateOf(false) }
     var radiusText by remember {
@@ -437,6 +457,9 @@ internal fun BulkAddContent(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
                     )
                 }
+                Box(Modifier.padding(top = 12.dp)) {
+                    groupPicker(groupId) { groupId = it }
+                }
                 Row(Modifier.padding(vertical = 8.dp)) {
                     OutlinedButton(
                         enabled = text.isNotBlank(),
@@ -486,7 +509,7 @@ internal fun BulkAddContent(
             Button(
                 enabled = selected > 0 && radiusValid,
                 onClick = {
-                    addBulk(entries, if (customRadius) customKm else null) { onDone() }
+                    addBulk(entries, if (customRadius) customKm else null, groupId) { onDone() }
                 }
             ) {
                 Text(stringResource(R.string.bulk_add_n, selected))
@@ -572,10 +595,8 @@ internal fun EditAircraftSheet(
     var radiusKm by remember {
         mutableStateOf(aircraft.alertRadiusKm ?: settings.globalAlertRadiusKm)
     }
-    var memberIds by remember {
-        mutableStateOf(
-            fleets.filter { aircraft.id in it.memberIds }.map { it.id }.toSet()
-        )
+    var groupId by remember {
+        mutableStateOf(fleets.firstOrNull { aircraft.id in it.memberIds }?.id)
     }
     val unit = settings.distanceUnit
     val maxKm = 200.0
@@ -631,24 +652,13 @@ internal fun EditAircraftSheet(
             )
         }
 
-        if (fleets.isNotEmpty()) {
-            Text(
-                stringResource(R.string.aircraft_fleets),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(top = 12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (f in fleets) {
-                    FilterChip(
-                        selected = f.id in memberIds,
-                        onClick = {
-                            memberIds = if (f.id in memberIds)
-                                memberIds - f.id else memberIds + f.id
-                        },
-                        label = { Text(f.name) }
-                    )
-                }
-            }
-        }
+        GroupPickerField(
+            viewModel = viewModel,
+            settings = settings,
+            selectedId = groupId,
+            onSelect = { groupId = it },
+            modifier = Modifier.padding(top = 12.dp)
+        )
 
         Row(Modifier.padding(top = 12.dp)) {
             Spacer(Modifier.weight(1f))
@@ -659,7 +669,7 @@ internal fun EditAircraftSheet(
                         alertRadiusKm = if (useOverride) radiusKm else null
                     )
                 )
-                viewModel.setFleetMembership(aircraft.id, memberIds)
+                viewModel.setGroup(aircraft.id, groupId)
                 onDone()
             }) { Text(stringResource(R.string.action_save)) }
         }
@@ -671,3 +681,38 @@ internal fun EditAircraftSheet(
 @Composable
 private fun IdentifierType.label(): String = stringResource(
     if (this == IdentifierType.CALLSIGN) R.string.aircraft_callsign else R.string.aircraft_type_icao24)
+
+/** Group dropdown with an inline "New group…" editor that selects the new group. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+internal fun GroupPickerField(
+    viewModel: AircraftViewModel,
+    settings: AppSettings,
+    selectedId: Long?,
+    onSelect: (Long?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val groups by viewModel.fleets.collectAsStateWithLifecycle()
+    var creating by remember { mutableStateOf(false) }
+    GroupPicker(
+        groups = groups,
+        selectedId = selectedId,
+        onSelect = onSelect,
+        onCreateNew = { creating = true },
+        modifier = modifier
+    )
+    if (creating) {
+        FormBottomSheet(onDismiss = { creating = false }) {
+            GroupEditorSheet(
+                group = null,
+                existing = groups,
+                settings = settings,
+                onSave = { name, color, icon, radius ->
+                    viewModel.saveGroup(null, name, color, icon, radius) { id ->
+                        if (id != null) { onSelect(id); creating = false }
+                    }
+                }
+            )
+        }
+    }
+}

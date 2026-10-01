@@ -51,7 +51,7 @@ private class FakeAircraftDao : AircraftDao {
     override suspend fun deleteById(id: Long) { items.removeAll { it.id == id } }
 }
 
-private class FakeFleetDao : FleetDao {
+private class FakeFleetDao : FleetDao() {
     val fleets = mutableListOf<FleetEntity>()
     val members = mutableListOf<FleetMemberEntity>()
     private fun withMembers() = fleets.map { f ->
@@ -75,11 +75,18 @@ private class FakeFleetDao : FleetDao {
         members.removeAll { it.fleetId == fleetId }
     }
     override suspend fun addMember(member: FleetMemberEntity): Long {
-        if (members.none { it.fleetId == member.fleetId && it.aircraftId == member.aircraftId }) {
+        // One group per aircraft (unique index on aircraftId).
+        if (members.none { it.aircraftId == member.aircraftId }) {
             members += member
+            return 1
         }
-        return 1
+        return -1
     }
+    override suspend fun clearMembershipsOf(aircraftIds: List<Long>) {
+        members.removeAll { it.aircraftId in aircraftIds }
+    }
+    override suspend fun membershipCount(aircraftId: Long) =
+        members.count { it.aircraftId == aircraftId }
     override suspend fun removeMember(fleetId: Long, aircraftId: Long) {
         members.removeAll { it.fleetId == fleetId && it.aircraftId == aircraftId }
     }

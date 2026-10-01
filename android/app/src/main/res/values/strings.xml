@@ -4,7 +4,6 @@
     <!-- Navigation -->
     <string name="nav_radar">Radar</string>
     <string name="nav_aircraft">Aircraft</string>
-    <string name="nav_fleets">Fleets</string>
     <string name="nav_settings">Settings</string>
 
     <!-- Common actions -->
@@ -53,7 +52,7 @@
     <string name="detail_heading">Heading</string>
     <string name="detail_closing">Closing</string>
     <string name="detail_last_contact">Last contact</string>
-    <string name="detail_fleets">Fleets</string>
+    <string name="detail_fleets">Group</string>
 
     <!-- Aircraft -->
     <string name="aircraft_search">Search callsign or ICAO24</string>
@@ -76,7 +75,6 @@
     <string name="aircraft_radius_label">radius %1$s %2$s</string>
     <string name="override_label">(override)</string>
     <string name="default_label">(default)</string>
-    <string name="aircraft_fleets">Fleet membership</string>
     <string name="aircraft_removed">Aircraft removed</string>
     <string name="aircraft_bulk_title">Bulk add</string>
     <string name="aircraft_bulk_hint">Callsigns or ICAO24s, separated by commas or newlines</string>
@@ -88,29 +86,17 @@
     <string name="bulk_add_n">Add %1$d</string>
     <string name="error_not_a_number">Not a number</string>
 
-    <!-- Fleets -->
+    <!-- Groups -->
     <string name="aircraft_title">Aircraft</string>
-    <string name="fleets_title">Fleets</string>
-    <string name="fleets_add">New fleet</string>
-    <string name="fleets_add_title">New fleet</string>
-    <string name="fleets_edit_title">Edit fleet</string>
+    <string name="fleets_add_title">New group</string>
+    <string name="fleets_edit_title">Edit group</string>
     <string name="fleets_name">Name</string>
     <string name="fleets_color">Color</string>
-    <string name="fleets_radius_override">Fleet radius override</string>
-    <string name="fleets_members">Members</string>
-    <string name="fleets_member_count">%1$d members</string>
-    <string name="fleets_radius">radius %1$s</string>
-    <string name="fleets_closest">closest %1$s · %2$s</string>
-    <string name="fleets_no_members">No members</string>
-    <string name="fleets_missing">no data</string>
-    <string name="fleets_expand">Show members</string>
-    <string name="fleets_collapse">Hide members</string>
-    <string name="fleets_empty_title">No fleets yet</string>
-    <string name="fleets_empty_body">Group aircraft into fleets for shared alert radii and summaries.</string>
-    <string name="fleets_stale_title">Fleet distances stale</string>
-    <string name="fleets_stale_body">No recent snapshot. Refresh runs one monitoring cycle to update fleet distances.</string>
-    <string name="fleets_delete_title">Delete fleet?</string>
-    <string name="fleets_delete_body">Fleet "%1$s" will be removed; its aircraft stay tracked.</string>
+    <string name="fleets_radius_override">Group alert radius</string>
+    <string name="fleets_expand">Show aircraft</string>
+    <string name="fleets_collapse">Hide aircraft</string>
+    <string name="fleets_delete_title">Delete group?</string>
+    <string name="fleets_delete_body">Aircraft in it are kept and become ungrouped.</string>
 
     <!-- Settings -->
     <string name="settings_backend">Backend</string>
@@ -125,8 +111,8 @@
     <string name="creds_clear_title">Clear credentials?</string>
     <string name="creds_clear_body">This removes the OpenSky credentials stored on the backend.</string>
     <string name="settings_import">Import</string>
-    <string name="settings_import_button">Import aircraft &amp; fleets from backend</string>
-    <string name="import_result">Added %1$d aircraft (%2$d skipped), %3$d fleets, %4$d memberships</string>
+    <string name="settings_import_button">Import aircraft &amp; groups from backend</string>
+    <string name="import_result">Added %1$d aircraft (%2$d skipped), %3$d groups, %4$d memberships</string>
     <string name="settings_monitoring">Monitoring</string>
     <string name="settings_interval">Poll interval</string>
     <string name="settings_high_priority">High-priority mode</string>
@@ -171,8 +157,6 @@
     <string name="aircraft_bulk_explainer">Callsigns and ICAO24 codes are accepted. Prefix with icao: (e.g. icao:4ca12f) to force ICAO24 interpretation.</string>
     <string name="debug_title">Debug console</string>
     <string name="action_back">Back</string>
-    <string name="fleets_radius_default">radius %1$s · global default</string>
-    <string name="fleets_stale_ago">%1$s ago · stale</string>
     <string name="settings_build_default">Build default</string>
     <string name="creds_auth_mode">Auth mode: %1$s</string>
     <string name="creds_auth_anonymous">Anonymous</string>
@@ -200,7 +184,7 @@
     <string name="creds_remove_body">The client ID and secret are deleted from this device. The app falls back to anonymous access.</string>
     <string name="creds_sent">Sent to backend</string>
     <string name="creds_cleared">Cleared on backend</string>
-    <string name="settings_backend_optional">Optional in direct mode: only used to import aircraft and fleets from the web app.</string>
+    <string name="settings_backend_optional">Optional in direct mode: only used to import aircraft and groups from the web app.</string>
 
     <!-- Credits -->
     <string name="settings_credits">OpenSky credits</string>
@@ -291,7 +275,7 @@
     <!-- Misc new -->
     <string name="aircraft_clear_search">Clear search</string>
     <string name="aircraft_type_icao24">ICAO24</string>
-    <string name="fleets_delete">Delete fleet</string>
+    <string name="fleets_delete">Delete group</string>
     <string name="settings_keep_screen_on">Keep screen on</string>
     <string name="settings_keep_screen_on_body">While the radar is open and monitoring is on.</string>
     <string name="settings_gps_accuracy">GPS accuracy</string>
@@ -549,10 +533,53 @@
     <string name="bulk_mode_icao24">ICAO24</string>
     <string name="bulk_invalid_icao24">Not a valid ICAO24</string>
     <string name="bulk_invalid_callsign">Not a valid callsign</string>
-    <string name="settings_alert_radius_hint">Used for aircraft without their own radius or a fleet radius.</string>
+    <string name="settings_alert_radius_hint">Used for aircraft without their own radius or a group radius.</string>
     <string name="radius_field_label">Radius (%1$s)</string>
     <string name="radius_error_range">Enter a value between %1$s and %2$s.</string>
     <string name="bulk_radius_label">Alert radius</string>
     <string name="bulk_radius_default">Default (%1$s)</string>
     <string name="bulk_radius_custom">Custom</string>
+    <string name="group_label">Group</string>
+    <string name="group_none">None</string>
+    <string name="group_new">New group…</string>
+    <string name="group_editor_icon">Icon</string>
+    <string name="group_name_taken">A group with this name already exists.</string>
+    <string name="group_ungrouped">No group</string>
+    <string name="group_empty_hint">No aircraft. Long-press aircraft to move them here.</string>
+    <string name="group_select_all">Select all</string>
+    <string name="group_move">Move to group</string>
+    <string name="group_new_action">New group</string>
+    <string name="group_nearest">Nearest: %1$s · %2$s</string>
+    <string name="selection_close">Cancel selection</string>
+    <string name="aircraft_delete_selected">Delete</string>
+    <plurals name="group_aircraft_count">
+        <item quantity="one">%1$d aircraft</item>
+        <item quantity="other">%1$d aircraft</item>
+    </plurals>
+    <plurals name="selection_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <plurals name="group_moved">
+        <item quantity="one">Moved %1$d aircraft to %2$s</item>
+        <item quantity="other">Moved %1$d aircraft to %2$s</item>
+    </plurals>
+    <plurals name="group_removed_from">
+        <item quantity="one">%1$d aircraft removed from group</item>
+        <item quantity="other">%1$d aircraft removed from group</item>
+    </plurals>
+    <plurals name="aircraft_deleted_count">
+        <item quantity="one">%1$d aircraft removed</item>
+        <item quantity="other">%1$d aircraft removed</item>
+    </plurals>
+    <plurals name="aircraft_delete_selected_title">
+        <item quantity="one">Delete %1$d aircraft?</item>
+        <item quantity="other">Delete %1$d aircraft?</item>
+    </plurals>
+    <string name="aircraft_delete_selected_body">They will be removed from tracking. You can undo right after.</string>
+    <plurals name="import_memberships_skipped">
+        <item quantity="one">%1$d aircraft was already in another group and kept it</item>
+        <item quantity="other">%1$d aircraft were already in another group and kept it</item>
+    </plurals>
+    <string name="radius_group_label">(group)</string>
 </resources>

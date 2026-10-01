@@ -65,7 +65,7 @@ class RadiusSettingsTest {
                     BulkAddContent(
                         existingIdentifiers = { emptySet() },
                         validateCallsigns = { null },
-                        addBulk = { _, radius, done -> added = added + radius; done() },
+                        addBulk = { _, radius, _, done -> added = added + radius; done() },
                         onDone = {},
                         unit = DistanceUnit.KM,
                         defaultRadiusKm = 25.0

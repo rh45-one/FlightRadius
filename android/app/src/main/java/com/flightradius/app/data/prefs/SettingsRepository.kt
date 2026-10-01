@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.flightradius.app.BuildConfig
 import com.flightradius.app.data.update.AvailableUpdate
@@ -93,7 +94,9 @@ data class AppSettings(
     val airspaceRadiusKm: Double = 25.0,
     val airspaceRules: List<AirspaceRule> = AirspaceRule.DEFAULTS,
     /** Internal flag: monitoring should be running (survives reboot). */
-    val monitoringDesired: Boolean = false
+    val monitoringDesired: Boolean = false,
+    /** Ids of groups folded in the Aircraft tab (default: all expanded). */
+    val collapsedGroupIds: Set<Long> = emptySet()
 )
 
 @Singleton
@@ -117,6 +120,7 @@ class SettingsRepository @Inject constructor(
         val HIGH_PRIORITY_MODE = booleanPreferencesKey("high_priority_mode")
         val RESUME_ON_BOOT = booleanPreferencesKey("resume_on_boot")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val COLLAPSED_GROUPS = stringSetPreferencesKey("collapsed_groups")
         val UPDATE_FREQUENCY = stringPreferencesKey("update_frequency")
         val LAST_UPDATE_CHECK = longPreferencesKey("last_update_check_ms")
         val UPDATE_VERSION = stringPreferencesKey("update_available_version")
@@ -184,7 +188,9 @@ class SettingsRepository @Inject constructor(
             airspaceRadiusKm =
                 (this[Keys.AIRSPACE_RADIUS_KM] ?: defaults.airspaceRadiusKm).coerceIn(5.0, 100.0),
             airspaceRules = decodeRules(this[Keys.AIRSPACE_RULES]),
-            monitoringDesired = this[Keys.MONITORING_DESIRED] ?: defaults.monitoringDesired
+            monitoringDesired = this[Keys.MONITORING_DESIRED] ?: defaults.monitoringDesired,
+            collapsedGroupIds = this[Keys.COLLAPSED_GROUPS].orEmpty()
+                .mapNotNull { it.toLongOrNull() }.toSet()
         )
     }
 
@@ -269,6 +275,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setHighPriorityMode(value: Boolean) = edit { it[Keys.HIGH_PRIORITY_MODE] = value }
     suspend fun setResumeOnBoot(value: Boolean) = edit { it[Keys.RESUME_ON_BOOT] = value }
     suspend fun setThemeMode(value: ThemeMode) = edit { it[Keys.THEME_MODE] = value.name }
+    suspend fun setGroupCollapsed(groupId: Long, collapsed: Boolean) = edit {
+        val current = it[Keys.COLLAPSED_GROUPS].orEmpty()
+        val id = groupId.toString()
+        it[Keys.COLLAPSED_GROUPS] = if (collapsed) current + id else current - id
+    }
     suspend fun setUpdateFrequency(value: UpdateFrequency) =
         edit { it[Keys.UPDATE_FREQUENCY] = value.name }
     suspend fun setLastUpdateCheck(ms: Long) = edit { it[Keys.LAST_UPDATE_CHECK] = ms }

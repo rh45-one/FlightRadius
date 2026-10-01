@@ -42,6 +42,11 @@ val keystorePropertiesFile = rootProject.file("keystore.properties")
 val hasReleaseKeystore = keystorePropertiesFile.exists()
 
 android {
+    sourceSets {
+        // Room migration tests read the exported schemas.
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
+    }
+
     namespace = "com.flightradius.app"
 
     compileSdk {
@@ -212,4 +217,5 @@ dependencies {
     androidTestImplementation(libs.hilt.android.testing)
     kspAndroidTest(libs.hilt.compiler)
     androidTestImplementation(libs.okhttp.mockwebserver3)
+    androidTestImplementation(libs.room.testing)
 }

@@ -69,7 +69,6 @@ import com.flightradius.app.service.MonitoringStateRepository
 import com.flightradius.app.ui.alerts.ProximityAlertSheet
 import com.flightradius.app.ui.aircraft.AircraftScreen
 import com.flightradius.app.ui.debug.DebugScreen
-import com.flightradius.app.ui.fleets.FleetsScreen
 import com.flightradius.app.ui.detail.AircraftDetailScreen
 import com.flightradius.app.ui.detail.LocalNavAnimatedScope
 import com.flightradius.app.ui.detail.LocalSharedTransitionScope
@@ -116,16 +115,6 @@ private val MapIcon: ImageVector = ImageVector.Builder(
 ).addPath(
     pathData = addPathNodes(
         "M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"
-    ),
-    fill = androidx.compose.ui.graphics.SolidColor(Color.Black)
-).build()
-
-private val FleetsIcon: ImageVector = ImageVector.Builder(
-    "Fleets", 24.dp, 24.dp, 24f, 24f
-).addPath(
-    pathData = addPathNodes(
-        "M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74z" +
-            "M12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"
     ),
     fill = androidx.compose.ui.graphics.SolidColor(Color.Black)
 ).build()
@@ -287,9 +276,6 @@ class MainActivity : ComponentActivity() {
                                 editId = entry.arguments?.getLong("edit")
                                     ?.takeIf { it > 0 }
                             )
-                        }
-                        composable(NavItem.Fleets.route) {
-                            FleetsScreen(settings = settings)
                         }
                         composable(NavItem.Settings.route) {
                             SettingsScreen(
@@ -465,7 +451,6 @@ class MainActivity : ComponentActivity() {
         Radar("radar", RadarIcon, R.string.nav_radar),
         Map("map", MapIcon, R.string.nav_map),
         Aircraft("aircraft", PlaneIcon, R.string.nav_aircraft),
-        Fleets("fleets", FleetsIcon, R.string.nav_fleets),
         Settings("settings", SettingsIcon, R.string.nav_settings)
     }
 }

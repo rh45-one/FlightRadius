@@ -35,38 +35,60 @@ interface AircraftDao {
 }
 
 @Dao
-interface FleetDao {
+abstract class FleetDao {
 
     @Transaction
     @Query("SELECT * FROM fleets ORDER BY name ASC")
-    fun observeFleetsWithMembers(): Flow<List<FleetWithMembers>>
+    abstract fun observeFleetsWithMembers(): Flow<List<FleetWithMembers>>
 
     @Transaction
     @Query("SELECT * FROM fleets ORDER BY name ASC")
-    suspend fun getFleetsWithMembers(): List<FleetWithMembers>
+    abstract suspend fun getFleetsWithMembers(): List<FleetWithMembers>
 
     @Query("SELECT * FROM fleets WHERE name = :name LIMIT 1")
-    suspend fun findByName(name: String): FleetEntity?
+    abstract suspend fun findByName(name: String): FleetEntity?
 
     @Query("SELECT * FROM fleets WHERE id = :id LIMIT 1")
-    suspend fun findById(id: Long): FleetEntity?
+    abstract suspend fun findById(id: Long): FleetEntity?
 
     /** Returns row id, or -1 when the name already exists. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertIgnore(entity: FleetEntity): Long
+    abstract suspend fun insertIgnore(entity: FleetEntity): Long
 
     @Update
-    suspend fun update(entity: FleetEntity)
+    abstract suspend fun update(entity: FleetEntity)
 
     @Query("DELETE FROM fleets WHERE id = :fleetId")
-    suspend fun deleteById(fleetId: Long)
+    abstract suspend fun deleteById(fleetId: Long)
 
+    /** Ignored when the aircraft is already in a group (unique per aircraft). */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun addMember(member: FleetMemberEntity): Long
+    abstract suspend fun addMember(member: FleetMemberEntity): Long
 
     @Query("DELETE FROM fleet_members WHERE fleetId = :fleetId AND aircraftId = :aircraftId")
-    suspend fun removeMember(fleetId: Long, aircraftId: Long)
+    abstract suspend fun removeMember(fleetId: Long, aircraftId: Long)
 
     @Query("DELETE FROM fleet_members WHERE fleetId = :fleetId")
-    suspend fun clearMembers(fleetId: Long)
+    abstract suspend fun clearMembers(fleetId: Long)
+
+    @Query("DELETE FROM fleet_members WHERE aircraftId IN (:aircraftIds)")
+    abstract suspend fun clearMembershipsOf(aircraftIds: List<Long>)
+
+    @Query("SELECT COUNT(*) FROM fleet_members WHERE aircraftId = :aircraftId")
+    abstract suspend fun membershipCount(aircraftId: Long): Int
+
+    /**
+     * Sets each aircraft's group (null = ungrouped) in one transaction: the old
+     * membership is removed before the new one is inserted, so the one-group
+     * constraint is never violated.
+     */
+    @Transaction
+    open suspend fun applyAssignments(assignments: Map<Long, Long?>) {
+        assignments.keys.chunked(500).forEach { clearMembershipsOf(it) }
+        for ((aircraftId, fleetId) in assignments) {
+            if (fleetId != null) {
+                addMember(FleetMemberEntity(fleetId = fleetId, aircraftId = aircraftId))
+            }
+        }
+    }
 }

@@ -10,7 +10,7 @@ import androidx.room.TypeConverters
         FleetEntity::class,
         FleetMemberEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

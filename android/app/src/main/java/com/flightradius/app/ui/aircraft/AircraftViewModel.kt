@@ -9,7 +9,12 @@ import com.flightradius.app.data.api.ApiResult
 import com.flightradius.app.data.repo.AircraftRepository
 import com.flightradius.app.data.repo.FleetRepository
 import com.flightradius.app.data.source.SelectedFlightDataSource
+import com.flightradius.app.data.prefs.SettingsRepository
 import com.flightradius.app.domain.Fleet
+import com.flightradius.app.domain.GroupIcon
+import com.flightradius.app.service.MonitoringStateRepository
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import com.flightradius.app.domain.IdentifierType
 import com.flightradius.app.domain.Identifiers
 import com.flightradius.app.domain.TrackedAircraft
@@ -36,8 +41,79 @@ class AircraftViewModel @Inject constructor(
     private val aircraftRepository: AircraftRepository,
     private val fleetRepository: FleetRepository,
     private val flightData: SelectedFlightDataSource,
-    private val aircraftMeta: AircraftMetaRepository
+    private val aircraftMeta: AircraftMetaRepository,
+    private val settingsRepository: SettingsRepository,
+    stateRepository: MonitoringStateRepository
 ) : ViewModel() {
+
+    /** Latest monitoring state (nearest member per group comes from its snapshot). */
+    val monitoring = stateRepository.state
+
+    val collapsedGroupIds: StateFlow<Set<Long>> = settingsRepository.settings
+        .map { it.collapsedGroupIds }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    fun setCollapsed(groupId: Long, collapsed: Boolean) {
+        viewModelScope.launch { settingsRepository.setGroupCollapsed(groupId, collapsed) }
+    }
+
+    /** Creates ([id] null) or updates a group; onDone gets its id or null on failure. */
+    fun saveGroup(
+        id: Long?,
+        name: String,
+        colorArgb: Int,
+        icon: GroupIcon,
+        radiusKm: Double?,
+        onDone: (Long?) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val trimmed = name.trim()
+            val taken = fleets.value.any { it.name.equals(trimmed, true) && it.id != id }
+            if (trimmed.isEmpty() || taken) { onDone(null); return@launch }
+            if (id == null) {
+                onDone(fleetRepository.getOrCreate(trimmed, colorArgb, radiusKm, icon))
+            } else {
+                val members = fleets.value.find { it.id == id }?.memberIds ?: emptySet()
+                fleetRepository.update(
+                    Fleet(id, trimmed, colorArgb, radiusKm, members, icon))
+                onDone(id)
+            }
+        }
+    }
+
+    fun deleteGroup(id: Long) {
+        viewModelScope.launch { fleetRepository.remove(id) }
+    }
+
+    /** Moves aircraft to [groupId] (null = no group); returns what is needed to undo. */
+    fun moveToGroup(ids: Set<Long>, groupId: Long?, onDone: (GroupMove) -> Unit) {
+        viewModelScope.launch {
+            val previous = AircraftFolders.previousAssignments(ids, fleets.value)
+            fleetRepository.setGroup(ids, groupId)
+            onDone(GroupMove(previous, ids.size, fleets.value.find { it.id == groupId }?.name))
+        }
+    }
+
+    fun undoMove(move: GroupMove) {
+        viewModelScope.launch { fleetRepository.applyAssignments(move.previous) }
+    }
+
+    fun removeAll(items: Collection<TrackedAircraft>) {
+        viewModelScope.launch { items.forEach { aircraftRepository.remove(it.id) } }
+    }
+
+    /** Re-inserts removed aircraft with their group. */
+    fun restoreAll(items: List<Pair<TrackedAircraft, Long?>>) {
+        viewModelScope.launch {
+            for ((a, groupId) in items) {
+                val id = aircraftRepository.add(
+                    a.identifier, a.type, notes = a.notes,
+                    alertRadiusKm = a.alertRadiusKm, createdAt = a.createdAt)
+                if (id != null && groupId != null) fleetRepository.setGroup(listOf(id), groupId)
+            }
+        }
+    }
 
     val search = MutableStateFlow("")
 
@@ -69,6 +145,7 @@ class AircraftViewModel @Inject constructor(
         type: IdentifierType,
         notes: String?,
         radiusKm: Double?,
+        groupId: Long? = null,
         onDone: (Boolean) -> Unit
     ) {
         viewModelScope.launch {
@@ -77,6 +154,7 @@ class AircraftViewModel @Inject constructor(
                 notes = notes?.trim()?.takeIf { it.isNotEmpty() },
                 alertRadiusKm = radiusKm
             )
+            if (id != null && groupId != null) fleetRepository.setGroup(listOf(id), groupId)
             onDone(id != null)
         }
     }
@@ -102,18 +180,13 @@ class AircraftViewModel @Inject constructor(
                 createdAt = aircraft.createdAt
             )
             if (id != null) {
-                for (fid in fleetIds) fleetRepository.addMember(fid, id)
+                fleetIds.firstOrNull()?.let { fleetRepository.setGroup(listOf(id), it) }
             }
         }
     }
 
-    fun setFleetMembership(aircraftId: Long, fleetIds: Set<Long>) {
-        viewModelScope.launch {
-            val current = fleets.value
-                .filter { aircraftId in it.memberIds }.map { it.id }.toSet()
-            for (fid in fleetIds - current) fleetRepository.addMember(fid, aircraftId)
-            for (fid in current - fleetIds) fleetRepository.removeMember(fid, aircraftId)
-        }
+    fun setGroup(aircraftId: Long, groupId: Long?) {
+        viewModelScope.launch { fleetRepository.setGroup(listOf(aircraftId), groupId) }
     }
 
     /** Is this callsign broadcasting right now (live / no-data / error)? */
@@ -146,16 +219,19 @@ class AircraftViewModel @Inject constructor(
     fun addBulk(
         entries: List<BulkAddEntry>,
         radiusKm: Double?,
+        groupId: Long? = null,
         onDone: (added: Int) -> Unit
     ) {
         viewModelScope.launch {
-            var added = 0
+            val newIds = ArrayList<Long>()
             for (e in entries) {
                 if (!e.selected || e.status != BulkAddStatus.NEW) continue
                 val type = e.type ?: continue
-                if (aircraftRepository.add(e.identifier, type, alertRadiusKm = radiusKm) != null) added++
+                aircraftRepository.add(e.identifier, type, alertRadiusKm = radiusKm)
+                    ?.let { newIds += it }
             }
-            onDone(added)
+            if (groupId != null) fleetRepository.setGroup(newIds, groupId)
+            onDone(newIds.size)
         }
     }
 }

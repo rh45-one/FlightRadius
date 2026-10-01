@@ -1,5 +1,6 @@
 package com.flightradius.app.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -33,7 +34,9 @@ data class FleetEntity(
     val name: String,
     val colorArgb: Int,
     val alertRadiusKm: Double? = null,
-    val createdAt: Long
+    val createdAt: Long,
+    /** [com.flightradius.app.domain.GroupIcon] name. */
+    @ColumnInfo(defaultValue = "'PLANE'") val iconKey: String = "PLANE"
 )
 
 @Entity(
@@ -53,7 +56,8 @@ data class FleetEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["aircraftId"])]
+    // One group per aircraft.
+    indices = [Index(value = ["aircraftId"], unique = true)]
 )
 data class FleetMemberEntity(
     val fleetId: Long,

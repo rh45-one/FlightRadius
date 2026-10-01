@@ -4,6 +4,7 @@ import com.flightradius.app.data.db.FleetDao
 import com.flightradius.app.data.db.FleetEntity
 import com.flightradius.app.data.db.FleetMemberEntity
 import com.flightradius.app.domain.Fleet
+import com.flightradius.app.domain.GroupIcon
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -47,7 +48,8 @@ class FleetRepository @Inject constructor(
     suspend fun getOrCreate(
         name: String,
         colorArgb: Int? = null,
-        alertRadiusKm: Double? = null
+        alertRadiusKm: Double? = null,
+        icon: GroupIcon = GroupIcon.PLANE
     ): Long? {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return null
@@ -58,7 +60,8 @@ class FleetRepository @Inject constructor(
                 name = trimmed,
                 colorArgb = colorArgb ?: FLEET_COLOR_PALETTE[index % FLEET_COLOR_PALETTE.size],
                 alertRadiusKm = alertRadiusKm,
-                createdAt = System.currentTimeMillis()
+                createdAt = System.currentTimeMillis(),
+                iconKey = icon.name
             )
         )
         return if (rowId > 0) rowId else fleetDao.findByName(trimmed)?.id
@@ -70,26 +73,42 @@ class FleetRepository @Inject constructor(
             existing.copy(
                 name = fleet.name,
                 colorArgb = fleet.colorArgb,
-                alertRadiusKm = fleet.alertRadiusKm
+                alertRadiusKm = fleet.alertRadiusKm,
+                iconKey = fleet.icon.name
             )
         )
     }
 
     suspend fun remove(fleetId: Long) = fleetDao.deleteById(fleetId)
 
-    suspend fun addMember(fleetId: Long, aircraftId: Long) {
-        fleetDao.addMember(FleetMemberEntity(fleetId = fleetId, aircraftId = aircraftId))
+    /**
+     * Puts the aircraft into [fleetId] (null = no group) in one transaction,
+     * replacing any previous membership.
+     */
+    suspend fun setGroup(aircraftIds: Collection<Long>, fleetId: Long?) {
+        if (aircraftIds.isEmpty()) return
+        fleetDao.applyAssignments(aircraftIds.associateWith { fleetId })
     }
 
-    suspend fun removeMember(fleetId: Long, aircraftId: Long) {
-        fleetDao.removeMember(fleetId, aircraftId)
+    /** Restores exact previous memberships (aircraft id -> group id or null). */
+    suspend fun applyAssignments(assignments: Map<Long, Long?>) {
+        if (assignments.isEmpty()) return
+        fleetDao.applyAssignments(assignments)
     }
+
+    /**
+     * Adds a membership only when the aircraft has no group yet (backend import
+     * keeps the first group encountered). Returns true when it was added.
+     */
+    suspend fun addMemberIfUngrouped(fleetId: Long, aircraftId: Long): Boolean =
+        fleetDao.addMember(FleetMemberEntity(fleetId = fleetId, aircraftId = aircraftId)) > 0
 
     private fun com.flightradius.app.data.db.FleetWithMembers.toDomain() = Fleet(
         id = fleet.id,
         name = fleet.name,
         colorArgb = fleet.colorArgb,
         alertRadiusKm = fleet.alertRadiusKm,
-        memberIds = memberIds.toSet()
+        memberIds = memberIds.toSet(),
+        icon = GroupIcon.fromKey(fleet.iconKey)
     )
 }

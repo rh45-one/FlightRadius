@@ -40,7 +40,9 @@ data class ImportReport(
     val aircraftAdded: Int,
     val aircraftSkipped: Int,
     val fleetsAdded: Int,
-    val membershipsAdded: Int
+    val membershipsAdded: Int,
+    /** Memberships dropped because the aircraft is already in another group. */
+    val membershipsSkipped: Int = 0
 )
 
 /**
@@ -214,6 +216,7 @@ class FlightRadiusRepository @Inject constructor(
         var aircraftSkipped = 0
         var fleetsAdded = 0
         var membershipsAdded = 0
+        var membershipsSkipped = 0
 
         val localByIdentifier = aircraftRepository.getAll()
             .associateBy { it.identifier }
@@ -295,8 +298,12 @@ class FlightRadiusRepository @Inject constructor(
             val aircraft = ensureCallsign(fa.callsign, createdAt) ?: continue
             val fleet = fa.groupId?.let { localFleetByBackendId[it] } ?: continue
             if (aircraft.id !in fleet.memberIds) {
-                fleetRepository.addMember(fleet.id, aircraft.id)
-                membershipsAdded++
+                // An aircraft is in at most one group: first one wins.
+                if (fleetRepository.addMemberIfUngrouped(fleet.id, aircraft.id)) {
+                    membershipsAdded++
+                } else {
+                    membershipsSkipped++
+                }
             }
         }
 
@@ -304,7 +311,8 @@ class FlightRadiusRepository @Inject constructor(
             aircraftAdded = aircraftAdded,
             aircraftSkipped = aircraftSkipped,
             fleetsAdded = fleetsAdded,
-            membershipsAdded = membershipsAdded
+            membershipsAdded = membershipsAdded,
+            membershipsSkipped = membershipsSkipped
         )
     }
 

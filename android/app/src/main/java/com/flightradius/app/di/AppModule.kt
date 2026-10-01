@@ -10,6 +10,7 @@ import com.flightradius.app.data.api.LocalNetworkGuard
 import com.flightradius.app.data.aircraftdb.AircraftMetaDatabase
 import com.flightradius.app.data.db.AircraftDao
 import com.flightradius.app.data.db.FlightRadiusDatabase
+import com.flightradius.app.data.db.FlightRadiusMigrations
 import com.flightradius.app.data.db.FleetDao
 import com.flightradius.app.data.opensky.BackendCreditsInterceptor
 import com.flightradius.app.data.opensky.CreditTracker
@@ -154,6 +155,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): FlightRadiusDatabase =
         Room.databaseBuilder(context, FlightRadiusDatabase::class.java, "flightradius.db")
+            .addMigrations(FlightRadiusMigrations.MIGRATION_1_2)
             .build()
 
     @Provides

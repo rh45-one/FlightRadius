@@ -1016,7 +1016,7 @@ internal fun AircraftDetail(
                 row(stringResource(R.string.detail_last_contact), Format.age(nowMs, it.toLong() * 1000))
             }
             if (fleets.isNotEmpty()) {
-                row(stringResource(R.string.detail_fleets), fleets.joinToString(", ") { it.name })
+                row(stringResource(R.string.detail_fleets), fleets.first().name)
             }
         }
         GroupedSection(header = null) {

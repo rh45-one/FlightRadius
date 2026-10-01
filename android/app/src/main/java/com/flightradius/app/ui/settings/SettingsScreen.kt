@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -509,6 +510,9 @@ fun SettingsScreen(
                         R.string.import_result,
                         r.aircraftAdded, r.aircraftSkipped,
                         r.fleetsAdded, r.membershipsAdded),
+                    subtitle = if (r.membershipsSkipped > 0) pluralStringResource(
+                        R.plurals.import_memberships_skipped,
+                        r.membershipsSkipped, r.membershipsSkipped) else null,
                     titleColor = MaterialTheme.colorScheme.extended.success,
                     titleStyle = MaterialTheme.typography.bodyMedium)
             }

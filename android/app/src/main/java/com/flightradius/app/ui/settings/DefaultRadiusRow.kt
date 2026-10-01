@@ -40,9 +40,6 @@ internal fun DefaultRadiusRow(
     onChange: (Double) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
-    val steps = RadiusInput.steps(unit)
-    val index = RadiusInput.nearestIndex(radiusKm, unit)
-
     Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -64,19 +61,7 @@ internal fun DefaultRadiusRow(
                     .clickable { showDialog = true }
                     .padding(start = 12.dp, top = 8.dp, bottom = 8.dp))
         }
-        Slider(
-            value = index.toFloat(),
-            onValueChange = { v ->
-                val km = RadiusInput.kmAt(v.toInt(), unit)
-                if (abs(km - radiusKm) > 1e-6) onChange(km)
-            },
-            valueRange = 0f..(steps.size - 1).toFloat(),
-            steps = steps.size - 2,
-            track = { state ->
-                // 80 tick marks are noise; the value label shows the position.
-                SliderDefaults.Track(state, drawStopIndicator = null, drawTick = { _, _ -> })
-            }
-        )
+        SteppedRadiusSlider(radiusKm, unit, onChange)
     }
 
     if (showDialog) {
@@ -87,6 +72,32 @@ internal fun DefaultRadiusRow(
             onSave = { km -> onChange(km); showDialog = false }
         )
     }
+}
+
+/** Slider over the allowed radius steps (1 km up to 50, then 5 km; miles likewise). */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun SteppedRadiusSlider(
+    radiusKm: Double,
+    unit: DistanceUnit,
+    onChange: (Double) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val steps = RadiusInput.steps(unit)
+    Slider(
+        value = RadiusInput.nearestIndex(radiusKm, unit).toFloat(),
+        onValueChange = { v ->
+            val km = RadiusInput.kmAt(v.toInt(), unit)
+            if (abs(km - radiusKm) > 1e-6) onChange(km)
+        },
+        modifier = modifier,
+        valueRange = 0f..(steps.size - 1).toFloat(),
+        steps = steps.size - 2,
+        track = { state ->
+            // 80 tick marks are noise; the value label shows the position.
+            SliderDefaults.Track(state, drawStopIndicator = null, drawTick = { _, _ -> })
+        }
+    )
 }
 
 @Composable

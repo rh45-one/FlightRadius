@@ -17,7 +17,7 @@ data class TrackedAircraft(
 )
 
 /**
- * A named group of aircraft. [memberIds] are [TrackedAircraft.id]s.
+ * A named group of aircraft (UI: "group"; an aircraft is in at most one). [memberIds] are [TrackedAircraft.id]s.
  * [alertRadiusKm] overrides the global radius for all members (see
  * [effectiveRadiusKm] — aircraft-level override wins, otherwise the MAXIMUM
  * of member fleet radii applies, i.e. earliest warning).
@@ -27,7 +27,8 @@ data class Fleet(
     val name: String,
     val colorArgb: Int,
     val alertRadiusKm: Double? = null,
-    val memberIds: Set<Long> = emptySet()
+    val memberIds: Set<Long> = emptySet(),
+    val icon: GroupIcon = GroupIcon.PLANE
 )
 
 /** Last known user position. [timeMs] is epoch milliseconds. */
