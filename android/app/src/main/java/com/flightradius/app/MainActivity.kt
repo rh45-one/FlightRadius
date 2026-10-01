@@ -124,6 +124,10 @@ private val SettingsIcon: ImageVector = Icons.Filled.Settings
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(com.flightradius.app.util.AppLanguage.wrap(newBase))
+    }
+
     @Inject lateinit var controller: MonitoringController
     @Inject lateinit var stateRepository: MonitoringStateRepository
     @Inject lateinit var locationRepository: LocationRepository

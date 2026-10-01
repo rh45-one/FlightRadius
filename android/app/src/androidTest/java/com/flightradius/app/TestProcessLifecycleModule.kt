@@ -16,6 +16,9 @@ import javax.inject.Singleton
 @TestInstallIn(components = [SingletonComponent::class], replaces = [ProcessLifecycleModule::class])
 object TestProcessLifecycleModule {
 
+    // LifecycleRegistry only holds its owner weakly: keep the owners alive.
+    private val owners = mutableListOf<LifecycleOwner>()
+
     @Provides
     @Singleton
     @ProcessLifecycle
@@ -26,6 +29,7 @@ object TestProcessLifecycleModule {
         }
         owner.registry = LifecycleRegistry.createUnsafe(owner)
         owner.registry.currentState = Lifecycle.State.CREATED
+        owners += owner
         return owner.registry
     }
 }

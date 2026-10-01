@@ -599,4 +599,8 @@
     <string name="settings_background">Funcionar en segundo plano</string>
     <string name="settings_background_body">Si lo desactivas, la vigilancia se detiene al salir de la app o bloquear la pantalla, y vuelve a empezar al regresar. Déjalo activado para recibir avisos mientras usas el navegador.</string>
     <string name="settings_resume_boot_needs_background">Requiere Funcionar en segundo plano.</string>
+    <string name="settings_language">Idioma</string>
+    <string name="language_system">Predeterminado del sistema</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
 </resources>

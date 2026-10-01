@@ -1,5 +1,8 @@
 package com.flightradius.app.ui.settings
 
+import androidx.compose.ui.platform.testTag
+import com.flightradius.app.util.AppLanguageOption
+import com.flightradius.app.util.AppLanguage
 import com.flightradius.app.ui.util.startActivitySafely
 import android.content.Intent
 import android.os.Build
@@ -272,6 +275,8 @@ fun SettingsScreen(
         // ---- Appearance ----
         GroupedSection(header = stringResource(R.string.settings_appearance)) {
             AppearanceRow(settings.themeMode) { viewModel.setThemeMode(it) }
+            GroupedDivider()
+            LanguageRow()
         }
 
         // ---- Location ----
@@ -660,4 +665,52 @@ private fun FilterChipLike(
     FilterChip(
         selected = selected, onClick = onClick,
         label = { Text(label) })
+}
+
+/** App language: System default, English or Español (native names, never translated). */
+@Composable
+internal fun LanguageRow() {
+    val context = LocalContext.current
+    var menu by remember { mutableStateOf(false) }
+    val current = AppLanguage.current(context)
+    @Composable
+    fun label(option: AppLanguageOption) = stringResource(
+        when (option) {
+            AppLanguageOption.SYSTEM -> R.string.language_system
+            AppLanguageOption.ENGLISH -> R.string.language_english
+            AppLanguageOption.SPANISH -> R.string.language_spanish
+        }
+    )
+    Box {
+        GroupedRow(
+            title = stringResource(R.string.settings_language),
+            modifier = Modifier.testTag("language-row"),
+            trailing = {
+                Text(
+                    label(current),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                NavigationChevron()
+            },
+            onClick = { menu = true }
+        )
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            for (option in AppLanguageOption.entries) {
+                DropdownMenuItem(
+                    text = { Text(label(option), style = MaterialTheme.typography.bodyLarge) },
+                    trailingIcon = {
+                        if (option == current) {
+                            Icon(Icons.Filled.Check, contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary)
+                        }
+                    },
+                    onClick = {
+                        menu = false
+                        if (option != current) AppLanguage.set(context, option)
+                    },
+                    modifier = Modifier.testTag("language-${option.name}")
+                )
+            }
+        }
+    }
 }

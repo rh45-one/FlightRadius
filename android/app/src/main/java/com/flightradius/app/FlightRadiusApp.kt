@@ -36,6 +36,16 @@ class FlightRadiusApp : Application() {
     @ApplicationScope
     lateinit var appScope: CoroutineScope
 
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(com.flightradius.app.util.AppLanguage.wrap(base))
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // A language change (Settings picker or Android's per-app page).
+        Words.resources = resources
+    }
+
     override fun onCreate() {
         super.onCreate()
         // Wire AppLog's debug gate to the live settings value (debug builds
