@@ -45,7 +45,7 @@ object MapGeo {
     }
 
     /** Closed ring of [steps] points at [radiusKm] around a point, as (lat, lon). */
-    fun circle(lat: Double, lon: Double, radiusKm: Double, steps: Int = 72): List<Pair<Double, Double>> {
+    fun circle(lat: Double, lon: Double, radiusKm: Double, steps: Int = 360): List<Pair<Double, Double>> {
         val d = radiusKm / EARTH_KM
         val p1 = Math.toRadians(lat)
         val l1 = Math.toRadians(lon)

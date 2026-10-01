@@ -23,7 +23,7 @@ class MapGeoTest {
     @Test
     fun `circle points are equidistant from the centre and the ring is closed`() {
         val pts = MapGeo.circle(40.4168, -3.7038, 25.0)
-        assertEquals(73, pts.size)
+        assertEquals(361, pts.size)
         assertEquals(pts.first(), pts.last())
         for ((lat, lon) in pts) {
             assertEquals(25.0, Geo.distanceKm(40.4168, -3.7038, lat, lon), 0.1)

@@ -85,7 +85,9 @@ import org.maplibre.android.style.layers.PropertyFactory.iconRotate
 import org.maplibre.android.style.layers.PropertyFactory.iconRotationAlignment
 import org.maplibre.android.style.layers.PropertyFactory.iconSize
 import org.maplibre.android.style.layers.PropertyFactory.lineColor
+import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.lineDasharray
+import org.maplibre.android.style.layers.PropertyFactory.lineJoin
 import org.maplibre.android.style.layers.PropertyFactory.lineWidth
 import org.maplibre.android.style.layers.PropertyFactory.textAllowOverlap
 import org.maplibre.android.style.layers.PropertyFactory.textAnchor
@@ -102,6 +104,7 @@ import org.maplibre.android.style.expressions.Expression.get
 import org.maplibre.android.style.expressions.Expression.match
 import org.maplibre.android.style.expressions.Expression.literal
 import org.maplibre.android.style.expressions.Expression.color as colorExpr
+import org.maplibre.android.style.sources.GeoJsonOptions
 import org.maplibre.android.style.sources.GeoJsonSource
 
 private const val STYLE_LIGHT = "https://tiles.openfreemap.org/styles/liberty"
@@ -133,8 +136,11 @@ private class MapColors(
 
 private fun installStyle(style: Style, c: MapColors) {
     style.addImage(PLANE_IMAGE, planeBitmap(), true)
-    style.addSource(GeoJsonSource(SRC_TRACKED_RADIUS, MapGeo.EMPTY))
-    style.addSource(GeoJsonSource(SRC_AIRSPACE, MapGeo.EMPTY))
+    // Default simplification (tolerance 0.375) collapses the 360-point rings back to a
+    // ~24-gon at city zoom levels; the rings are small enough to keep every vertex.
+    val noSimplify = GeoJsonOptions().withTolerance(0f)
+    style.addSource(GeoJsonSource(SRC_TRACKED_RADIUS, MapGeo.EMPTY, noSimplify))
+    style.addSource(GeoJsonSource(SRC_AIRSPACE, MapGeo.EMPTY, noSimplify))
     style.addSource(GeoJsonSource(SRC_USER, MapGeo.EMPTY))
     style.addSource(GeoJsonSource(SRC_AIRCRAFT, MapGeo.EMPTY))
 
@@ -144,12 +150,12 @@ private fun installStyle(style: Style, c: MapColors) {
     )
     style.addLayer(
         LineLayer("fr-tracked-radius-line", SRC_TRACKED_RADIUS)
-            .withProperties(lineColor(c.tracked), lineWidth(2f))
+            .withProperties(lineColor(c.tracked), lineWidth(2f), lineJoin(Property.LINE_JOIN_ROUND))
     )
     style.addLayer(
         LineLayer("fr-airspace-line", SRC_AIRSPACE)
             .withProperties(
-                lineColor(c.nearby), lineWidth(1.5f),
+                lineColor(c.nearby), lineWidth(1.5f), lineJoin(Property.LINE_JOIN_ROUND),
                 lineDasharray(arrayOf(3f, 3f))
             )
     )
