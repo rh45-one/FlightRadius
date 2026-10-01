@@ -21,6 +21,23 @@ val allowCleartextInRelease = providers.gradleProperty("flightradius.allowCleart
     .map { it.equals("true", ignoreCase = true) }
     .orElse(false)
 
+// Single source of truth for the app version (also read by the release workflow).
+val versionParts: List<Int> = run {
+    val raw = rootProject.file("version.txt").readText().trim()
+    if (!Regex("""\d+\.\d+\.\d+""").matches(raw)) {
+        throw GradleException("android/version.txt must contain MAJOR.MINOR.PATCH (e.g. 0.1.0), found: '$raw'")
+    }
+    raw.split(".").map { it.toInt() }.also { (_, minor, patch) ->
+        if (minor >= 100 || patch >= 100) {
+            throw GradleException("android/version.txt: minor and patch must be < 100 (versionCode packing), found: '$raw'")
+        }
+    }
+}
+val appVersionName = versionParts.joinToString(".")
+val appVersionCode = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
+
+val updateRepo = providers.gradleProperty("flightradius.updateRepo").orElse("rh45-one/FlightRadius")
+
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val hasReleaseKeystore = keystorePropertiesFile.exists()
 
@@ -37,8 +54,8 @@ android {
         applicationId = "com.flightradius.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "com.flightradius.app.HiltTestRunner"
 
@@ -49,6 +66,7 @@ android {
             ?.takeIf { it.isNotEmpty() }
             ?.let { abis -> ndk { abiFilters += abis } }
 
+        buildConfigField("String", "UPDATE_REPO", "\"${updateRepo.get().replace("\"", "")}\"")
         buildConfigField(
             "String",
             "DEFAULT_BACKEND_URL",

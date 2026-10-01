@@ -24,6 +24,9 @@ class FlightRadiusApp : Application() {
     lateinit var aircraftDatabase: AircraftDatabaseManager
 
     @Inject
+    lateinit var updateManager: com.flightradius.app.data.update.UpdateManager
+
+    @Inject
     lateinit var widgetUpdater: com.flightradius.app.widget.WidgetUpdater
 
     @Inject
@@ -40,5 +43,6 @@ class FlightRadiusApp : Application() {
         creditBucketWatcher.start(appScope)
         aircraftDatabase.maybeAutoUpdate()
         widgetUpdater.start(appScope)
+        updateManager.checkOnLaunch()
     }
 }

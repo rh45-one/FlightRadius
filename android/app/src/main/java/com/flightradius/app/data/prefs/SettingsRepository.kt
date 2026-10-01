@@ -11,7 +11,9 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.flightradius.app.data.update.AvailableUpdate
 import com.flightradius.app.domain.AirspaceRule
+import com.flightradius.app.domain.UpdateFrequency
 import com.flightradius.app.domain.DistanceUnit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
@@ -76,6 +78,9 @@ data class AppSettings(
     val highPriorityMode: Boolean = false,
     val resumeOnBoot: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val updateFrequency: UpdateFrequency = UpdateFrequency.DAILY,
+    val lastUpdateCheckAtMs: Long = 0L,
+    val availableUpdate: AvailableUpdate? = null,
     val dynamicColor: Boolean = false,
     val debugLogging: Boolean = false,
     val inAppAlertBanner: Boolean = true,
@@ -110,6 +115,10 @@ class SettingsRepository @Inject constructor(
         val HIGH_PRIORITY_MODE = booleanPreferencesKey("high_priority_mode")
         val RESUME_ON_BOOT = booleanPreferencesKey("resume_on_boot")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val UPDATE_FREQUENCY = stringPreferencesKey("update_frequency")
+        val LAST_UPDATE_CHECK = longPreferencesKey("last_update_check_ms")
+        val UPDATE_VERSION = stringPreferencesKey("update_available_version")
+        val UPDATE_URL = stringPreferencesKey("update_available_url")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val DEBUG_LOGGING = booleanPreferencesKey("debug_logging")
         val IN_APP_ALERT_BANNER = booleanPreferencesKey("in_app_alert_banner")
@@ -157,6 +166,11 @@ class SettingsRepository @Inject constructor(
             highPriorityMode = this[Keys.HIGH_PRIORITY_MODE] ?: defaults.highPriorityMode,
             resumeOnBoot = this[Keys.RESUME_ON_BOOT] ?: defaults.resumeOnBoot,
             themeMode = enumOr(this[Keys.THEME_MODE], defaults.themeMode),
+            updateFrequency = enumOr(this[Keys.UPDATE_FREQUENCY], defaults.updateFrequency),
+            lastUpdateCheckAtMs = this[Keys.LAST_UPDATE_CHECK] ?: 0L,
+            availableUpdate = this[Keys.UPDATE_VERSION]?.let { v ->
+                this[Keys.UPDATE_URL]?.let { AvailableUpdate(v, it) }
+            },
             dynamicColor = this[Keys.DYNAMIC_COLOR] ?: defaults.dynamicColor,
             debugLogging = this[Keys.DEBUG_LOGGING] ?: defaults.debugLogging,
             inAppAlertBanner = this[Keys.IN_APP_ALERT_BANNER] ?: defaults.inAppAlertBanner,
@@ -251,6 +265,16 @@ class SettingsRepository @Inject constructor(
     suspend fun setHighPriorityMode(value: Boolean) = edit { it[Keys.HIGH_PRIORITY_MODE] = value }
     suspend fun setResumeOnBoot(value: Boolean) = edit { it[Keys.RESUME_ON_BOOT] = value }
     suspend fun setThemeMode(value: ThemeMode) = edit { it[Keys.THEME_MODE] = value.name }
+    suspend fun setUpdateFrequency(value: UpdateFrequency) =
+        edit { it[Keys.UPDATE_FREQUENCY] = value.name }
+    suspend fun setLastUpdateCheck(ms: Long) = edit { it[Keys.LAST_UPDATE_CHECK] = ms }
+    suspend fun setAvailableUpdate(update: AvailableUpdate?) = edit {
+        if (update == null) {
+            it.remove(Keys.UPDATE_VERSION); it.remove(Keys.UPDATE_URL)
+        } else {
+            it[Keys.UPDATE_VERSION] = update.version; it[Keys.UPDATE_URL] = update.url
+        }
+    }
     suspend fun setDynamicColor(value: Boolean) = edit { it[Keys.DYNAMIC_COLOR] = value }
     suspend fun setDebugLogging(value: Boolean) = edit { it[Keys.DEBUG_LOGGING] = value }
     suspend fun setInAppAlertBanner(value: Boolean) = edit { it[Keys.IN_APP_ALERT_BANNER] = value }

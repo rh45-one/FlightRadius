@@ -527,4 +527,19 @@
         <item>S</item><item>SSW</item><item>SW</item><item>WSW</item><item>W</item><item>WNW</item><item>NW</item><item>NNW</item>
     </string-array>
     <string name="radar_loading_idle">Start monitoring to see where they are</string>
+    <string name="settings_updates">Updates</string>
+    <string name="settings_update_frequency">Check for updates</string>
+    <string name="update_freq_on_launch">Every time I open the app</string>
+    <string name="update_freq_daily">Daily</string>
+    <string name="update_freq_weekly">Weekly</string>
+    <string name="update_freq_never">Never</string>
+    <string name="update_check_now">Check now</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_up_to_date">Up to date · %1$s</string>
+    <string name="update_available">%1$s available</string>
+    <string name="update_check_failed">Couldn\'t check</string>
+    <string name="update_current_version">Current version</string>
+    <string name="update_banner_title">Version %1$s is available</string>
+    <string name="update_banner_tap">Tap to download</string>
+    <string name="update_banner_dismiss">Dismiss</string>
 </resources>

@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -73,6 +74,7 @@ import com.flightradius.app.ui.detail.AircraftDetailScreen
 import com.flightradius.app.ui.detail.LocalNavAnimatedScope
 import com.flightradius.app.ui.detail.LocalSharedTransitionScope
 import com.flightradius.app.ui.map.MapScreen
+import com.flightradius.app.ui.update.UpdateBannerHost
 import com.flightradius.app.ui.onboarding.WelcomeScreen
 import com.flightradius.app.ui.radar.RadarScreen
 import com.flightradius.app.ui.rememberMonitoringStarter
@@ -331,6 +333,11 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+
+                    UpdateBannerHost(
+                        alertActive = settings.inAppAlertBanner && activeAlert != null,
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
                 }
                 }
             }

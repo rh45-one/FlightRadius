@@ -101,6 +101,7 @@ fun SettingsScreen(
     val monitoring by viewModel.monitoring.collectAsStateWithLifecycle()
     val directMode = settings.dataSource == DataSource.DIRECT
     val dbState by viewModel.aircraftDb.state.collectAsStateWithLifecycle()
+    val updateCheck by viewModel.manualUpdateCheck.collectAsStateWithLifecycle()
     var showDbSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(directMode) { if (!directMode) viewModel.refreshApiStatus() }
@@ -537,6 +538,13 @@ fun SettingsScreen(
         }
 
         // ---- About ----
+        UpdatesSection(
+            frequency = settings.updateFrequency,
+            onFrequency = { viewModel.setUpdateFrequency(it) },
+            state = updateCheck,
+            onCheckNow = { viewModel.checkForUpdates() }
+        )
+
         GroupedSection(header = stringResource(R.string.settings_about)) {
             GroupedRow(
                 title = "FlightRadius ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",

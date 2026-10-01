@@ -1,0 +1,138 @@
+name: Release
+
+# Publishes a GitHub release (signed APKs) whenever android/version.txt changes on main.
+
+on:
+  push:
+    branches: [main]
+    paths: [android/version.txt]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: |
+          version="$(tr -d '[:space:]' < version.txt)"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::android/version.txt must contain MAJOR.MINOR.PATCH, found '$version'"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if this version is already released
+        id: exists
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+             || git ls-remote --exit-code --tags origin "refs/tags/v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "::notice::v${{ steps.version.outputs.version }} already exists; nothing to release. Bump android/version.txt to publish a new one."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Require signing secrets
+        if: steps.exists.outputs.skip != 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=""
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing. Run android/scripts/setup-release-signing.sh --github once. Releases are never published debug-signed: every runner has a different debug key, so users could not update."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.exists.outputs.skip != 'true'
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+        if: steps.exists.outputs.skip != 'true'
+        with:
+          packages: 'platform-tools platforms;android-37.2'
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.exists.outputs.skip != 'true'
+
+      - name: Install signing key
+        if: steps.exists.outputs.skip != 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > release.jks
+          umask 077
+          {
+            echo "storeFile=release.jks"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Unit tests
+        if: steps.exists.outputs.skip != 'true'
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
+      - name: Build APKs
+        if: steps.exists.outputs.skip != 'true'
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          mkdir -p dist
+          ./gradlew :app:assembleRelease -Pflightradius.abis=arm64-v8a --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk "dist/FlightRadius-$v-arm64-v8a.apk"
+          ./gradlew :app:assembleRelease --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk "dist/FlightRadius-$v-universal.apk"
+
+      - name: Verify release signature
+        if: steps.exists.outputs.skip != 'true'
+        run: |
+          apksigner="$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)"
+          for apk in dist/*.apk; do
+            certs="$("$apksigner" verify --print-certs "$apk")"
+            if grep -q "Android Debug" <<<"$certs"; then
+              echo "::error::$apk is signed with a debug key; refusing to publish."
+              exit 1
+            fi
+            grep -m1 "certificate SHA-256 digest" <<<"$certs" | sed "s|^|$apk: |"
+          done
+
+      - name: Create GitHub release
+        if: steps.exists.outputs.skip != 'true'
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          gh release create "v$v" dist/*.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "FlightRadius $v" \
+            --generate-notes \
+            --latest
+
+      - name: Remove signing key
+        if: always()
+        run: rm -f release.jks keystore.properties

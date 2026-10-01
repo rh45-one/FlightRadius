@@ -69,8 +69,15 @@ class SettingsViewModel @Inject constructor(
     private val openSky: OpenSkyClient,
     credits: CreditTracker,
     val connectivity: ConnectivityMonitor,
-    val aircraftDb: AircraftDatabaseManager
+    val aircraftDb: AircraftDatabaseManager,
+    private val updateManager: com.flightradius.app.data.update.UpdateManager
 ) : ViewModel() {
+    val manualUpdateCheck = updateManager.manual
+    fun checkForUpdates() = updateManager.checkNow()
+    fun setUpdateFrequency(f: com.flightradius.app.domain.UpdateFrequency) = viewModelScope.launch {
+        settingsRepository.setUpdateFrequency(f)
+    }
+
 
     val settings: StateFlow<AppSettings> = settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettings())
