@@ -132,7 +132,6 @@ fun RadarScreen(
                     onClick = { onOpenDetail(DetailKind.NEARBY, it.icao24) }
                 )
             }
-            NotReportingSection(snapshot.noData)
             if (state.status == MonitoringStatus.STOPPED) {
                 Text(
                     stringResource(R.string.radar_preview_footnote),

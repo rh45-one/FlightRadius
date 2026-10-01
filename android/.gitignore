@@ -1,6 +1,9 @@
 .gradle/
+.kotlin/
 build/
 **/build/
+.externalNativeBuild/
+.cxx/
 local.properties
 *.jks
 keystore.properties
@@ -9,3 +12,7 @@ captures/
 *.iml
 *.jks.bak-*
 keystore.properties.bak-*
+*.apk
+*.aab
+*.ap_
+*.hprof

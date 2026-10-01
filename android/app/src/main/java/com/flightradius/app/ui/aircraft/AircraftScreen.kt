@@ -1,7 +1,12 @@
 package com.flightradius.app.ui.aircraft
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -56,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -63,6 +69,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -75,6 +83,7 @@ import com.flightradius.app.data.prefs.AppSettings
 import com.flightradius.app.domain.Fleet
 import com.flightradius.app.domain.IdentifierType
 import com.flightradius.app.domain.TrackedAircraft
+import com.flightradius.app.service.MonitoringStatus
 import com.flightradius.app.ui.components.FormBottomSheet
 import com.flightradius.app.ui.components.GroupBadge
 import com.flightradius.app.ui.components.GroupedDivider
@@ -147,6 +156,9 @@ fun AircraftScreen(
         AircraftFolders.build(groups, allAircraft, query, collapsed)
     }
     val snapshot = monitoring.lastSnapshot
+    val live = monitoring.status == MonitoringStatus.RUNNING
+    val dataFailed = flightDataFailed(monitoring)
+    val detectedIds = snapshot?.ranked?.mapTo(HashSet()) { it.aircraftId } ?: emptySet()
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
@@ -355,6 +367,11 @@ fun AircraftScreen(
                                                 a,
                                                 settings,
                                                 group = groups.find { it.id == item.groupId },
+                                                presence = aircraftPresence(
+                                                    detected = a.id in detectedIds,
+                                                    live = live,
+                                                    dataFailed = dataFailed
+                                                ),
                                                 indent = inGroup,
                                                 selecting = selecting,
                                                 checked = a.id in selected,
@@ -676,6 +693,7 @@ private fun AircraftRow(
     a: TrackedAircraft,
     settings: AppSettings,
     group: Fleet?,
+    presence: AircraftPresence,
     indent: Boolean,
     selecting: Boolean,
     checked: Boolean,
@@ -705,12 +723,54 @@ private fun AircraftRow(
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .testTag("aircraft-row-${a.identifier}")
             .padding(start = if (indent) 12.dp else 0.dp),
-        leading = if (selecting) {
-            { Checkbox(checked = checked, onCheckedChange = null) }
-        } else null,
+        leading = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (selecting) Checkbox(checked = checked, onCheckedChange = null)
+                PresenceDot(presence)
+            }
+        },
         trailing = if (selecting) null else {
             { NavigationChevron() }
         }
+    )
+}
+
+@Composable
+private fun PresenceDot(presence: AircraftPresence) {
+    val color = when (presence) {
+        AircraftPresence.ONLINE -> MaterialTheme.colorScheme.extended.success
+        AircraftPresence.OFFLINE -> MaterialTheme.colorScheme.onSurfaceVariant
+        AircraftPresence.ERROR -> MaterialTheme.colorScheme.extended.danger
+    }
+    val label = stringResource(
+        when (presence) {
+            AircraftPresence.ONLINE -> R.string.aircraft_status_online
+            AircraftPresence.OFFLINE -> R.string.aircraft_status_offline
+            AircraftPresence.ERROR -> R.string.aircraft_status_error
+        }
+    )
+    val transition = rememberInfiniteTransition(label = "online")
+    val animated by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breath"
+    )
+    val breath = if (presence == AircraftPresence.ONLINE) animated else 1f
+    Box(
+        Modifier
+            .size(10.dp)
+            .graphicsLayer { alpha = breath }
+            .clip(CircleShape)
+            .background(color)
+            .semantics { contentDescription = label }
+            .testTag("presence-${presence.name}")
     )
 }
 

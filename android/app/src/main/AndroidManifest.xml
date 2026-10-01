@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Android 17 (API 37): TCP to LAN addresses is blocked without this
          runtime permission (Nearby devices group). Self-hosted LAN backends
          are the primary use case, so request it proactively. -->
@@ -61,6 +62,11 @@
             android:name=".service.MonitoringService"
             android:exported="false"
             android:foregroundServiceType="location|dataSync" />
+
+        <!-- Receives PackageInstaller results; the system fills extras via a mutable PendingIntent. -->
+        <receiver
+            android:name=".data.update.InstallResultReceiver"
+            android:exported="false" />
 
         <receiver
             android:name=".service.AlertActionReceiver"

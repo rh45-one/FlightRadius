@@ -30,8 +30,6 @@
     <string name="radar_stop">Stop</string>
     <string name="radar_pause">Pause</string>
     <string name="radar_resume">Resume</string>
-    <string name="radar_not_reporting">Not reporting</string>
-    <string name="radar_no_live_data">No live data — may be on the ground</string>
     <string name="radar_empty_title">Nothing to watch yet</string>
     <string name="radar_empty_body">Add the aircraft you want to follow.</string>
     <string name="radar_add_aircraft">Add aircraft</string>
@@ -69,6 +67,9 @@
     <string name="aircraft_check">Check</string>
     <string name="aircraft_live_now">Live now</string>
     <string name="aircraft_no_data">No current data — will track when airborne</string>
+    <string name="aircraft_status_online">Online</string>
+    <string name="aircraft_status_offline">Offline</string>
+    <string name="aircraft_status_error">Data error</string>
     <string name="aircraft_notes">Notes</string>
     <string name="aircraft_radius_override">Radius override (%1$s)</string>
     <string name="aircraft_use_default_radius">Use default (%1$s)</string>
@@ -589,4 +590,24 @@
     <string name="language_system">System default</string>
     <string name="language_english">English</string>
     <string name="language_spanish">Español</string>
+    <string name="updates_channel_name">Updates</string>
+    <string name="updates_downloading_title">Downloading FlightRadius %1$s</string>
+    <string name="updates_tap_to_install">Tap to install FlightRadius %1$s</string>
+    <string name="update_now">Update now</string>
+    <string name="update_button">Update</string>
+    <string name="update_whats_new">What\'s new</string>
+    <string name="update_open_release">Open release page</string>
+    <string name="update_downloading">Downloading… %1$d%%</string>
+    <string name="update_verifying">Verifying…</string>
+    <string name="update_installing">Installing…</string>
+    <string name="update_fail_network">Download failed. Check your connection.</string>
+    <string name="update_fail_mismatch">The downloaded file doesn\'t match the release and was discarded.</string>
+    <string name="update_fail_no_digest">This release can\'t be verified. Open the release page to install it manually.</string>
+    <string name="update_fail_signature">This update is signed with a different key. Uninstall FlightRadius, then install it from the release page.</string>
+    <string name="update_fail_storage">Not enough storage.</string>
+    <string name="update_fail_generic">The update couldn\'t be installed.</string>
+    <string name="update_permission_title">Allow installing updates</string>
+    <string name="update_permission_body">To install updates, allow FlightRadius to install apps. You only need to do this once.</string>
+    <string name="update_metered_title">Download %1$s on mobile data?</string>
+    <string name="update_metered_download">Download</string>
 </resources>

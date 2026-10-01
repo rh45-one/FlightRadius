@@ -14,6 +14,8 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.flightradius.app.BuildConfig
 import com.flightradius.app.data.update.AvailableUpdate
+import com.flightradius.app.data.update.UpdateAsset
+import com.flightradius.app.data.update.UpdateConfig
 import com.flightradius.app.data.update.UpdateUrls
 import com.flightradius.app.domain.AirspaceRule
 import com.flightradius.app.domain.UpdateFrequency
@@ -128,6 +130,10 @@ class SettingsRepository @Inject constructor(
         val LAST_UPDATE_CHECK = longPreferencesKey("last_update_check_ms")
         val UPDATE_VERSION = stringPreferencesKey("update_available_version")
         val UPDATE_URL = stringPreferencesKey("update_available_url")
+        val UPDATE_ASSET_NAME = stringPreferencesKey("update_asset_name")
+        val UPDATE_ASSET_URL = stringPreferencesKey("update_asset_url")
+        val UPDATE_ASSET_SIZE = longPreferencesKey("update_asset_size")
+        val UPDATE_ASSET_DIGEST = stringPreferencesKey("update_asset_digest")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val DEBUG_LOGGING = booleanPreferencesKey("debug_logging")
         val IN_APP_ALERT_BANNER = booleanPreferencesKey("in_app_alert_banner")
@@ -179,7 +185,20 @@ class SettingsRepository @Inject constructor(
             lastUpdateCheckAtMs = this[Keys.LAST_UPDATE_CHECK] ?: 0L,
             availableUpdate = this[Keys.UPDATE_VERSION]?.let { v ->
                 this[Keys.UPDATE_URL]?.let {
-                    AvailableUpdate(v, UpdateUrls.safe(it, BuildConfig.UPDATE_REPO))
+                    AvailableUpdate(
+                        v, UpdateUrls.safe(it, BuildConfig.UPDATE_REPO),
+                        asset = this[Keys.UPDATE_ASSET_URL]
+                            ?.takeIf { url ->
+                                UpdateUrls.isSafeAssetUrl(
+                                    url, BuildConfig.UPDATE_REPO, UpdateConfig.relaxAssetHost)
+                            }
+                            ?.let { url ->
+                                UpdateAsset(
+                                    this[Keys.UPDATE_ASSET_NAME].orEmpty(), url,
+                                    this[Keys.UPDATE_ASSET_SIZE] ?: 0L,
+                                    this[Keys.UPDATE_ASSET_DIGEST])
+                            }
+                    )
                 }
             },
             dynamicColor = this[Keys.DYNAMIC_COLOR] ?: defaults.dynamicColor,
@@ -290,10 +309,18 @@ class SettingsRepository @Inject constructor(
         edit { it[Keys.UPDATE_FREQUENCY] = value.name }
     suspend fun setLastUpdateCheck(ms: Long) = edit { it[Keys.LAST_UPDATE_CHECK] = ms }
     suspend fun setAvailableUpdate(update: AvailableUpdate?) = edit {
+        it.remove(Keys.UPDATE_ASSET_NAME); it.remove(Keys.UPDATE_ASSET_URL)
+        it.remove(Keys.UPDATE_ASSET_SIZE); it.remove(Keys.UPDATE_ASSET_DIGEST)
         if (update == null) {
             it.remove(Keys.UPDATE_VERSION); it.remove(Keys.UPDATE_URL)
         } else {
             it[Keys.UPDATE_VERSION] = update.version; it[Keys.UPDATE_URL] = update.url
+            update.asset?.let { a ->
+                it[Keys.UPDATE_ASSET_NAME] = a.name
+                it[Keys.UPDATE_ASSET_URL] = a.url
+                it[Keys.UPDATE_ASSET_SIZE] = a.size
+                a.digest?.let { d -> it[Keys.UPDATE_ASSET_DIGEST] = d }
+            }
         }
     }
     suspend fun setDynamicColor(value: Boolean) = edit { it[Keys.DYNAMIC_COLOR] = value }

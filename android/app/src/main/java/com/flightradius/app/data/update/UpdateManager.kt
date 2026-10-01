@@ -21,7 +21,10 @@ sealed interface ManualCheckState {
     data object Idle : ManualCheckState
     data object Checking : ManualCheckState
     data class UpToDate(val current: String) : ManualCheckState
-    data class Available(val version: String, val url: String) : ManualCheckState
+    data class Available(val update: AvailableUpdate) : ManualCheckState {
+        val version: String get() = update.version
+        val url: String get() = update.url
+    }
     data class Failed(val kind: UpdateFailure) : ManualCheckState
 }
 
@@ -75,7 +78,7 @@ class UpdateManager @Inject constructor(
                     record(r, now); ManualCheckState.UpToDate(r.current)
                 }
                 is UpdateCheckResult.Available -> {
-                    record(r, now); ManualCheckState.Available(r.release.version, r.release.htmlUrl)
+                    record(r, now); ManualCheckState.Available(availableOf(r.release))
                 }
             }
         }
@@ -85,10 +88,19 @@ class UpdateManager @Inject constructor(
         settings.setLastUpdateCheck(nowMs)
         when (r) {
             is UpdateCheckResult.Available ->
-                settings.setAvailableUpdate(AvailableUpdate(r.release.version, r.release.htmlUrl))
+                settings.setAvailableUpdate(availableOf(r.release))
             is UpdateCheckResult.UpToDate -> settings.setAvailableUpdate(null)
             is UpdateCheckResult.Failed -> Unit
         }
+    }
+
+    /** The release plus the APK for this device when one exists and its URL is trusted. */
+    private fun availableOf(release: ReleaseInfo): AvailableUpdate {
+        val asset = UpdateAssets.pick(release.assets, release.version, android.os.Build.SUPPORTED_ABIS)
+            ?.takeIf { UpdateUrls.isSafeAssetUrl(
+                it.url, com.flightradius.app.BuildConfig.UPDATE_REPO, UpdateConfig.relaxAssetHost) }
+            ?.let { UpdateAsset(it.name, it.url, it.size, it.digest) }
+        return AvailableUpdate(release.version, release.htmlUrl, asset)
     }
 
     private companion object {

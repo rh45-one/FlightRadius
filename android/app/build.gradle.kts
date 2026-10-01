@@ -71,6 +71,8 @@ android {
             ?.takeIf { it.isNotEmpty() }
             ?.let { abis -> ndk { abiFilters += abis } }
 
+        buildConfigField("String", "UPDATE_API_BASE", "\"https://api.github.com\"")
+        buildConfigField("boolean", "UPDATE_RELAX_ASSET_HOST", "false")
         buildConfigField("String", "UPDATE_REPO", "\"${updateRepo.get().replace("\"", "")}\"")
         buildConfigField(
             "String",
@@ -97,6 +99,13 @@ android {
         debug {
             manifestPlaceholders["networkSecurityConfig"] =
                 "@xml/network_security_config_debug"
+            // Test hooks for the update flow; release builds never read these.
+            providers.gradleProperty("flightradius.updateApiBase").orNull?.let {
+                buildConfigField("String", "UPDATE_API_BASE", "\"${it.replace("\"", "")}\"")
+            }
+            if (providers.gradleProperty("flightradius.updateRelaxAssetHost").orNull == "true") {
+                buildConfigField("boolean", "UPDATE_RELAX_ASSET_HOST", "true")
+            }
         }
         release {
             isMinifyEnabled = true

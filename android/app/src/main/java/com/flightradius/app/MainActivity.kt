@@ -124,11 +124,18 @@ private val SettingsIcon: ImageVector = Icons.Filled.Settings
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    override fun onResume() {
+        super.onResume()
+        // Continue an update that was waiting for "Install unknown apps".
+        updateInstaller.onResume()
+    }
+
     override fun attachBaseContext(newBase: android.content.Context) {
         super.attachBaseContext(com.flightradius.app.util.AppLanguage.wrap(newBase))
     }
 
     @Inject lateinit var controller: MonitoringController
+    @Inject lateinit var updateInstaller: com.flightradius.app.data.update.UpdateInstaller
     @Inject lateinit var stateRepository: MonitoringStateRepository
     @Inject lateinit var locationRepository: LocationRepository
     @Inject lateinit var localNetworkGuard: LocalNetworkGuard
@@ -208,7 +215,11 @@ class MainActivity : ComponentActivity() {
 
             BoxWithConstraints(Modifier.fillMaxSize()) {
             val landscape = maxWidth > maxHeight
-            val onSelect: (NavItem) -> Unit = { nav.navigateToTab(it.route) }
+            val onSelect: (NavItem) -> Unit = { item ->
+                // Aircraft's route carries one-shot add/edit arguments. Restoring
+                // the tab would reopen whichever sheet was saved last.
+                nav.navigateToTab(item.route, restore = item != NavItem.Aircraft)
+            }
             Scaffold(
                 bottomBar = {
                     if (!landscape) BottomNav(route, onSelect)

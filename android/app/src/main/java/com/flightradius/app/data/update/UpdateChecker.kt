@@ -13,7 +13,10 @@ import okhttp3.Request
 @Serializable
 data class ReleaseAsset(
     val name: String,
-    @SerialName("browser_download_url") val url: String
+    @SerialName("browser_download_url") val url: String,
+    val size: Long = 0L,
+    /** GitHub's "sha256:<hex>" form; null on older releases. */
+    val digest: String? = null
 )
 
 @Serializable
@@ -28,14 +31,34 @@ data class ReleaseInfo(
     val version: String get() = SemVer.strip(tag)
 }
 
-/** A newer release that was found (persisted so the banner can show on later launches). */
-data class AvailableUpdate(val version: String, val url: String)
+/** The APK chosen for this device, with what is needed to verify it. */
+data class UpdateAsset(val name: String, val url: String, val size: Long, val digest: String?)
+
+/**
+ * A newer release that was found (persisted so the banner can show on later
+ * launches). [asset] is null when no installable APK exists: the UI then only
+ * offers the release page.
+ */
+data class AvailableUpdate(val version: String, val url: String, val asset: UpdateAsset? = null)
 
 enum class UpdateFailure { RATE_LIMITED, NETWORK, OTHER }
 
 /** Release page URLs are only trusted when they point at github.com over https. */
 object UpdateUrls {
     fun fallback(repo: String) = "https://github.com/$repo/releases/latest"
+
+    /**
+     * APK downloads must come from this repo's release assets on github.com over
+     * https. [relaxed] (debug builds with the test flag only) accepts any host.
+     */
+    fun isSafeAssetUrl(url: String?, repo: String, relaxed: Boolean = false): Boolean {
+        val uri = try { java.net.URI(url?.trim().orEmpty()) } catch (_: Exception) { return false }
+        if (uri.userInfo != null) return false
+        if (relaxed) return uri.scheme.equals("https", true) || uri.scheme.equals("http", true)
+        return uri.scheme.equals("https", true) &&
+            uri.host.equals("github.com", true) &&
+            uri.rawPath?.startsWith("/$repo/releases/download/") == true
+    }
 
     fun safe(url: String?, repo: String): String {
         val uri = try { java.net.URI(url?.trim().orEmpty()) } catch (_: Exception) { null }

@@ -30,6 +30,9 @@ class FlightRadiusApp : Application() {
     lateinit var widgetUpdater: com.flightradius.app.widget.WidgetUpdater
 
     @Inject
+    lateinit var updateInstaller: com.flightradius.app.data.update.UpdateInstaller
+
+    @Inject
     lateinit var backgroundPolicy: com.flightradius.app.service.BackgroundPolicy
 
     @Inject
@@ -58,5 +61,6 @@ class FlightRadiusApp : Application() {
         widgetUpdater.start(appScope)
         updateManager.checkOnLaunch()
         backgroundPolicy.start()
+        updateInstaller.clearOldFiles()
     }
 }

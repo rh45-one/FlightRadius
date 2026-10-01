@@ -51,7 +51,6 @@ import com.flightradius.app.domain.DistanceUnit
 import com.flightradius.app.domain.Fleet
 import com.flightradius.app.domain.NearbyAircraft
 import com.flightradius.app.domain.OpenSkyStatus
-import com.flightradius.app.domain.TrackedAircraft
 import com.flightradius.app.domain.UserFix
 import com.flightradius.app.location.LocationStatus
 import com.flightradius.app.service.MonitoringState
@@ -858,22 +857,6 @@ private fun NearbyRow(a: NearbyAircraft, unit: DistanceUnit, onClick: () -> Unit
             }
         }
     )
-}
-
-@Composable
-internal fun NotReportingSection(noData: List<TrackedAircraft>) {
-    if (noData.isEmpty()) return
-    GroupedSection(header = stringResource(R.string.radar_not_reporting)) {
-        noData.forEachIndexed { i, t ->
-            if (i > 0) GroupedDivider()
-            GroupedRow(
-                title = t.identifier,
-                titleStyle = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = CodeFeatures),
-                titleColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                subtitle = stringResource(R.string.radar_no_live_data)
-            )
-        }
-    }
 }
 
 // ---------- action bar ----------
